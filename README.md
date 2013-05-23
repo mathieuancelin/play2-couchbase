@@ -7,5 +7,6 @@ resolvers += "ancelin" at "https://raw.github.com/mathieuancelin/play2-couchbase
 libraryDependencies += "org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.1-SNAPSHOT"
 
 conf/play.plugins :
+
 400:org.ancelin.play2.couchbase.CouchbasePlugin
 

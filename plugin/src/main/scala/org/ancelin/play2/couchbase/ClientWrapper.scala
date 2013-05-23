@@ -233,7 +233,7 @@ trait ClientWrapper {
     if (javaFuture.isDone || javaFuture.isCancelled) {
       promise.success(javaFuture.get)
     } else {
-      Polling.system.scheduler.scheduleOnce(FiniteDuration(10, TimeUnit.MILLISECONDS)) {
+      Polling.system.scheduler.scheduleOnce(FiniteDuration(Polling.delay, TimeUnit.MILLISECONDS)) {
         pollJavaFutureUntilDoneOrCancelled(javaFuture, promise, ec)
       }(ec)
     }
