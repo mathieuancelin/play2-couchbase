@@ -1,0 +1,8 @@
+language: scala
+scala:
+  - 2.10.0
+services:
+  - memcache
+jdk:
+  - openjdk6
+  - oraclejdk6
