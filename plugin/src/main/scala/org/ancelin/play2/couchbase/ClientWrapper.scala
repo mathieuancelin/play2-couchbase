@@ -13,6 +13,7 @@ import java.util.concurrent.TimeUnit
 import net.spy.memcached.internal.OperationFuture
 import com.couchbase.client.internal.HttpFuture
 import play.api.Play.current
+import play.api.Play
 
 // Yeah I know JavaFuture.get is really ugly, but what can I do ???
 // http://stackoverflow.com/questions/11529145/how-do-i-wrap-a-java-util-concurrent-future-in-an-akka-future
@@ -259,7 +260,7 @@ trait ClientWrapper {
 }
 
 object Polling {
-  val delay = play.api.Play.configuration.getLong("couchbase.experimental.pollfutures.delay").getOrElse(50L)
-  val pollingFutures: Boolean = play.api.Play.configuration.getBoolean("couchbase.experimental.pollfutures").getOrElse(false)
+  val delay: Long = play.api.Play.configuration.getLong("couchbase.polldelay").getOrElse(50L)
+  val pollingFutures: Boolean = Play.configuration.getBoolean("couchbase.pollfutures").getOrElse(false)
   val system = ActorSystem("JavaFutureToScalaFuture")
 }
