@@ -5,10 +5,17 @@ import play.Project._
 object ApplicationBuild extends Build {
 
   val appName         = "play2-couchbase"
-  val appVersion      = "0.1"
+  val appVersion      = "0.1-SNAPSHOT"
   val appScalaVersion = "2.10.0"
   val appScalaBinaryVersion = "2.10"
   val appScalaCrossVersions = Seq("2.10.0")
+
+  val local: Project.Initialize[Option[sbt.Resolver]] = version { (version: String) =>
+    val localPublishRepo = "./repository"
+    if(version.trim.endsWith("SNAPSHOT"))
+      Some(Resolver.file("snapshots", new File(localPublishRepo + "/snapshots")))
+    else Some(Resolver.file("releases", new File(localPublishRepo + "/releases")))
+  }
 
   lazy val baseSettings = Defaults.defaultSettings ++ Seq(
     scalaVersion := appScalaVersion,
@@ -33,6 +40,7 @@ object ApplicationBuild extends Build {
       libraryDependencies += "play" %% "play" % "2.1.0" % "provided",
       organization := "org.ancelin.play2.couchbase",
       version := appVersion,
+      publishTo <<= local,
       publishMavenStyle := true,
       publishArtifact in Test := false,
       pomIncludeRepository := { _ => false }
