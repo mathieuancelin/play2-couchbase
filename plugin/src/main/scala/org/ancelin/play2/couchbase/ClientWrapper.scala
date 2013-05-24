@@ -204,7 +204,16 @@ trait ClientWrapper {
   }
 
   private def wrapJavaFutureInFuture[T](javaFuture: OperationFuture[T], ec: ExecutionContext): Future[OperationStatus] = {
-    if (Polling.pollingFutures) {
+    val p = Promise[OperationStatus]()
+    javaFuture.onComplete(new net.spy.memcached.internal.CompletableFuture.CompleteCallback[T] {
+      def onComplete(jf: java.util.concurrent.Future[T]) {
+        jf match {
+          case of: OperationFuture[_] => p.success(of.getStatus)
+        }
+      }
+    })
+    p.future
+    /**if (Polling.pollingFutures) {
       val promise = Promise[OperationStatus]()
       pollCouchbaseFutureUntilDoneOrCancelled(javaFuture, promise, ec)
       promise.future
@@ -213,7 +222,7 @@ trait ClientWrapper {
         javaFuture.get
         javaFuture.getStatus
       }(ec)
-    }
+    }  **/
   }
 
   private def wrapJavaFutureInFuture[T](javaFuture: HttpFuture[T], ec: ExecutionContext): Future[OperationStatus] = {
