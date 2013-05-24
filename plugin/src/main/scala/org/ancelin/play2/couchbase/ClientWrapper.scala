@@ -192,7 +192,19 @@ trait ClientWrapper {
   }
 
   private def wrapJavaFutureInPureFuture[T](javaFuture: java.util.concurrent.Future[T], ec: ExecutionContext): Future[T] = {
-    if (Polling.pollingFutures) {
+    javaFuture match {
+      case of: net.spy.memcached.internal.CompletableFuture[T] => {
+        val p = Promise[T]()
+        of.onComplete(new net.spy.memcached.internal.CompletableFuture.CompleteCallback[T] {
+          def onComplete(jf: java.util.concurrent.Future[T]) {
+            jf.get
+          }
+        })
+        p.future
+      }
+      case _ => throw new RuntimeException("Not a good future !!!!")
+    }
+    /**if (Polling.pollingFutures) {
       val promise = Promise[T]()
       pollJavaFutureUntilDoneOrCancelled(javaFuture, promise, ec)
       promise.future
@@ -200,7 +212,7 @@ trait ClientWrapper {
        Future {
          javaFuture.get
        }(ec)
-    }
+    }**/
   }
 
   private def wrapJavaFutureInFuture[T](javaFuture: OperationFuture[T], ec: ExecutionContext): Future[OperationStatus] = {
@@ -226,7 +238,16 @@ trait ClientWrapper {
   }
 
   private def wrapJavaFutureInFuture[T](javaFuture: HttpFuture[T], ec: ExecutionContext): Future[OperationStatus] = {
-    if (Polling.pollingFutures) {
+    val p = Promise[OperationStatus]()
+    javaFuture.onComplete(new net.spy.memcached.internal.CompletableFuture.CompleteCallback[T] {
+      def onComplete(jf: java.util.concurrent.Future[T]) {
+        jf match {
+          case of: OperationFuture[_] => p.success(of.getStatus)
+        }
+      }
+    })
+    p.future
+    /**if (Polling.pollingFutures) {
       val promise = Promise[OperationStatus]()
       pollCouchbaseFutureUntilDoneOrCancelled(javaFuture, promise, ec)
       promise.future
@@ -235,10 +256,10 @@ trait ClientWrapper {
         javaFuture.get
         javaFuture.getStatus
       }(ec)
-    }
+    }   **/
   }
 
-  private def pollJavaFutureUntilDoneOrCancelled[T](javaFuture: java.util.concurrent.Future[T], promise: Promise[T], ec: ExecutionContext) {
+  /*private def pollJavaFutureUntilDoneOrCancelled[T](javaFuture: java.util.concurrent.Future[T], promise: Promise[T], ec: ExecutionContext) {
     if (javaFuture.isDone || javaFuture.isCancelled) {
       promise.success(javaFuture.get)
     } else {
@@ -265,11 +286,11 @@ trait ClientWrapper {
         pollCouchbaseFutureUntilDoneOrCancelled(javaFuture, promise, ec)
       }(ec)
     }
-  }
+  } */
 }
 
-object Polling {
+/*object Polling {
   val delay: Long = play.api.Play.configuration.getLong("couchbase.polldelay").getOrElse(50L)
   val pollingFutures: Boolean = Play.configuration.getBoolean("couchbase.pollfutures").getOrElse(false)
   val system = ActorSystem("JavaFutureToScalaFuture")
-}
+} */
