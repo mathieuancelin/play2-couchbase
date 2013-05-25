@@ -17,11 +17,21 @@ trait CouchbaseController {
     }
   }
 
+  // not really useful
   def CouchbaseAction(block: (play.api.mvc.Request[AnyContent], CouchbaseClient) => Future[Result]):EssentialAction = {
     Action { request =>
       Async {
         implicit val client = Couchbase.currentCouch(current).client.get
         block(request, client)
+      }
+    }
+  }
+
+  def CouchbaseReqAction(block: play.api.mvc.Request[AnyContent] => CouchbaseClient => Future[Result]):EssentialAction = {
+    Action { request =>
+      Async {
+        implicit val client = Couchbase.currentCouch(current).client.get
+        block(request)(client)
       }
     }
   }
