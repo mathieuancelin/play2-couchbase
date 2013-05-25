@@ -1,8 +1,6 @@
 Couchbase Plugin for Play framework 2.1
 ---------------------------------------
 
-How to use it :
-
 in your `project/Build.scala` file add in the main section :
 
 `resolvers += "ancelin" at "https://raw.github.com/mathieuancelin/play2-couchbase/master/repository/snapshots"`
