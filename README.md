@@ -3,7 +3,7 @@ Couchbase Plugin for Play framework 2.1
 
 How to use it :
 
-in your project/Build.scala file add in the main section :
+in your `project/Build.scala` file add in the main section :
 
 `resolvers += "ancelin" at "https://raw.github.com/mathieuancelin/play2-couchbase/master/repository/snapshots"`
 
@@ -11,11 +11,11 @@ and in the appDependencies section :
 
 `"org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.1-SNAPSHOT"`
 
-create a conf/play.plugins file and add :
+create a `conf/play.plugins` file and add :
 
 `400:org.ancelin.play2.couchbase.CouchbasePlugin`
 
-add in your conf/application.conf file :
+add in your `conf/application.conf` file :
 
 ```
 
@@ -38,7 +38,7 @@ couchbase {
 
 ```
 
-then you will be able to use the couchbase API from your Play controllers. The following code is asynchronous and uses Play's Async { ... } API under the hood. As you will need an execution context for all those async calls, you can use `Couchbase.couchbaseExecutor` base on your application.conf file. You can of course use Play default Execution Context (through import play.api.libs.concurrent.Execution.Implicits._) or your own.
+then you will be able to use the couchbase API from your Play controllers. The following code is asynchronous and uses Play's `Async { ... }`API under the hood. As you will need an execution context for all those async calls, you can use `Couchbase.couchbaseExecutor` base on your `application.conf` file. You can of course use Play default Execution Context (through `import play.api.libs.concurrent.Execution.Implicits._`) or your own.
 
 ```scala
 
