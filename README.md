@@ -38,7 +38,7 @@ couchbase {
 
 ```
 
-then you will be able to use the couchbase API from your Play controllers
+then you will be able to use the couchbase API from your Play controllers. The following code is asynchronous and uses Play's Async { ... } API under the hood. As you will need an execution context for all those async calls, you can use `Couchbase.couchbaseExecutor` base on your application.conf file. You can of course use Play default Execution Context (through import play.api.libs.concurrent.Execution.Implicits._) or your own.
 
 ```scala
 
@@ -53,12 +53,42 @@ case class User(name: String, surname: String, email: String)
 
 object UserController extends Controller with CouchbaseController {
 
-  implicit val customExecutionContext = Couchbase.couchbaseExecutor
+  implicit val couchbaseExecutionContext = Couchbase.couchbaseExecutor
   implicit val userReader = Json.reads[User]
 
   def getUser(key: String) = CouchbaseAction { implicit couchbaseclient =>
     get[User](key).map { maybeUser =>
       maybeUser.map(user => Ok(views.html.user(user)).getOrElse(BadRequest(s"Unable to find user with key: $key"))
+    }
+  }
+}
+
+```
+
+this code is a shortcut for 
+
+```scala
+
+import play.api.mvc.{Action, Controller}
+import play.api.libs.json._
+import org.ancelin.play2.couchbase.Couchbase._
+import org.ancelin.play2.couchbase.Couchbase
+import play.api.Play.current
+
+case class User(name: String, surname: String, email: String)
+
+object UserController extends Controller {
+
+  implicit val couchbaseExecutionContext = Couchbase.couchbaseExecutor
+  implicit val userReader = Json.reads[User]
+
+  def getUser(key: String) = Action { 
+    Async {
+      withCouchbase { implicit couchbaseclient =>
+        get[User](key).map { maybeUser =>
+          maybeUser.map(user => Ok(views.html.user(user)).getOrElse(BadRequest(s"Unable to find user with key: $key"))
+        }
+      }
     }
   }
 }
