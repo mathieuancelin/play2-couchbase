@@ -8,6 +8,8 @@ import collection.JavaConversions._
 import collection.mutable.ArrayBuffer
 import play.api.Play.current
 import scala.Some
+import scala.concurrent.ExecutionContext
+import play.api.libs.concurrent.Akka
 
 class Couchbase(val client: Option[CouchbaseClient], val host: String, val port: String, val base: String, val bucket: String, val pass: String, val timeout: Long) {
 
@@ -35,6 +37,13 @@ object Couchbase extends ClientWrapper {
   def currentCouch(implicit app: Application): Couchbase = app.plugin[CouchbasePlugin] match {
     case Some(plugin) => plugin.defaultCouch.getOrElse(throw new PlayException("CouchbasePlugin Error", connectMessage))
     case _ => throw new PlayException("CouchbasePlugin Error", initMessage)
+  }
+
+  def couchbaseExecutor(implicit app: Application): ExecutionContext = {
+    app.configuration.getObject("couchbase.execution-context") match {
+      case Some(_) => Akka.system(app).dispatchers.lookup("couchbase.execution-context")
+      case _ => throw new RuntimeException("You have to define a 'couchbase.execution-context' object in the conf file.")
+    }
   }
 
   def apply(
