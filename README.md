@@ -5,17 +5,19 @@ How to use it :
 
 in your project/Build.scala file add in the main section :
 
-resolvers += "ancelin" at "https://raw.github.com/mathieuancelin/play2-couchbase/master/repository/snapshots"
+`resolvers += "ancelin" at "https://raw.github.com/mathieuancelin/play2-couchbase/master/repository/snapshots"`
 
 and in the appDependencies section :
 
-"org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.1-SNAPSHOT"
+`"org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.1-SNAPSHOT"`
 
 create a conf/play.plugins file and add :
 
-400:org.ancelin.play2.couchbase.CouchbasePlugin
+400:org.ancelin.play2.couchbase.CouchbasePlugin`
 
 add in your conf/application.conf file :
+
+```
 
 couchbase {
     host="127.0.0.1"
@@ -33,6 +35,8 @@ couchbase {
         }
     }
 }
+
+```
 
 then you will be able to use the couchbase API from your Play controllers
 
