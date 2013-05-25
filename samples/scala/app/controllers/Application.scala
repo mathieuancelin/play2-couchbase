@@ -4,9 +4,10 @@ import play.api.mvc.{Action, Controller}
 import play.api.libs.json._
 import org.ancelin.play2.couchbase.CouchbaseReads._
 import org.ancelin.play2.couchbase.Couchbase._
-import play.api.libs.concurrent.Execution.Implicits._
+import org.ancelin.play2.couchbase.Couchbase
 import com.couchbase.client.protocol.views.{ComplexKey, Query}
 import org.ancelin.play2.couchbase.CouchbaseController
+import play.api.Play.current
 
 //import play.api.libs.json.Reads._
 //import play.api.libs.json.Writes._
@@ -16,6 +17,7 @@ case class Beer(name: String, code: String)
 
 object Application extends Controller with CouchbaseController {
 
+  implicit val customExecutionContext = Couchbase.couchbaseExecutor
   implicit val personReader = Json.reads[Person]
   implicit val personWriter = Json.writes[Person]
   implicit val beerReader = new Reads[Beer] {
