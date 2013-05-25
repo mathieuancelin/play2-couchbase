@@ -10,8 +10,8 @@ import net.spy.memcached.{ReplicateTo, PersistTo}
 import akka.actor.ActorSystem
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
-import net.spy.memcached.internal.OperationFuture
-import com.couchbase.client.internal.HttpFuture
+import net.spy.memcached.internal.{GetFuture, OperationFuture}
+import com.couchbase.client.internal.{ViewFuture, HttpFuture}
 import play.api.Play.current
 import play.api.Play
 
@@ -193,16 +193,16 @@ trait ClientWrapper {
 
   private def wrapJavaFutureInPureFuture[T](javaFuture: java.util.concurrent.Future[T], ec: ExecutionContext): Future[T] = {
     javaFuture match {
-      case of: net.spy.memcached.internal.CompletableFuture[T] => {
+      case cf: net.spy.memcached.internal.CompletableFuture[T] => {
         val p = Promise[T]()
-        of.onComplete(new net.spy.memcached.internal.CompletableFuture.CompleteCallback[T] {
+        cf.onComplete(new net.spy.memcached.internal.CompletableFuture.CompleteCallback[T] {
           def onComplete(jf: java.util.concurrent.Future[T]) {
-            jf.get
+            p.success(jf.get)
           }
         })
         p.future
       }
-      case _ => throw new RuntimeException("Not a good future !!!!")
+      case e => throw new RuntimeException(s"Not a good future !!!! (${e.getClass.getName}})")
     }
     /**if (Polling.pollingFutures) {
       val promise = Promise[T]()
@@ -247,6 +247,7 @@ trait ClientWrapper {
       }
     })
     p.future
+  }
     /**if (Polling.pollingFutures) {
       val promise = Promise[OperationStatus]()
       pollCouchbaseFutureUntilDoneOrCancelled(javaFuture, promise, ec)
@@ -257,7 +258,6 @@ trait ClientWrapper {
         javaFuture.getStatus
       }(ec)
     }   **/
-  }
 
   /*private def pollJavaFutureUntilDoneOrCancelled[T](javaFuture: java.util.concurrent.Future[T], promise: Promise[T], ec: ExecutionContext) {
     if (javaFuture.isDone || javaFuture.isCancelled) {
