@@ -14,19 +14,20 @@
 
     <script type="text/javascript">
         $(document).ready(function() {
+
             $.get('@routes.Application.getContent("test1")').then(function(data) {
                $('#get1').html(data);
-            }).then(function() {
-                return $.get('@routes.Application.getPerson("toto")')
-            }).then(function(data) {
+            });
+
+            $.get('@routes.Application.getPerson("toto")').then(function(data) {
                 $('#get2').html(data);
-            }).then(function() {
-                return $.get('@routes.Application.create()')
-            }).then(function(data) {
+            });
+
+            $.get('@routes.Application.create()').then(function(data) {
                 $('#get3').html(data);
-            }).then(function() {
-                return $.get('@routes.Application.query()')
-            }).then(function(data) {
+            });
+
+            $.get('@routes.Application.query()').then(function(data) {
                 $('#get4').html(data);
             });
         });
