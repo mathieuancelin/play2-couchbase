@@ -13,7 +13,7 @@ and in the appDependencies section :
 
 create a conf/play.plugins file and add :
 
-400:org.ancelin.play2.couchbase.CouchbasePlugin`
+`400:org.ancelin.play2.couchbase.CouchbasePlugin`
 
 add in your conf/application.conf file :
 
