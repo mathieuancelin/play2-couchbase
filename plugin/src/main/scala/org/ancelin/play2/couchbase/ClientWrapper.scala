@@ -23,7 +23,7 @@ trait ClientWrapper {
     wrapJavaFutureInPureFuture( client.asyncQuery(view, query), ec ).map { results =>
       results.iterator().map { result =>
         r.reads(Json.parse(result.getDocument.asInstanceOf[String])) match {
-          case e:JsError => {println(e.toString);None}
+          case e:JsError => None
           case s:JsSuccess[T] => s.asOpt
         }
       }.toList.filter(_.isDefined).map(_.get)
@@ -260,7 +260,10 @@ trait ClientWrapper {
 }
 
 object Polling {
-  val delay: Long = play.api.Play.configuration.getLong("couchbase.polldelay").getOrElse(50L)
-  val pollingFutures: Boolean = Play.configuration.getBoolean("couchbase.pollfutures").getOrElse(false)
+  val delay: Long = Play.configuration.getLong("couchbase-ec.polldelay").getOrElse(50L)
+  val pollingFutures: Boolean = Play.configuration.getBoolean("couchbase-ec.pollfutures").getOrElse(false)
   val system = ActorSystem("JavaFutureToScalaFuture")
+  if (pollingFutures) {
+    play.api.Logger("CouchbasePlugin").info("Using polling to wait for Java Future.")
+  }
 }

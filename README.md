@@ -17,22 +17,25 @@ add in your `conf/application.conf` file :
 
 ```
 
-couchbase {
+couchbase-ec {
+  pollfutures=true
+  polldelay=50
+  execution-context {
+    fork-join-executor {
+      parallelism-factor = 20.0
+      parallelism-max = 200
+    }
+  }
+}
+
+couchbase = [{
     host="127.0.0.1"
     port="8091"
     base="pools"
     bucket="bucketname"
-    pass="bucketpass"
+    pass=""
     timeout="0"
-    pollfutures=true
-    polldelay=50
-    execution-context {
-        fork-join-executor {
-            parallelism-factor = 20.0
-            parallelism-max = 200
-        }
-    }
-}
+}]
 
 ```
 

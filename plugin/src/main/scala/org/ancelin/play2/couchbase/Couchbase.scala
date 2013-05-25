@@ -35,13 +35,21 @@ object Couchbase extends ClientWrapper {
   private val connectMessage = "The CouchbasePlugin doesn't seems to be connected to a Couchbase server. Maybe an error occured!"
 
   def currentCouchbase(implicit app: Application): Couchbase = app.plugin[CouchbasePlugin] match {
-    case Some(plugin) => plugin.defaultCouch.getOrElse(throw new PlayException("CouchbasePlugin Error", connectMessage))
+    case Some(plugin) => plugin.buckets.headOption.getOrElse(throw new PlayException("CouchbasePlugin Error", connectMessage))._2
     case _ => throw new PlayException("CouchbasePlugin Error", initMessage)
   }
 
+  def currentCouchbase(bucket: String)(implicit app: Application): Couchbase = currentBuckets(app).get(bucket).getOrElse(throw new RuntimeException(s"Bucket '$bucket' is not defined"))
+
+  def currentBuckets(implicit app: Application): Map[String, Couchbase] =  app.plugin[CouchbasePlugin] match {
+    case Some(plugin) => plugin.buckets
+    case _ => throw new PlayException("CouchbasePlugin Error", initMessage)
+  }
+
+
   def couchbaseExecutor(implicit app: Application): ExecutionContext = {
-    app.configuration.getObject("couchbase.execution-context") match {
-      case Some(_) => Akka.system(app).dispatchers.lookup("couchbase.execution-context")
+    app.configuration.getObject("couchbase-ec.execution-context") match {
+      case Some(_) => Akka.system(app).dispatchers.lookup("couchbase-ec.execution-context")
       case _ => throw new RuntimeException("You have to define a 'couchbase.execution-context' object in the conf file.")
     }
   }
@@ -57,13 +65,6 @@ object Couchbase extends ClientWrapper {
   }
 
   def withCouchbase[T](block: CouchbaseClient => T): T = currentCouchbase.withCouchbase(block).get
+  def withCouchbase[T](bucket: String)(block: CouchbaseClient => T): T = currentCouchbase(bucket).withCouchbase(block).get
 
-  def withSingleCouchbase[T](block: CouchbaseClient => T): T = {
-    val couch = Couchbase().connect()
-    try {
-      couch.withCouchbase(block).get
-    } finally {
-      couch.disconnect()
-    }
-  }
 }
