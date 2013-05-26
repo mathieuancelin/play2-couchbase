@@ -86,7 +86,7 @@ trait ClientWrapper {
   }
   
   def set[T](key: String, value: T, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    set(key, 0, value, replicateTo)(client, w, ec)
+    set(key, Polling.persist, value, replicateTo)(client, w, ec)
   }
   
   def set[T](key: String, exp: Int, value: T, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
@@ -94,7 +94,7 @@ trait ClientWrapper {
   }
   
   def set[T](key: String, value: T, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    set(key, 0, value, persistTo)(client, w, ec)
+    set(key, Polling.persist, value, persistTo)(client, w, ec)
   }
   
   def set[T](key: String, exp: Int, value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
@@ -102,7 +102,7 @@ trait ClientWrapper {
   }
   
   def set[T](key: String, value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    set(key, 0, value, persistTo, replicateTo)(client, w, ec)
+    set(key, Polling.persist, value, persistTo, replicateTo)(client, w, ec)
   }
 
   def add[T](key: String, exp: Int, value: T)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
@@ -114,7 +114,7 @@ trait ClientWrapper {
   }
   
   def add[T](key: String, value: T, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    add(key, 0, value, replicateTo)(client, w, ec)
+    add(key, Polling.persist, value, replicateTo)(client, w, ec)
   }
   
   def add[T](key: String, exp: Int, value: T, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
@@ -122,7 +122,7 @@ trait ClientWrapper {
   }
   
   def add[T](key: String, value: T, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    add(key, 0, value, persistTo)(client, w, ec)
+    add(key, Polling.persist, value, persistTo)(client, w, ec)
   }
   
   def add[T](key: String, exp: Int, value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
@@ -130,7 +130,7 @@ trait ClientWrapper {
   }
   
   def add[T](key: String, value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    add(key, 0, value, persistTo, replicateTo)(client, w, ec)
+    add(key, Polling.persist, value, persistTo, replicateTo)(client, w, ec)
   }
 
   def delete(key: String)(implicit client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
@@ -158,7 +158,7 @@ trait ClientWrapper {
   }
   
   def replace[T](key: String, value: T, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-     replace(key, 0, value, replicateTo)(client, w, ec)
+     replace(key, Polling.persist, value, replicateTo)(client, w, ec)
   }
   
   def replace[T](key: String, exp: Int, value: T, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
@@ -166,7 +166,7 @@ trait ClientWrapper {
   }
   
   def replace[T](key: String, value: T, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    replace(key, 0, value, persistTo)(client, w, ec)
+    replace(key, Polling.persist, value, persistTo)(client, w, ec)
   }
   
   def replace[T](key: String, exp: Int, value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
@@ -174,7 +174,7 @@ trait ClientWrapper {
   }
   
   def replace[T](key: String, value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    replace(key, 0, value, persistTo,replicateTo)(client, w, ec)
+    replace(key, Polling.persist, value, persistTo,replicateTo)(client, w, ec)
   }
 
   def flush(delay: Int)(implicit client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
@@ -182,19 +182,19 @@ trait ClientWrapper {
   }
 
   def flush()(implicit client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
-     flush(0)(client, ec)
+     flush(Polling.persist)(client, ec)
   }
 
   def set[T](key: String, value: T)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    set(key, 0, value)(client, w, ec)
+    set(key, Polling.persist, value)(client, w, ec)
   }
 
   def add[T](key: String, value: T)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    add(key, 0, value)(client, w, ec)
+    add(key, Polling.persist, value)(client, w, ec)
   }
 
   def replace[T](key: String, value: T)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    replace(key, 0, value)(client, w, ec)
+    replace(key, Polling.persist, value)(client, w, ec)
   }
 
   private def wrapJavaFutureInPureFuture[T](javaFuture: java.util.concurrent.Future[T], ec: ExecutionContext): Future[T] = {
@@ -266,6 +266,7 @@ trait ClientWrapper {
 }
 
 object Polling {
+  val persist: Int = -1
   val delay: Long = Play.configuration.getLong("couchbase-ec.polldelay").getOrElse(50L)
   val pollingFutures: Boolean = Play.configuration.getBoolean("couchbase-ec.pollfutures").getOrElse(false)
   val system = ActorSystem("JavaFutureToScalaFuture")
