@@ -7,14 +7,14 @@ import com.couchbase.client.CouchbaseClient
 
 trait CouchbaseController { self: Controller =>
 
-  def bucket = Couchbase.currentCouchbase(current)
+  def bucket = Couchbase.defaultBucket(current)
   def client = bucket.client
-  def buckets = Couchbase.currentBuckets
+  def buckets = Couchbase.buckets
 
   def CouchbaseAction(block: CouchbaseClient => Future[Result]):EssentialAction = {
     Action {
       Async {
-        implicit val client = Couchbase.currentCouchbase(current).client.get
+        implicit val client = Couchbase.defaultBucket(current).client.get
         block(client)
       }
     }
@@ -23,7 +23,7 @@ trait CouchbaseController { self: Controller =>
   def CouchbaseAction(bucket :String)(block: CouchbaseClient => Future[Result]):EssentialAction = {
     Action {
       Async {
-        implicit val client = Couchbase.currentCouchbase(bucket)(current).client.get
+        implicit val client = Couchbase.bucket(bucket)(current).client.get
         block(client)
       }
     }
@@ -32,7 +32,7 @@ trait CouchbaseController { self: Controller =>
   def CouchbaseReqAction(block: play.api.mvc.Request[AnyContent] => CouchbaseClient => Future[Result]):EssentialAction = {
     Action { request =>
       Async {
-        implicit val client = Couchbase.currentCouchbase(current).client.get
+        implicit val client = Couchbase.defaultBucket(current).client.get
         block(request)(client)
       }
     }
@@ -41,7 +41,7 @@ trait CouchbaseController { self: Controller =>
   def CouchbaseReqAction(bucket :String)(block: play.api.mvc.Request[AnyContent] => CouchbaseClient => Future[Result]):EssentialAction = {
     Action { request =>
       Async {
-        implicit val client = Couchbase.currentCouchbase(bucket)(current).client.get
+        implicit val client = Couchbase.bucket(bucket)(current).client.get
         block(request)(client)
       }
     }
