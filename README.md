@@ -96,3 +96,6 @@ object UserController extends Controller {
 
 ```
 
+If you want to clone this git repo, as we embed snapshot libs (maybe we will move it later), it can be useful to use
+
+`git clone --depth xxx git://github.com/mathieuancelin/play2-couchbase.git`
