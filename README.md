@@ -18,6 +18,7 @@ add in your `conf/application.conf` file :
 ```
 
 couchbase-ec {
+  timeout=1000
   pollfutures=true
   polldelay=50
   execution-context {

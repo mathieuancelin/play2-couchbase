@@ -420,7 +420,7 @@ trait ClientWrapper {
       promise.future
     } else {
        Future {
-         javaFuture.get(1, TimeUnit.SECONDS)
+         javaFuture.get(Constants.timeout, TimeUnit.MILLISECONDS)
        }(ec)
     }
   }
@@ -432,7 +432,7 @@ trait ClientWrapper {
       promise.future
     } else {
       Future {
-        javaFuture.get(1, TimeUnit.SECONDS)
+        javaFuture.get(Constants.timeout, TimeUnit.MILLISECONDS)
         javaFuture.getStatus
       }(ec)
     }
@@ -445,7 +445,7 @@ trait ClientWrapper {
       promise.future
     } else {
       Future {
-        javaFuture.get(1, TimeUnit.SECONDS)
+        javaFuture.get(Constants.timeout, TimeUnit.MILLISECONDS)
         javaFuture.getStatus
       }(ec)
     }
@@ -453,7 +453,7 @@ trait ClientWrapper {
 
   private def pollJavaFutureUntilDoneOrCancelled[T](javaFuture: java.util.concurrent.Future[T], promise: Promise[T], ec: ExecutionContext) {
     if (javaFuture.isDone || javaFuture.isCancelled) {
-      promise.success(javaFuture.get(1, TimeUnit.SECONDS))
+      promise.success(javaFuture.get(Constants.timeout, TimeUnit.MILLISECONDS))
     } else {
       Polling.system.scheduler.scheduleOnce(FiniteDuration(Polling.delay, TimeUnit.MILLISECONDS)) {
         pollJavaFutureUntilDoneOrCancelled(javaFuture, promise, ec)
@@ -465,11 +465,11 @@ trait ClientWrapper {
     if (javaFuture.isDone || javaFuture.isCancelled) {
       javaFuture match {
         case o: OperationFuture[T] => {
-          o.get(1, TimeUnit.SECONDS)
+          o.get(Constants.timeout, TimeUnit.MILLISECONDS)
           promise.success(o.getStatus)
         }
         case h: HttpFuture[T] => {
-          h.get(1, TimeUnit.SECONDS)
+          h.get(Constants.timeout, TimeUnit.MILLISECONDS)
           promise.success(h.getStatus)
         }
       }
@@ -483,6 +483,7 @@ trait ClientWrapper {
 
 object Constants {
   val expiration: Int = -1
+  val timeout: Long = Play.configuration.getLong("couchbase-ec.timeout").getOrElse(1000L)
   implicit val defaultPersistTo: PersistTo = PersistTo.ZERO
   implicit val defaultReplicateTo: ReplicateTo = ReplicateTo.ZERO
 }
