@@ -420,7 +420,7 @@ trait ClientWrapper {
       promise.future
     } else {
        Future {
-         javaFuture.get
+         javaFuture.get(1, TimeUnit.SECONDS)
        }(ec)
     }
   }
@@ -432,7 +432,7 @@ trait ClientWrapper {
       promise.future
     } else {
       Future {
-        javaFuture.get
+        javaFuture.get(1, TimeUnit.SECONDS)
         javaFuture.getStatus
       }(ec)
     }
@@ -445,7 +445,7 @@ trait ClientWrapper {
       promise.future
     } else {
       Future {
-        javaFuture.get
+        javaFuture.get(1, TimeUnit.SECONDS)
         javaFuture.getStatus
       }(ec)
     }
@@ -453,7 +453,7 @@ trait ClientWrapper {
 
   private def pollJavaFutureUntilDoneOrCancelled[T](javaFuture: java.util.concurrent.Future[T], promise: Promise[T], ec: ExecutionContext) {
     if (javaFuture.isDone || javaFuture.isCancelled) {
-      promise.success(javaFuture.get)
+      promise.success(javaFuture.get(1, TimeUnit.SECONDS))
     } else {
       Polling.system.scheduler.scheduleOnce(FiniteDuration(Polling.delay, TimeUnit.MILLISECONDS)) {
         pollJavaFutureUntilDoneOrCancelled(javaFuture, promise, ec)
@@ -465,11 +465,11 @@ trait ClientWrapper {
     if (javaFuture.isDone || javaFuture.isCancelled) {
       javaFuture match {
         case o: OperationFuture[T] => {
-          o.get
+          o.get(1, TimeUnit.SECONDS)
           promise.success(o.getStatus)
         }
         case h: HttpFuture[T] => {
-          h.get
+          h.get(1, TimeUnit.SECONDS)
           promise.success(h.getStatus)
         }
       }
