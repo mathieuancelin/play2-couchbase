@@ -56,13 +56,15 @@ object Application extends Controller with CouchbaseController {
   }
 
   def query() = CouchbaseAction { implicit client =>
-    val view = client.getView("beer", "by_name")
+    //val findBeerByName = find[Beer]("beer", "by_name")
     val query = new Query().setIncludeDocs(true)
       .setLimit(20)
       .setRangeStart(ComplexKey.of("(512)"))
       .setRangeEnd(ComplexKey.of("(512)" + "\uefff"))
-
-    find[Beer](view, query).map { list =>
+    /*findBeerByName(query).map { list =>
+      Ok(list.map(_.toString).mkString("\n"))
+    }*/
+    find[Beer]("beer", "by_name")(query).map { list =>
       Ok(list.map(_.toString).mkString("\n"))
     }
   }

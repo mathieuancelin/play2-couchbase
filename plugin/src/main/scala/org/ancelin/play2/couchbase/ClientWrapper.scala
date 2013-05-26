@@ -20,20 +20,12 @@ import play.api.Play
 trait ClientWrapper {
 
   def find[T](docName:String, viewName: String)(query: Query)(implicit client: CouchbaseClient, r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
-    find[T](docName, viewName, query)(client, r, ec)
-  }
-
-  def find[T](docName:String, viewName: String, query: Query)(implicit client: CouchbaseClient, r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
     view(docName, viewName)(client, ec).flatMap { view =>
-      find[T](view, query)(client, r, ec)
+      find[T](view)(query)(client, r, ec)
     }
   }
 
   def find[T](view: View)(query: Query)(implicit client: CouchbaseClient, r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
-    find[T](view, query)(client, r, ec)
-  }
-
-  def find[T](view: View, query: Query)(implicit client: CouchbaseClient, r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
     wrapJavaFutureInPureFuture( client.asyncQuery(view, query), ec ).map { results =>
       results.iterator().map { result =>
         r.reads(Json.parse(result.getDocument.asInstanceOf[String])) match {
