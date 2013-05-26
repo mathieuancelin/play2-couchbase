@@ -77,6 +77,32 @@ trait ClientWrapper {
     }
   }
 
+  def set[T <: {def id:String}](value: T, exp: Int)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set[T](value.id, exp, value)(client, w, ec)
+  }
+
+  def set[T <: {def id:String}](value: T)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set[T](value.id, value)(client, w, ec)
+  }
+
+  def set[T](value: T, key: T => String, exp: Int)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set[T](key(value), exp, value)(client, w, ec)
+  }
+
+  def set[T](value: T, key: T => String)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set[T](key(value), value)(client, w, ec)
+  }
+
+  def set[T](value: T, exp: Int)(key: T => String)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set[T](key(value), exp, value)(client, w, ec)
+  }
+
+  def set[T](value: T)(key: T => String)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set[T](key(value), value)(client, w, ec)
+  }
+
+  // TODO : replicates & persists
+
   def set[T](key: String, exp: Int, value: T)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     wrapJavaFutureInFuture( client.set(key, exp, Json.stringify(w.writes(value))), ec )
   }
