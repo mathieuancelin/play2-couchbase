@@ -7,8 +7,8 @@ import com.couchbase.client.CouchbaseClient
 
 trait CouchbaseController { self: Controller =>
 
-  def bucket = Couchbase.defaultBucket(current)
-  def client = bucket.client
+  def defaultBucket = Couchbase.defaultBucket(current)
+  def defaultClient = defaultBucket.client
   def buckets = Couchbase.buckets
 
   def CouchbaseAction(block: CouchbaseClient => Future[Result]):EssentialAction = {
