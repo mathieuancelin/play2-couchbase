@@ -188,7 +188,7 @@ object Beer {
 
   def remove(beer: Beer): Future[OperationStatus] = {
     // verbose syntax
-    delete(beer.id)(bucket.client, ec)
+    delete[Beer](beer)(bucket.client, ec)
   }
 }
 

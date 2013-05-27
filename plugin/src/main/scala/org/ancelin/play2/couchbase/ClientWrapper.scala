@@ -397,6 +397,22 @@ trait ClientWrapper {
     wrapJavaFutureInFuture( client.delete(key, persistTo, replicateTo), ec )
   }
 
+  def delete[T <: {def id:String}](value: T)(implicit client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( client.delete(value.id), ec )
+  }
+
+  def delete[T <: {def id:String}](value: T, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( client.delete(value.id, replicateTo), ec )
+  }
+
+  def delete[T <: {def id:String}](value: T, persistTo: PersistTo)(implicit client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( client.delete(value.id, persistTo), ec )
+  }
+
+  def delete[T <: {def id:String}](value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( client.delete(value.id, persistTo, replicateTo), ec )
+  }
+
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Flush Operations
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
