@@ -160,7 +160,10 @@ import org.ancelin.play2.couchbase.Couchbase._
 import org.ancelin.play2.couchbase.Couchbase
 import play.api.Play.current
 
-case class Beer(id: String, name: String, brewery: String)
+case class Beer(id: String, name: String, brewery: String) {
+  def save(): Future[OperationStatus] = Beer.save(this)
+  def delete(): Future[OperationStatus] = Beer.delete(this)
+}
 
 object Beer {
 
@@ -168,7 +171,7 @@ object Beer {
   implicit val beerWriter = Json.writes[Beer]
   implicit val ec = Couchbase.couchbaseExecutor
 
-  val bucket = Couchbase.bucket("bucket2")   // can be declared as implicit to avoid 'bucket.withCouchbase' usage
+  val bucket = Couchbase.bucket("bucket2")   // can be declared as implicit to avoid 'bucket.withCouchbase { ... }' usage
 
   def findById(id: String): Future[Option[Beer]] = {
     // implicit syntax
@@ -177,9 +180,14 @@ object Beer {
     }
   }
 
-  def save(beer: Beer): Future[OperationStatus]] = {
+  def save(beer: Beer): Future[OperationStatus] = {
     // verbose syntax
-    add[Beer](beer)(bucket.client, beerWriter, ec)
+    set[Beer](beer)(bucket.client, beerWriter, ec)
+  }
+
+  def delete(beer: Beer): Future[OperationStatus] = {
+    // verbose syntax
+    delete(beer.id)(bucket.client, ec)
   }
 }
 
