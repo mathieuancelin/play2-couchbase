@@ -97,6 +97,95 @@ object UserController extends Controller {
 
 ```
 
+You can of course connect many buckets with :
+
+```
+
+couchbase = [{
+    host="127.0.0.1"
+    port="8091"
+    base="pools"
+    bucket="bucket1"
+    pass=""
+    timeout="0"
+}, {
+   host="127.0.0.1"
+   port="8091"
+   base="pools"
+   bucket="bucket2"
+   pass=""
+   timeout="0"
+}, {
+   host="192.168.0.42"
+   port="8091"
+   base="pools"
+   bucket="bucket3"
+   pass=""
+   timeout="0"
+}]
+
+```
+
+then select one of them for each of your operation :
+
+```scala
+
+object UserController extends Controller with CouchbaseController {
+
+  implicit val couchbaseExecutionContext = Couchbase.couchbaseExecutor
+  implicit val userReader = Json.reads[User]
+  implicit val beerReader = Json.reads[Beer]
+
+  def getUser(key: String) = CouchbaseAction("bucket1") { implicit couchbaseclient =>
+    get[User](key).map { maybeUser =>
+      maybeUser.map(user => Ok(views.html.user(user)).getOrElse(BadRequest(s"Unable to find user with key: $key"))
+    }
+  }
+
+  def getBeer(key: String) = CouchbaseAction("bucket2") { implicit couchbaseclient =>
+      get[Beer](key).map { maybeBeer =>
+        maybeBeer.map(beer => Ok(views.html.beer(beer)).getOrElse(BadRequest(s"Unable to find beer with key: $key"))
+      }
+    }
+}
+
+```
+
+or from inside a model :
+
+```scala
+
+import play.api.libs.json._
+import org.ancelin.play2.couchbase.Couchbase._
+import org.ancelin.play2.couchbase.Couchbase
+import play.api.Play.current
+
+case class Beer(id: String, name: String, brewery: String)
+
+object Beer {
+
+  implicit val beerReader = Json.reads[Beer]
+  implicit val beerWriter = Json.writes[Beer]
+  implicit val ec = Couchbase.couchbaseExecutor
+
+  val bucket = Couchbase.bucket("bucket2")   // can be declared as implicit to avoid 'bucket.withCouchbase' usage
+
+  def findById(id: String): Future[Option[Beer]] = {
+    // implicit syntax
+    bucket.withCouchbase { implicit client =>
+      get[Beer](id)
+    }
+  }
+
+  def save(beer: Beer): Future[OperationStatus]] = {
+    // verbose syntax
+    add[Beer](beer)(bucket.client, beerWriter, ec)
+  }
+}
+
+```
+
+
 If you want to clone this git repo, as we embed snapshot libs (maybe we will move it later), it can be useful to use
 
 `git clone --depth xxx git://github.com/mathieuancelin/play2-couchbase.git`
