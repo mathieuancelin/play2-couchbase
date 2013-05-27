@@ -171,7 +171,6 @@ object Beer {
   implicit val beerWriter = Json.writes[Beer]
   implicit val ec = Couchbase.couchbaseExecutor
 
-  // can be declared as implicit to avoid 'bucket.withCouchbase { ... }' usage
   val bucket = Couchbase.bucket("bucket2")
 
   val byNameFinder = find[Beer]("beer", "by_name")
