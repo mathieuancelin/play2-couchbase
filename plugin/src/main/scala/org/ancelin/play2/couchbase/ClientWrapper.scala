@@ -426,6 +426,48 @@ trait ClientWrapper {
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // Java Operations
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  def javaReplace(key: String, exp: Int, value: String, persistTo: PersistTo, replicateTo: ReplicateTo, client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( client.replace(key, exp, value, persistTo, replicateTo), ec )
+  }
+
+  def javaAdd(key: String, exp: Int, value: String, persistTo: PersistTo, replicateTo: ReplicateTo, client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( client.add(key, exp, value, persistTo, replicateTo), ec )
+  }
+
+  def javaSet(key: String, exp: Int, value: String, persistTo: PersistTo, replicateTo: ReplicateTo, client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( client.replace(key, exp, value, persistTo, replicateTo), ec )
+  }
+
+  def javaGet[T](key: String, clazz: Class[T], client: CouchbaseClient, ec: ExecutionContext): Future[T] = {
+    wrapJavaFutureInPureFuture( client.asyncGet(key), ec ).map { f =>
+      f match {
+        case value: String => play.libs.Json.fromJson(play.libs.Json.parse(value), clazz)
+      }
+    }(ec)
+  }
+
+  def javaFind[T](docName:String, viewName: String, query: Query, clazz: Class[T], client: CouchbaseClient, ec: ExecutionContext): Future[java.util.Collection[T]] = {
+    view(docName, viewName)(client, ec).flatMap { view =>
+      javaFind[T](view, query, clazz, client, ec)
+    }(ec)
+  }
+
+  def javaFind[T](view: View, query: Query, clazz: Class[T], client: CouchbaseClient, ec: ExecutionContext): Future[java.util.Collection[T]] = {
+    wrapJavaFutureInPureFuture( client.asyncQuery(view, query), ec ).map { results =>
+      asJavaCollection(results.iterator().map { result =>
+        play.libs.Json.fromJson(play.libs.Json.parse(result.getDocument.asInstanceOf[String]), clazz)
+      }.toList)
+    }(ec)
+  }
+
+  def javaView(docName: String, viewName: String, client: CouchbaseClient, ec: ExecutionContext): Future[View] = {
+    wrapJavaFutureInPureFuture( client.asyncGetView(docName, viewName), ec )
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Private API to manage Java Futures
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
