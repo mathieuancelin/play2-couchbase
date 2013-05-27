@@ -162,7 +162,7 @@ import play.api.Play.current
 
 case class Beer(id: String, name: String, brewery: String) {
   def save(): Future[OperationStatus] = Beer.save(this)
-  def delete(): Future[OperationStatus] = Beer.delete(this)
+  def remove(): Future[OperationStatus] = Beer.delete(this)
 }
 
 object Beer {
@@ -171,7 +171,8 @@ object Beer {
   implicit val beerWriter = Json.writes[Beer]
   implicit val ec = Couchbase.couchbaseExecutor
 
-  val bucket = Couchbase.bucket("bucket2")   // can be declared as implicit to avoid 'bucket.withCouchbase { ... }' usage
+  // can be declared as implicit to avoid 'bucket.withCouchbase { ... }' usage
+  val bucket = Couchbase.bucket("bucket2")
 
   def findById(id: String): Future[Option[Beer]] = {
     // implicit syntax
@@ -185,7 +186,7 @@ object Beer {
     set[Beer](beer)(bucket.client, beerWriter, ec)
   }
 
-  def delete(beer: Beer): Future[OperationStatus] = {
+  def remove(beer: Beer): Future[OperationStatus] = {
     // verbose syntax
     delete(beer.id)(bucket.client, ec)
   }
