@@ -174,11 +174,21 @@ object Beer {
   // can be declared as implicit to avoid 'bucket.withCouchbase { ... }' usage
   val bucket = Couchbase.bucket("bucket2")
 
+  val byNameFinder = find[Beer]("beer", "by_name")
+
   def findById(id: String): Future[Option[Beer]] = {
     // implicit syntax
     bucket.withCouchbase { implicit client =>
       get[Beer](id)
     }
+  }
+
+  def findByName(name: String): Future[Option[Beer]] = {
+    // verbose syntax
+    val query = new Query().setIncludeDocs(true).setLimit(1)
+          .setRangeStart(ComplexKey.of(name))
+          .setRangeEnd(ComplexKey.of(s"$name\uefff"))
+    byNameFinder(query)(bucket.client, beerReader, ec).map(_.headOption)
   }
 
   def save(beer: Beer): Future[OperationStatus] = {
