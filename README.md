@@ -162,7 +162,7 @@ import play.api.Play.current
 
 case class Beer(id: String, name: String, brewery: String) {
   def save(): Future[OperationStatus] = Beer.save(this)
-  def remove(): Future[OperationStatus] = Beer.delete(this)
+  def remove(): Future[OperationStatus] = Beer.remove(this)
 }
 
 object Beer {
