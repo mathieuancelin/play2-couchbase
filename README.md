@@ -175,23 +175,22 @@ object Beer {
   implicit val beerReader = Json.reads[Beer]
   implicit val beerWriter = Json.writes[Beer]
   implicit val ec = Couchbase.couchbaseExecutor
-  implicit val bucket = Couchbase.bucket("bucket2").client.getOrlElse(throw new RuntimeException("Ooops !!!"))
-
-  val byNameFinder = find[Beer]("beer", "by_name")
+  val bucket = Couchbase.bucket("bucket2")
+  implicit val client = bucket.client.getOrlElse(throw new RuntimeException("Ooops !!!"))
 
   def findById(id: String): Future[Option[Beer]] = {
     get[Beer](id)
   }
 
-  def findAll(name: String): Future[List[Beer]] = {
-    byNameFinder(new Query().setIncludeDocs(true))
+  def findAll(): Future[List[Beer]] = {
+    find[Beer]("beer", "by_name")(new Query().setIncludeDocs(true))
   }
 
   def findByName(name: String): Future[Option[Beer]] = {
     val query = new Query().setIncludeDocs(true).setLimit(1)
           .setRangeStart(ComplexKey.of(name))
           .setRangeEnd(ComplexKey.of(s"$name\uefff"))
-    byNameFinder(query).map(_.headOption)
+    find[Beer]("beer", "by_name")(query).map(_.headOption)
   }
 
   def save(beer: Beer): Future[OperationStatus] = {
