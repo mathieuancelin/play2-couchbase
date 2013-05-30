@@ -1,9 +1,54 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title></title>
-</head>
-<body>
+@(peoples: List[People])
 
-</body>
-</html>
+@main("Peoples") {
+
+    name : <input type="text" name="name" id="name">
+    surname : <input type="text" name="surname" id="surname">
+    <input type="submit" id="create">
+    <h3>Peoples are : </h3>
+    <ul id="peoples">
+    @for(people <- peoples) {
+        <li><button class="delete" data-people="@people.id.get">x</button> @people.name @people.surname - @people.id.get</li>
+    }
+    </ul>
+
+    <script type="text/javascript">
+        $(document).ready(function() {
+            var register = function() {
+                $('.delete').on('click', function(e) {
+                    e.preventDefault();
+                    var id = $(this).data('people');
+                    console.log("id is " + id);
+                    $.ajax({url: '/peoples/' + id, type: 'delete'}, function(data) {
+                        console.log('done');
+                    });
+                });
+            };
+            var connectSSE = function() {
+                var source = new EventSource("@routes.PeopleController.peoples()")
+                source.onmessage = function(evt) {
+                    var data = JSON.parse(evt.data);
+                    $('#peoples').empty();
+                    data.peoples.forEach(function(item) {
+                        $('#peoples').append('<li><button class="delete" data-people="' + item.id + '">x</button> ' + item.name + ' ' + item.surname + ' - ' + item.id + '</li>')
+                    });
+                    register()
+                };
+            };
+            register();
+            $('#create').click(function(e) {
+                e.preventDefault();
+                var name = $('#name').val();
+                var surname = $('#surname').val();
+                $.post('@routes.PeopleController.create()', {name: name, surname: surname}, function(data) {
+                    if (data.success === true) {
+                        console.log('done');
+                        //$('#peoples').append('<li><button data-people="' + data.people.id + '">x</button> ' + data.people.name + ' ' + data.people.surname + '</li>')
+                    }
+                });
+            });
+            setTimeout(connectSSE, 500);
+        });
+    </script>
+
+}

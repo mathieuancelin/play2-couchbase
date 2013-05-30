@@ -1,9 +1,12 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title></title>
-</head>
-<body>
+@(people: People)
 
-</body>
-</html>
+@main(people.name + " " + people.surname) {
+
+    <ul>
+        <li>@people.id.get</li>
+        <li>@people.name</li>
+        <li>@people.surname</li>
+    </ul>
+    <a href="@routes.PeopleController.index()">Back</a>
+
+}

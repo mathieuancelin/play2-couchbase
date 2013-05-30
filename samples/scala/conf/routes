@@ -9,5 +9,11 @@ GET     /person/:key                controllers.Application.getPerson(key)
 GET     /add                        controllers.Application.create()
 GET     /q                          controllers.Application.query()
 
+GET     /peoples                       controllers.PeopleController.index()
+GET     /peoples/source                controllers.PeopleController.peoples()
+GET     /peoples/:id                   controllers.PeopleController.show(id)
+DELETE  /peoples/:id                   controllers.PeopleController.delete(id)
+POST    /peoples                       controllers.PeopleController.create()
+
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file               controllers.Assets.at(path="/public", file)
