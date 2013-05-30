@@ -175,8 +175,7 @@ object Beer {
   implicit val beerReader = Json.reads[Beer]
   implicit val beerWriter = Json.writes[Beer]
   implicit val ec = Couchbase.couchbaseExecutor
-  val bucket = Couchbase.bucket("bucket2")
-  implicit val client = bucket.client.getOrlElse(throw new RuntimeException("Ooops !!!"))
+  implicit val client = Couchbase.bucket("bucket2").client.getOrlElse(throw new RuntimeException("Ooops !!!"))
 
   def findById(id: String): Future[Option[Beer]] = {
     get[Beer](id)
