@@ -11,6 +11,7 @@ import play.api.libs.json._
 import play.api.libs.iteratee.{Enumeratee, Enumerator}
 import java.util.concurrent.TimeUnit
 import play.api.libs.concurrent.Promise
+import play.api.libs.EventSource
 
 object PeopleController extends Controller with CouchbaseController {
 
@@ -18,9 +19,8 @@ object PeopleController extends Controller with CouchbaseController {
     Promise.timeout(Some, 500, TimeUnit.MILLISECONDS).flatMap( n => Peoples.findAll().map( Option( _ ) ) )
   )
 
-  val jsonTransformer: Enumeratee[List[People], String] = Enumeratee.map { list =>
-    val arr = Json.stringify( Json.toJson( list ) )
-    "data: {\"peoples\":" + arr + "}\n\n"
+  val jsonTransformer: Enumeratee[List[People], JsValue] = Enumeratee.map { list =>
+    Json.obj( "peoples" -> list )
   }
 
   def index() = Action {
@@ -30,7 +30,7 @@ object PeopleController extends Controller with CouchbaseController {
   }
 
   def peoples() = Action {
-    Ok.feed( peopleEnumerator &> jsonTransformer ).as( "text/event-stream" )
+    Ok.feed( peopleEnumerator &> jsonTransformer &> EventSource() ).as( "text/event-stream" )
   }
 
   def show(id: String) = Action {
