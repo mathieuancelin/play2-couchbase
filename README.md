@@ -147,7 +147,7 @@ object UserController extends Controller with CouchbaseController {
     }
   }
 
-  def getBeer(key: String) = CouchbaseAction("bucket2") { implicit couchbaseclient =>
+  def getBeer(key: String) = CouchbaseAction("bucket2") { request => implicit couchbaseclient =>
     get[Beer](key).map { maybeBeer =>
       maybeBeer.map(beer => Ok(views.html.beer(beer)).getOrElse(BadRequest(s"Unable to find beer with key: $key"))
     }
