@@ -13,24 +13,31 @@ import java.util.concurrent.TimeUnit
 import net.spy.memcached.internal.OperationFuture
 import com.couchbase.client.internal.HttpFuture
 import play.api.Play.current
-import play.api.Play
+import play.api.{PlayException, Play}
 
 // Yeah I know JavaFuture.get is really ugly, but what can I do ???
 // http://stackoverflow.com/questions/11529145/how-do-i-wrap-a-java-util-concurrent-future-in-an-akka-future
 trait ClientWrapper {
 
+  // TODO : PartialFunction
   def find[T](docName:String, viewName: String)(query: Query)(implicit client: CouchbaseClient, r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
-    view(docName, viewName)(client, ec).flatMap { view =>
-      find[T](view)(query)(client, r, ec)
+    view(docName, viewName)(client, ec).flatMap {
+      case view: View => find[T](view)(query)(client, r, ec)
+      case _ => throw new PlayException("Couchbase view error", s"Can't find view $viewName from $docName. Please create it.")
     }
   }
 
+  // TODO : PartialFunction
   def find[T](view: View)(query: Query)(implicit client: CouchbaseClient, r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
     wrapJavaFutureInPureFuture( client.asyncQuery(view, query), ec ).map { results =>
       results.iterator().map { result =>
-        r.reads(Json.parse(result.getDocument.asInstanceOf[String])) match {
-          case e:JsError => None
-          case s:JsSuccess[T] => s.asOpt
+        result.getDocument match {
+          case s: String => r.reads(Json.parse(s)) match {
+            case e:JsError => None
+            case s:JsSuccess[T] => s.asOpt
+          }
+          case t: T => Some(t)
+          case _ => None
         }
       }.toList.filter(_.isDefined).map(_.get)
     }
@@ -71,7 +78,10 @@ trait ClientWrapper {
   def get[T](key: String)(implicit client: CouchbaseClient, r: Reads[T], ec: ExecutionContext): Future[Option[T]] = {
     wrapJavaFutureInPureFuture( client.asyncGet(key), ec ).map { f =>
        f match {
-         case value: String => r.reads(Json.parse(value)).asOpt
+         case value: String => r.reads(Json.parse(value)) match {
+           case e:JsError => None
+           case s:JsSuccess[T] => s.asOpt
+         }
          case _ => None
        }
     }
@@ -89,11 +99,11 @@ trait ClientWrapper {
     set[T](value.id, value)(client, w, ec)
   }
 
-  def set[T](value: T, key: T => String, exp: Int)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def setWithKey[T](value: T, key: T => String, exp: Int)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     set[T](key(value), exp, value)(client, w, ec)
   }
 
-  def set[T](value: T, key: T => String)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def setWithKey[T](value: T, key: T => String)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     set[T](key(value), value)(client, w, ec)
   }
 
@@ -105,11 +115,11 @@ trait ClientWrapper {
     set[T](value.id, value, replicateTo)(client, w, ec)
   }
 
-  def set[T](value: T, key: T => String, exp: Int, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def setWithKey[T](value: T, key: T => String, exp: Int, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     set[T](key(value), exp, value, replicateTo)(client, w, ec)
   }
 
-  def set[T](value: T, key: T => String, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def setWithKey[T](value: T, key: T => String, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     set[T](key(value), value, replicateTo)(client, w, ec)
   }
 
@@ -121,11 +131,11 @@ trait ClientWrapper {
     set[T](value.id, value, persistTo)(client, w, ec)
   }
 
-  def set[T](value: T, key: T => String, exp: Int, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def setWithKey[T](value: T, key: T => String, exp: Int, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     set[T](key(value), exp, value, persistTo)(client, w, ec)
   }
 
-  def set[T](value: T, key: T => String, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def setWithKey[T](value: T, key: T => String, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     set[T](key(value), value, persistTo)(client, w, ec)
   }
 
@@ -137,11 +147,11 @@ trait ClientWrapper {
     set[T](value.id, value, persistTo, replicateTo)(client, w, ec)
   }
 
-  def set[T](value: T, key: T => String, exp: Int, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def setWithKey[T](value: T, key: T => String, exp: Int, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     set[T](key(value), exp, value, persistTo, replicateTo)(client, w, ec)
   }
 
-  def set[T](value: T, key: T => String, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def setWithKey[T](value: T, key: T => String, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     set[T](key(value), value, persistTo, replicateTo)(client, w, ec)
   }
 
@@ -189,11 +199,11 @@ trait ClientWrapper {
     add[T](value.id, value)(client, w, ec)
   }
 
-  def add[T](value: T, key: T => String, exp: Int)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def addWithKey[T](value: T, key: T => String, exp: Int)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     add[T](key(value), exp, value)(client, w, ec)
   }
 
-  def add[T](value: T, key: T => String)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def addWithKey[T](value: T, key: T => String)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     add[T](key(value), value)(client, w, ec)
   }
 
@@ -205,11 +215,11 @@ trait ClientWrapper {
     add[T](value.id, value, replicateTo)(client, w, ec)
   }
 
-  def add[T](value: T, key: T => String, exp: Int, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def addWithKey[T](value: T, key: T => String, exp: Int, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     add[T](key(value), exp, value, replicateTo)(client, w, ec)
   }
 
-  def add[T](value: T, key: T => String, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def addWithKey[T](value: T, key: T => String, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     add[T](key(value), value, replicateTo)(client, w, ec)
   }
 
@@ -221,11 +231,11 @@ trait ClientWrapper {
     add[T](value.id, value, persistTo)(client, w, ec)
   }
 
-  def add[T](value: T, key: T => String, exp: Int, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def addWithKey[T](value: T, key: T => String, exp: Int, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     add[T](key(value), exp, value, persistTo)(client, w, ec)
   }
 
-  def add[T](value: T, key: T => String, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def addWithKey[T](value: T, key: T => String, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     add[T](key(value), value, persistTo)(client, w, ec)
   }
 
@@ -237,11 +247,11 @@ trait ClientWrapper {
     add[T](value.id, value, persistTo, replicateTo)(client, w, ec)
   }
 
-  def add[T](value: T, key: T => String, exp: Int, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def addWithKey[T](value: T, key: T => String, exp: Int, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     add[T](key(value), exp, value, persistTo, replicateTo)(client, w, ec)
   }
 
-  def add[T](value: T, key: T => String, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def addWithKey[T](value: T, key: T => String, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     add[T](key(value), value, persistTo, replicateTo)(client, w, ec)
   }
 
@@ -289,11 +299,11 @@ trait ClientWrapper {
     replace[T](value.id, value)(client, w, ec)
   }
 
-  def replace[T](value: T, key: T => String, exp: Int)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def replaceWithKey[T](value: T, key: T => String, exp: Int)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     replace[T](key(value), exp, value)(client, w, ec)
   }
 
-  def replace[T](value: T, key: T => String)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def replaceWithKey[T](value: T, key: T => String)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     replace[T](key(value), value)(client, w, ec)
   }
 
@@ -305,11 +315,11 @@ trait ClientWrapper {
     replace[T](value.id, value, replicateTo)(client, w, ec)
   }
 
-  def replace[T](value: T, key: T => String, exp: Int, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def replaceWithKey[T](value: T, key: T => String, exp: Int, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     replace[T](key(value), exp, value, replicateTo)(client, w, ec)
   }
 
-  def replace[T](value: T, key: T => String, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def replaceWithKey[T](value: T, key: T => String, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     replace[T](key(value), value, replicateTo)(client, w, ec)
   }
 
@@ -321,11 +331,11 @@ trait ClientWrapper {
     replace[T](value.id, value, persistTo)(client, w, ec)
   }
 
-  def replace[T](value: T, key: T => String, exp: Int, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def replaceWithKey[T](value: T, key: T => String, exp: Int, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     replace[T](key(value), exp, value, persistTo)(client, w, ec)
   }
 
-  def replace[T](value: T, key: T => String, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def replaceWithKey[T](value: T, key: T => String, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     replace[T](key(value), value, persistTo)(client, w, ec)
   }
 
@@ -337,11 +347,11 @@ trait ClientWrapper {
     replace[T](value.id, value, persistTo, replicateTo)(client, w, ec)
   }
 
-  def replace[T](value: T, key: T => String, exp: Int, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def replaceWithKey[T](value: T, key: T => String, exp: Int, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     replace[T](key(value), exp, value, persistTo, replicateTo)(client, w, ec)
   }
 
-  def replace[T](value: T, key: T => String, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def replaceWithKey[T](value: T, key: T => String, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     replace[T](key(value), value, persistTo, replicateTo)(client, w, ec)
   }
 
