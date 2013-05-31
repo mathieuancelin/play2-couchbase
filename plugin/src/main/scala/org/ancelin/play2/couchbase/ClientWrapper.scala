@@ -23,7 +23,7 @@ trait ClientWrapper {
   def find[T](docName:String, viewName: String)(query: Query)(implicit client: CouchbaseClient, r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
     view(docName, viewName)(client, ec).flatMap {
       case view: View => find[T](view)(query)(client, r, ec)
-      case _ => throw new PlayException("Couchbase view error", s"Can't find view $viewName from $docName. Please create it.")
+      case _ => Future.failed(new PlayException("Couchbase view error", s"Can't find view $viewName from $docName. Please create it."))
     }
   }
 

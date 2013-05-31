@@ -39,7 +39,8 @@ object Couchbase extends ClientWrapper {
     case _ => throw new PlayException("CouchbasePlugin Error", initMessage)
   }
 
-  def bucket(bucket: String)(implicit app: Application): Couchbase = buckets(app).get(bucket).getOrElse(throw new RuntimeException(s"Bucket '$bucket' is not defined"))
+  def bucket(bucket: String)(implicit app: Application): Couchbase = buckets(app).get(bucket).getOrElse(throw new PlayException(s"Error with bucket $bucket", s"Bucket '$bucket' is not defined"))
+  def client(bucket: String)(implicit app: Application): CouchbaseClient = buckets(app).get(bucket).flatMap(_.client).getOrElse(throw new PlayException(s"Error with bucket $bucket", s"Bucket '$bucket' is not defined or client is not connected"))
 
   def buckets(implicit app: Application): Map[String, Couchbase] =  app.plugin[CouchbasePlugin] match {
     case Some(plugin) => plugin.buckets
@@ -50,7 +51,7 @@ object Couchbase extends ClientWrapper {
   def couchbaseExecutor(implicit app: Application): ExecutionContext = {
     app.configuration.getObject("couchbase-ec.execution-context") match {
       case Some(_) => Akka.system(app).dispatchers.lookup("couchbase-ec.execution-context")
-      case _ => throw new RuntimeException("You have to define a 'couchbase-ec.execution-context' object in the application.conf file.")
+      case _ => throw new PlayException("Configuration issue","You have to define a 'couchbase-ec.execution-context' object in the application.conf file.")
     }
   }
 
