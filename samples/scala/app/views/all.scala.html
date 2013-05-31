@@ -2,13 +2,15 @@
 
 @main("Peoples") {
 
-    name : <input type="text" name="name" id="name">
-    surname : <input type="text" name="surname" id="surname">
-    <input type="submit" id="create">
-    <h3>Peoples are : </h3>
-    <ul id="peoples">
+    <form class="form-inline">
+        <input type="text" class="input-medium" placeholder="Name" name="name" id="name">
+        <input type="text" class="input-medium" placeholder="Surname" name="surname" id="surname">
+        <button type="button" id="create" class="btn btn-primary">Create people</button>
+    </form>
+    <span id="empty" class="alert alert-info @if(!peoples.isEmpty){hide}">No one in the bucket !!!</span>
+    <ul class="unstyled" id="peoples">
     @for(people <- peoples) {
-        <li><button class="delete" data-people="@people.id.get">x</button> @people.name @people.surname - @people.id.get</li>
+        <li><button class="btn btn-mini btn-danger delete" data-people="@people.id.get">x</button> <b>Name:</b> @people.name <b>Surname:</b> @people.surname - <b>Id:</b> @people.id.get</li>
     }
     </ul>
 
@@ -18,10 +20,9 @@
                 $('.delete').on('click', function(e) {
                     e.preventDefault();
                     var id = $(this).data('people');
-                    console.log("id is " + id);
-                    $.ajax({url: '/peoples/' + id, type: 'delete'}, function(data) {
-                        console.log('done');
-                    });
+                    $.ajax({url: '/peoples/' + id, type: 'delete', dataType: 'json', success:function(data) {
+                        console.log('Delete of people with id ' + id + ' is ' + (data.success === true ? 'done' : 'not done')  + '. Message is : ' + data.message);
+                    }});
                 });
             };
             var connectSSE = function() {
@@ -29,10 +30,15 @@
                 source.onmessage = function(evt) {
                     var data = JSON.parse(evt.data);
                     $('#peoples').empty();
-                    data.peoples.forEach(function(item) {
-                        $('#peoples').append('<li><button class="delete" data-people="' + item.id + '">x</button> ' + item.name + ' ' + item.surname + ' - ' + item.id + '</li>')
-                    });
-                    register()
+                    if (typeof  data.peoples === 'undefined' || data.peoples.length === 0) {
+                        $('#empty').show();
+                    } else {
+                        $('#empty').hide();
+                        _.each(data.peoples, function(item) {
+                            $('#peoples').append('<li><button class="btn btn-mini btn-danger delete" data-people="' + item.id + '">x</button> <b>Name:</b> ' + item.name + ' <b>Surname:</b> ' + item.surname + ' - <b>Id:</b> ' + item.id + '</li>')
+                        });
+                        register()
+                    }
                 };
             };
             register();
@@ -41,10 +47,8 @@
                 var name = $('#name').val();
                 var surname = $('#surname').val();
                 $.post('@routes.PeopleController.create()', {name: name, surname: surname}, function(data) {
-                    if (data.success === true) {
-                        console.log('done');
-                        //$('#peoples').append('<li><button data-people="' + data.people.id + '">x</button> ' + data.people.name + ' ' + data.people.surname + '</li>')
-                    }
+                    console.log('Creation of people is ' + (data.success === true ? 'done' : 'not done')  + '. Message is : ' + data.message);
+                    console.log(data.people);
                 });
             });
             setTimeout(connectSSE, 500);
