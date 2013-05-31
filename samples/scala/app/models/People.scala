@@ -3,7 +3,7 @@ package models
 import play.api.libs.json.Json
 import org.ancelin.play2.couchbase.Couchbase
 import org.ancelin.play2.couchbase.Couchbase._
-import com.couchbase.client.protocol.views.{ComplexKey, Query}
+import com.couchbase.client.protocol.views.{Stale, ComplexKey, Query}
 import net.spy.memcached.ops.OperationStatus
 import scala.concurrent.Future
 import play.api.Play.current
@@ -35,7 +35,7 @@ object Peoples {
   }
 
   def findAll(): Future[List[People]] = {
-    find[People]("people", "by_name")(new Query().setIncludeDocs(true))
+    find[People]("people", "by_name")(new Query().setIncludeDocs(true).setStale(Stale.FALSE))
   }
 
   def findByName(name: String): Future[Option[People]] = {
