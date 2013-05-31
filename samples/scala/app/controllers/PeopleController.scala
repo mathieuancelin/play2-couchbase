@@ -8,7 +8,7 @@ import models.Peoples
 import models.Peoples._
 import scala.concurrent.Future
 import play.api.libs.json._
-import play.api.libs.iteratee.{Enumeratee, Enumerator}
+import play.api.libs.iteratee.{Concurrent, Enumeratee, Enumerator}
 import java.util.concurrent.TimeUnit
 import play.api.libs.concurrent.Promise
 import play.api.libs.EventSource
@@ -18,6 +18,14 @@ object PeopleController extends Controller with CouchbaseController {
   val peopleEnumerator: Enumerator[List[People]] = Enumerator.generateM[List[People]](
     Promise.timeout(Some, 500, TimeUnit.MILLISECONDS).flatMap( n => Peoples.findAll().map( Option( _ ) ) )
   )
+
+  /*val broadcast = Concurrent.broadcast[List[People]]
+
+  val peopleEnumerator = broadcast._1
+
+  def updateClients() = {
+    Peoples.findAll().map( broadcast._2.push( _ ) )
+  }*/
 
   val jsonTransformer: Enumeratee[List[People], JsValue] = Enumeratee.map { list =>
     Json.obj( "peoples" -> list )
@@ -48,6 +56,7 @@ object PeopleController extends Controller with CouchbaseController {
         people => {
           val peopleWithID = people.copy(id = Some(UUID.randomUUID().toString))
           Peoples.save(peopleWithID).map { status =>
+            //updateClients()
             Ok( Json.obj( "success" -> status.isSuccess,"message" -> status.getMessage, "people" -> Peoples.peopleWriter.writes(people) ) )
           }
         }
@@ -58,6 +67,7 @@ object PeopleController extends Controller with CouchbaseController {
   def delete(id: String) = Action {
     Async {
       Peoples.remove(id).map { status =>
+        //updateClients()
         Ok( Json.obj( "success" -> status.isSuccess,"message" -> status.getMessage) )
       }
     }
