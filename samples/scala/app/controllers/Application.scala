@@ -29,6 +29,10 @@ object Application extends Controller with CouchbaseController {
   }
 
   def index() = Action {
+    Redirect( routes.PeopleController.index() )
+  }
+
+  def dummyIndex() = Action {
     Ok(views.html.index("Hello World!"))
   }
 

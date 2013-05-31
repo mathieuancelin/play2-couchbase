@@ -4,6 +4,7 @@
 
 # Home page
 GET     /                           controllers.Application.index
+GET     /dummy                      controllers.Application.dummyIndex()
 GET     /content/:key               controllers.Application.getContent(key)
 GET     /person/:key                controllers.Application.getPerson(key)
 GET     /add                        controllers.Application.create()

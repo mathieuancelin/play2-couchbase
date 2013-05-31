@@ -57,7 +57,7 @@ object PeopleController extends Controller with CouchbaseController {
           val peopleWithID = people.copy(id = Some(UUID.randomUUID().toString))
           Peoples.save(peopleWithID).map { status =>
             updateClients()
-            Ok( Json.obj( "success" -> status.isSuccess,"message" -> status.getMessage, "people" -> Peoples.peopleWriter.writes(people) ) )
+            Ok( Json.obj( "success" -> status.isSuccess,"message" -> status.getMessage, "people" -> Peoples.peopleWriter.writes(peopleWithID) ) )
           }
         }
       )
