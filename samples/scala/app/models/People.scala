@@ -20,7 +20,7 @@ object Peoples {
   implicit val peopleReader = Json.reads[People]
   implicit val peopleWriter = Json.writes[People]
   implicit val ec = Couchbase.couchbaseExecutor
-  implicit val client = Couchbase.bucket("people").client.getOrElse(throw new RuntimeException("Ooops !!!"))
+  implicit val client = Couchbase.client("people")
 
   val peopleForm: Form[People] = Form(
     mapping(
