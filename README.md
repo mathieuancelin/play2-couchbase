@@ -1,20 +1,36 @@
 Couchbase Plugin for Play framework 2.1
 ---------------------------------------
 
-in your `project/Build.scala` file add in the main section :
+in your `project/Build.scala` file add dependencies and resolvers like :
 
 ```scala
 
-resolvers += "ancelin" at "https://raw.github.com/mathieuancelin/play2-couchbase/master/repository/snapshots",
-resolvers += "Spy Repository" at "http://files.couchbase.com/maven2"
+import sbt._
+import Keys._
+import play.Project._
 
+object ApplicationBuild extends Build {
+
+  val appName         = "shorturls"
+  val appVersion      = "1.0-SNAPSHOT"
+
+  val appDependencies = Seq(
+    // Add your project dependencies here,
+    jdbc,
+    anorm,
+    "org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.1-SNAPSHOT"
+  )
+
+
+  val main = play.Project(appName, appVersion, appDependencies).settings(
+    resolvers += "ancelin" at "https://raw.github.com/mathieuancelin/play2-couchbase/master/repository/snapshots",
+    resolvers += "Spy Repository" at "http://files.couchbase.com/maven2"
+  )
+
+}
 ```
 
-and in the appDependencies section :
-
-`"org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.1-SNAPSHOT"`
-
-create a `conf/play.plugins` file and add :
+then create a `conf/play.plugins` file and add :
 
 `400:org.ancelin.play2.couchbase.CouchbasePlugin`
 
@@ -175,20 +191,20 @@ object Beer {
   implicit val beerReader = Json.reads[Beer]
   implicit val beerWriter = Json.writes[Beer]
   implicit val ec = Couchbase.couchbaseExecutor
-  implicit val client = Couchbase.bucket("bucket2").client.getOrlElse(throw new RuntimeException("Ooops !!!"))
+  implicit val client = Couchbase.client("bucket2")
 
   def findById(id: String): Future[Option[Beer]] = {
     get[Beer](id)
   }
 
   def findAll(): Future[List[Beer]] = {
-    find[Beer]("beer", "by_name")(new Query().setIncludeDocs(true))
+    find[Beer]("beer", "by_name")(new Query().setIncludeDocs(true).setStale(Stale.FALSE))
   }
 
   def findByName(name: String): Future[Option[Beer]] = {
     val query = new Query().setIncludeDocs(true).setLimit(1)
           .setRangeStart(ComplexKey.of(name))
-          .setRangeEnd(ComplexKey.of(s"$name\uefff"))
+          .setRangeEnd(ComplexKey.of(s"$name\uefff").setStale(Stale.FALSE))
     find[Beer]("beer", "by_name")(query).map(_.headOption)
   }
 
