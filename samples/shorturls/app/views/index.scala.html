@@ -3,4 +3,25 @@
 @main("Shorten your URLs with couchbase") {
     
 
+    <input id="url" type="text" value="http://www.google.com">
+    <button type="button" id="create">Create</button>
+    <br/><br/>
+    <div id="createdurl"></div>
+
+    <script type="text/javascript">
+        $(document).ready(function() {
+            $('#create').click(function(e) {
+                e.preventDefault();
+                var url = $('#url').val();
+                $.post('@routes.ApiController.createUrl()', {url: url}, function(data) {
+                    console.log(data);
+                    if (data.error !== true) {
+                        $('#createdurl').html('<a href="http://mi.ni/r/' + data.url.id + '">http://mi.ni/r/' + data.url.id + '</a>');
+                    } else {
+                        $('#createdurl').html('<span class="alert alert-danger">' + data.message + '</span>');
+                    }
+                });
+            });
+        });
+    </script>
 }

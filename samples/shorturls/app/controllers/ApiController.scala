@@ -37,27 +37,43 @@ object ApiController extends Controller {
           )
         ),
         url => {
-          IdGenerator.nextId().flatMap { id =>
-            val shortUrl = ShortURL(s"$id", url)
-            ShortURLs.save(shortUrl).map { status =>
-              status.isSuccess match {
-                case true => Ok(
+          ShortURLs.findByURL(url).flatMap { maybeUrl =>
+            maybeUrl.map { shortUrl =>
+              Future(
+                Ok(
                   Json.obj(
-                    "status" -> "created",
+                    "status" -> "existing",
                     "error" -> false,
                     "created" -> true,
-                    "message" -> status.getMessage,
+                    "message" -> "already exists",
                     "url" -> shortUrl
                   )
                 )
-                case false => BadRequest(
-                  Json.obj(
-                    "status" -> "error",
-                    "error" -> true,
-                    "created" -> false,
-                    "message" -> status.getMessage
-                  )
-                )
+              )
+            }.getOrElse {
+              IdGenerator.nextId().flatMap { id =>
+                val shortUrl = ShortURL(s"$id", url)
+                ShortURLs.save(shortUrl).map { status =>
+                  status.isSuccess match {
+                    case true => Ok(
+                      Json.obj(
+                        "status" -> "created",
+                        "error" -> false,
+                        "created" -> true,
+                        "message" -> status.getMessage,
+                        "url" -> shortUrl
+                      )
+                    )
+                    case false => BadRequest(
+                      Json.obj(
+                        "status" -> "error",
+                        "error" -> true,
+                        "created" -> false,
+                        "message" -> status.getMessage
+                      )
+                    )
+                  }
+                }
               }
             }
           }
