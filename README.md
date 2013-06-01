@@ -32,7 +32,7 @@ then create a `conf/play.plugins` file and add :
 
 add in your `conf/application.conf` file :
 
-```
+```json
 
 couchbase-ec {
   timeout=1000
@@ -116,7 +116,7 @@ object UserController extends Controller {
 
 You can of course connect many buckets with :
 
-```
+```json
 
 couchbase = [{
     host="127.0.0.1"
