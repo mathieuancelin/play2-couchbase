@@ -8,8 +8,42 @@
     </form>
     <div id="createdurl" class="span12"></div>
 
+    <div id="tablecontainer">
+        <table id="existingurls" class="table table-bordered table-condensed dataTable"></table>
+    </div>
+
     <script type="text/javascript">
         $(document).ready(function() {
+            var table = null;
+            var loadUrls = function() {
+                $.get('@routes.ApiController.getAllUrls()', function(data) {
+                    var urls = [];
+                    _.each(data, function(item) {
+                        urls.push([
+                            '<a href="' + item.originalUrl + '">' + item.originalUrl + '</a>',
+                            '<a href="http://mi.ni/' + item.id + '">http://mi.ni/' + item.id + '</a>',
+                            '<button class="delete btn btn-danger btn-mini" data-urlid="' + item.id + '">Delete</button>'
+                        ]);
+                    });
+                    $('#tablecontainer').empty();
+                    $('#tablecontainer').html('<table id="existingurls" class="table table-bordered table-condensed dataTable"></table>');
+                    table = $('#existingurls').dataTable( {
+                        "aaData": urls,
+                        "aoColumns": [
+                            { "sTitle": "Original URL" },
+                            { "sTitle": "Short URL" },
+                            { "sTitle": "Actions" }
+                        ]
+                    });
+                });
+            };
+            $('#tablecontainer').on('click', '.delete', function(e) {
+                e.preventDefault();
+                var id = $(this).data('urlid');
+                $.ajax({url: '/api/urls/' + id, type: 'delete', dataType: 'json', success:function(data) {
+                    loadUrls();
+                }});
+            });
             $('#create').click(function(e) {
                 e.preventDefault();
                 var url = $('#url').val();
@@ -17,11 +51,13 @@
                     console.log(data);
                     if (data.error !== true) {
                         $('#createdurl').html('<span class="alert alert-success span12">You can use <a href="http://mi.ni/' + data.url.id + '">http://mi.ni/' + data.url.id + '</a> to access to <a href="' + url + '">' + url + '</a></span>');
+                        loadUrls();
                     } else {
                         $('#createdurl').html('<span class="alert alert-danger">' + data.message + '</span>');
                     }
                 });
             });
+            loadUrls();
         });
     </script>
 }
