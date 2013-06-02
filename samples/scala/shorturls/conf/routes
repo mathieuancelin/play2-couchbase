@@ -4,14 +4,13 @@
 
 # Home page
 GET     /                           controllers.Application.index()
-GET     /all                        controllers.Application.all()
-GET     /r/:id                      controllers.Application.goTo(id)
 
 GET     /api/urls/:id               controllers.ApiController.getUrl(id)
 DELETE  /api/urls/:id               controllers.ApiController.delete(id)
 GET     /api/urls                   controllers.ApiController.getAllUrls()
 POST    /api/urls                   controllers.ApiController.createUrl()
 
+GET     /:id                        controllers.Application.goTo(id)
 
 
 # Map static resources from the /public folder to the /assets URL path

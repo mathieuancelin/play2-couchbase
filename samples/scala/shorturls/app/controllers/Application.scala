@@ -10,10 +10,6 @@ object Application extends Controller {
     Ok(views.html.index())
   }
 
-  def all = Action {
-    Ok(views.html.all())
-  }
-
   def goTo(id: String) = Action {
     Async {
       ShortURLs.findById(id).map { maybe =>

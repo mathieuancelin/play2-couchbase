@@ -1,12 +1,12 @@
 @()
 
 @main("Shorten your URLs with couchbase") {
-    
 
-    <input id="url" type="text" value="http://www.google.com">
-    <button type="button" id="create">Create</button>
-    <br/><br/>
-    <div id="createdurl"></div>
+    <form class="form-inline">
+        <input type="text" class="input-xxlarge" placeholder="http://www.google.com" name="url" id="url">
+        <button type="button" id="create" class="btn btn-primary">Create short URL</button>
+    </form>
+    <div id="createdurl" class="span12"></div>
 
     <script type="text/javascript">
         $(document).ready(function() {
@@ -16,7 +16,7 @@
                 $.post('@routes.ApiController.createUrl()', {url: url}, function(data) {
                     console.log(data);
                     if (data.error !== true) {
-                        $('#createdurl').html('<a href="http://mi.ni/r/' + data.url.id + '">http://mi.ni/r/' + data.url.id + '</a>');
+                        $('#createdurl').html('<span class="alert alert-success span12">You can use <a href="http://mi.ni/' + data.url.id + '">http://mi.ni/' + data.url.id + '</a> to access to <a href="' + url + '">' + url + '</a></span>');
                     } else {
                         $('#createdurl').html('<span class="alert alert-danger">' + data.message + '</span>');
                     }
