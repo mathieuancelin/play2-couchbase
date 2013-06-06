@@ -448,7 +448,7 @@ trait ClientWrapper {
   }
 
   def javaSet(key: String, exp: Int, value: String, persistTo: PersistTo, replicateTo: ReplicateTo, client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.replace(key, exp, value, persistTo, replicateTo), ec )
+    wrapJavaFutureInFuture( client.set(key, exp, value, persistTo, replicateTo), ec )
   }
 
   def javaGet[T](key: String, clazz: Class[T], client: CouchbaseClient, ec: ExecutionContext): Future[T] = {
