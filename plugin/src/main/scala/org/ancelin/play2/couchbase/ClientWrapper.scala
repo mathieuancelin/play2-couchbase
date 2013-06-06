@@ -19,7 +19,18 @@ import play.api.{PlayException, Play}
 // http://stackoverflow.com/questions/11529145/how-do-i-wrap-a-java-util-concurrent-future-in-an-akka-future
 trait ClientWrapper {
 
-  // TODO : PartialFunction
+  def findP[T](docName:String, viewName: String)(implicit client: CouchbaseClient, r: Reads[T], ec: ExecutionContext): PartialFunction[Query, Future[List[T]]] = {
+    PartialFunction[Query, Future[List[T]]]((query: Query) => {
+      find[T](docName, viewName)(query)(client, r, ec)
+    })
+  }
+
+  def findP[T](view: View)(implicit client: CouchbaseClient, r: Reads[T], ec: ExecutionContext): PartialFunction[Query, Future[List[T]]] = {
+    PartialFunction[Query, Future[List[T]]]((query: Query) => {
+      find[T](view)(query)(client, r, ec)
+    })
+  }
+
   def find[T](docName:String, viewName: String)(query: Query)(implicit client: CouchbaseClient, r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
     view(docName, viewName)(client, ec).flatMap {
       case view: View => find[T](view)(query)(client, r, ec)
@@ -27,7 +38,6 @@ trait ClientWrapper {
     }
   }
 
-  // TODO : PartialFunction
   def find[T](view: View)(query: Query)(implicit client: CouchbaseClient, r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
     wrapJavaFutureInPureFuture( client.asyncQuery(view, query), ec ).map { results =>
       results.iterator().map { result =>
