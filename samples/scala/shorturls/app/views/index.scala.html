@@ -32,11 +32,17 @@
                         "aoColumns": [
                             { "sTitle": "Original URL" },
                             { "sTitle": "Short URL" },
-                            { "sTitle": "Actions" }
+                            { "sTitle": "Actions", sWidth:'10%' }
                         ]
                     });
+                    $('.dataTables_filter label').addClass('pull-right');
+                    $('.dataTables_paginate ul').addClass('pull-right');
+                    $('.dataTables_filter label').append('&nbsp;<button class="btn btn-danger deleteall">Delete all</button>');
                 });
             };
+            $('body').on('click', '.deleteall', function(e) {
+                // do something here
+            });
             $('#tablecontainer').on('click', '.delete', function(e) {
                 e.preventDefault();
                 var id = $(this).data('urlid');
