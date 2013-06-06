@@ -219,6 +219,42 @@ You can also access Couchbase from your Java application :
 
 ```java
 
+package controllers;
+
+import models.ShortURL;
+import org.ancelin.play2.java.couchbase.Couchbase;
+import org.ancelin.play2.java.couchbase.CouchbaseAPI;
+import play.libs.F;
+import static play.libs.F.*;
+import play.mvc.Controller;
+import play.mvc.Result;
+
+public class Application extends Controller {
+
+    public static CouchbaseAPI collection = Couchbase.bucket("bucket1");
+
+    public static Result  getUser(final String key) {
+        return async(
+            collection.get(key, User.class).map(new Function<User, Result>() {
+                @Override
+                public Result apply(User user) throws Throwable {
+                    if (user == null) {
+                        return badRequest("Unable to find user with key: " + key);
+                    }
+                    return ok(views.html.user.render(user));
+                }
+            })
+        );
+    }
+}
+
+
+```
+
+or from model
+
+```java
+
 package models;
 
 import com.couchbase.client.protocol.views.ComplexKey;
