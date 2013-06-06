@@ -29,7 +29,7 @@ object ApplicationBuild extends Build {
     .settings(
       publishLocal := {},
       publish := {}
-    ).aggregate(plugin, scalaDummySample, scalaShortUrlsSample)
+    ).aggregate(plugin, scalaDummySample, scalaShortUrlsSample, javaShortUrlsSample)
 
   lazy val plugin = Project(appName, base = file("plugin"))
     .settings(baseSettings: _*)
@@ -59,17 +59,30 @@ object ApplicationBuild extends Build {
       publish := {}
     ).dependsOn(plugin)
 
-  lazy val scalaShortUrlsSample = play.Project(
-    "scala-shorturls-sample",
-    path = file("samples/scala/shorturls")
-  ).settings(
-    scalaVersion := appScalaVersion,
-    scalaBinaryVersion := appScalaBinaryVersion,
-    crossScalaVersions := appScalaCrossVersions,
-    crossVersion := CrossVersion.full,
-    parallelExecution in Test := false,
-    publishLocal := {},
-    publish := {}
-  ).dependsOn(plugin)
+    lazy val scalaShortUrlsSample = play.Project(
+      "scala-shorturls-sample",
+      path = file("samples/scala/shorturls")
+    ).settings(
+      scalaVersion := appScalaVersion,
+      scalaBinaryVersion := appScalaBinaryVersion,
+      crossScalaVersions := appScalaCrossVersions,
+      crossVersion := CrossVersion.full,
+      parallelExecution in Test := false,
+      publishLocal := {},
+      publish := {}
+    ).dependsOn(plugin)
+
+    lazy val javaShortUrlsSample = play.Project(
+      "java-shorturls-sample",
+      path = file("samples/java/shorturls")
+    ).settings(
+      scalaVersion := appScalaVersion,
+      scalaBinaryVersion := appScalaBinaryVersion,
+      crossScalaVersions := appScalaCrossVersions,
+      crossVersion := CrossVersion.full,
+      parallelExecution in Test := false,
+      publishLocal := {},
+      publish := {}
+    ).dependsOn(plugin)
 
 }
