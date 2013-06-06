@@ -228,6 +228,7 @@ import net.spy.memcached.ops.OperationStatus;
 import org.ancelin.play2.java.couchbase.Couchbase;
 import org.ancelin.play2.java.couchbase.CouchbaseAPI;
 import play.libs.F;
+import static play.libs.F.*;
 
 import java.util.Collection;
 
@@ -245,37 +246,39 @@ public class ShortURL {
 
     public static CouchbaseAPI collection = Couchbase.bucket("default");
 
-    public static F.Promise<ShortURL> findById(String id) {
+    public static Promise<ShortURL> findById(String id) {
         return collection.get(id, ShortURL.class);
     }
 
-    public static F.Promise<Collection<ShortURL>> findAll() {
-        return collection.find("shorturls", "by_url", new Query().setIncludeDocs(true).setStale(Stale.FALSE), ShortURL.class);
+    public static Promise<Collection<ShortURL>> findAll() {
+        return collection.find("shorturls", "by_url",
+            new Query().setIncludeDocs(true).setStale(Stale.FALSE), ShortURL.class);
     }
 
-    public static F.Promise<F.Option<ShortURL>> findByURL(String url) {
+    public static Promise<Option<ShortURL>> findByURL(String url) {
         Query query = new Query()
                 .setLimit(1)
                 .setIncludeDocs(true)
                 .setStale(Stale.FALSE)
                 .setRangeStart(ComplexKey.of(url))
                 .setRangeEnd(ComplexKey.of(url + "\uefff"));
-        return collection.find("shorturls", "by_url", query, ShortURL.class).map(new F.Function<Collection<ShortURL>, F.Option<ShortURL>>() {
+        return collection.find("shorturls", "by_url", query, ShortURL.class)
+                .map(new Function<Collection<ShortURL>, Option<ShortURL>>() {
             @Override
-            public F.Option<ShortURL> apply(Collection<ShortURL> shortURLs) throws Throwable {
+            public Option<ShortURL> apply(Collection<ShortURL> shortURLs) throws Throwable {
                 if (shortURLs.isEmpty()) {
-                    return F.Option.None();
+                    return Option.None();
                 }
-                return F.Option.Some(shortURLs.iterator().next());
+                return Option.Some(shortURLs.iterator().next());
             }
         });
     }
 
-    public static F.Promise<OperationStatus> save(ShortURL url) {
+    public static Promise<OperationStatus> save(ShortURL url) {
         return collection.set(url.id, url);
     }
 
-    public static F.Promise<OperationStatus> remove(ShortURL url) {
+    public static Promise<OperationStatus> remove(ShortURL url) {
         return collection.delete(url.id);
     }
 }
