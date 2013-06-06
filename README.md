@@ -215,6 +215,72 @@ object Beer {
 
 ```
 
+You can also access Couchbase from your Java application :
+
+```java
+
+package models;
+
+import com.couchbase.client.protocol.views.ComplexKey;
+import com.couchbase.client.protocol.views.Query;
+import com.couchbase.client.protocol.views.Stale;
+import net.spy.memcached.ops.OperationStatus;
+import org.ancelin.play2.java.couchbase.Couchbase;
+import org.ancelin.play2.java.couchbase.CouchbaseAPI;
+import play.libs.F;
+
+import java.util.Collection;
+
+public class ShortURL {
+
+    public String id;
+    public String originalUrl;
+
+    public ShortURL() {}
+
+    public ShortURL(String id, String originalUrl) {
+        this.id = id;
+        this.originalUrl = originalUrl;
+    }
+
+    public static CouchbaseAPI collection = Couchbase.bucket("default");
+
+    public static F.Promise<ShortURL> findById(String id) {
+        return collection.get(id, ShortURL.class);
+    }
+
+    public static F.Promise<Collection<ShortURL>> findAll() {
+        return collection.find("shorturls", "by_url", new Query().setIncludeDocs(true).setStale(Stale.FALSE), ShortURL.class);
+    }
+
+    public static F.Promise<F.Option<ShortURL>> findByURL(String url) {
+        Query query = new Query()
+                .setLimit(1)
+                .setIncludeDocs(true)
+                .setStale(Stale.FALSE)
+                .setRangeStart(ComplexKey.of(url))
+                .setRangeEnd(ComplexKey.of(url + "\uefff"));
+        return collection.find("shorturls", "by_url", query, ShortURL.class).map(new F.Function<Collection<ShortURL>, F.Option<ShortURL>>() {
+            @Override
+            public F.Option<ShortURL> apply(Collection<ShortURL> shortURLs) throws Throwable {
+                if (shortURLs.isEmpty()) {
+                    return F.Option.None();
+                }
+                return F.Option.Some(shortURLs.iterator().next());
+            }
+        });
+    }
+
+    public static F.Promise<OperationStatus> save(ShortURL url) {
+        return collection.set(url.id, url);
+    }
+
+    public static F.Promise<OperationStatus> remove(ShortURL url) {
+        return collection.delete(url.id);
+    }
+}
+
+```
 
 If you want to clone this git repo, as we embed snapshot libs (maybe we will move it later), it can be useful to use
 
