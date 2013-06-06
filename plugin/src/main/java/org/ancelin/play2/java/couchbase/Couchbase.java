@@ -20,7 +20,7 @@ public class Couchbase {
     private static Map<String, CouchbaseAPI> bucketsCache = new HashMap<String, CouchbaseAPI>();
 
     public static Map<String, CouchbaseAPI> buckets() {
-        if (bucketsCache.isEmpty()) {
+        if (true) {//if (bucketsCache.isEmpty()) {
             Iterator<Tuple2<String,org.ancelin.play2.couchbase.Couchbase>> iterator = plugin.buckets().iterator();
             while(iterator.hasNext()) {
                 Tuple2<String,org.ancelin.play2.couchbase.Couchbase> tuple = iterator.next();
