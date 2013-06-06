@@ -6,11 +6,12 @@ import com.couchbase.client.protocol.views.Stale;
 import net.spy.memcached.ops.OperationStatus;
 import org.ancelin.play2.java.couchbase.Couchbase;
 import org.ancelin.play2.java.couchbase.CouchbaseAPI;
-import play.data.*;
-import static play.data.Form.*;
+import play.data.Form;
 import play.libs.F;
 
 import java.util.Collection;
+
+import static play.data.Form.form;
 
 public class ShortURL {
 
