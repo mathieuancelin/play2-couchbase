@@ -29,7 +29,7 @@ object ApplicationBuild extends Build {
     .settings(
       publishLocal := {},
       publish := {}
-    ).aggregate(plugin, scalaDummySample, scalaShortUrlsSample, javaShortUrlsSample)
+    ).aggregate(plugin, scalaDummySample, scalaShortUrlsSample)//, javaShortUrlsSample)
 
   lazy val plugin = Project(appName, base = file("plugin"))
     .settings(baseSettings: _*)
@@ -82,7 +82,8 @@ object ApplicationBuild extends Build {
       crossVersion := CrossVersion.full,
       parallelExecution in Test := false,
       publishLocal := {},
-      publish := {}
+      publish := {},
+      libraryDependencies += "play" %% "play-java" % "2.1.0" % "provided"
     ).dependsOn(plugin)
 
 }
