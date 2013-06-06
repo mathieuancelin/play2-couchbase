@@ -248,7 +248,6 @@ public class Application extends Controller {
     }
 }
 
-
 ```
 
 or from model
