@@ -1,9 +1,9 @@
 package controllers;
 
+import models.ShortURL;
 import play.libs.F;
-import play.mvc.*;
-
-import models.*;
+import play.mvc.Controller;
+import play.mvc.Result;
 
 public class Application extends Controller {
 
