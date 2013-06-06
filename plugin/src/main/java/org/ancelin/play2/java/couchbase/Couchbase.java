@@ -13,15 +13,18 @@ import java.util.Map;
 
 public class Couchbase {
 
-    private static CouchbasePlugin plugin = Play.application().plugin(CouchbasePlugin.class);
     private static String initMessage = "The CouchbasePlugin has not been initialized! Please edit your conf/play.plugins file and add the following line: '400:package org.ancelin.play2.couchbase.CouchbasePlugin' (400 is an arbitrary priority and may be changed to match your needs).";
     private static String connectMessage = "The CouchbasePlugin doesn't seems to be connected to a Couchbase server. Maybe an error occured!";
 
     private static Map<String, CouchbaseAPI> bucketsCache = new HashMap<String, CouchbaseAPI>();
 
+    private static CouchbasePlugin plugin() {
+        return Play.application().plugin(CouchbasePlugin.class);
+    }
+
     public static Map<String, CouchbaseAPI> buckets() {
-        if (true) {//if (bucketsCache.isEmpty()) {
-            Iterator<Tuple2<String,org.ancelin.play2.couchbase.Couchbase>> iterator = plugin.buckets().iterator();
+        if (bucketsCache.isEmpty()) {
+            Iterator<Tuple2<String,org.ancelin.play2.couchbase.Couchbase>> iterator = plugin().buckets().iterator();
             while(iterator.hasNext()) {
                 Tuple2<String,org.ancelin.play2.couchbase.Couchbase> tuple = iterator.next();
                 bucketsCache.put(tuple._1(), new CouchbaseAPI(tuple._2().client().get()));
@@ -31,7 +34,7 @@ public class Couchbase {
     }
 
     public static CouchbaseAPI bucket(String name) {
-        Option<org.ancelin.play2.couchbase.Couchbase> opt = plugin.buckets().get(name);
+        Option<org.ancelin.play2.couchbase.Couchbase> opt = plugin().buckets().get(name);
         if (opt.isDefined()) {
             return new CouchbaseAPI(opt.get().client().get());
         }
@@ -39,7 +42,7 @@ public class Couchbase {
     }
 
     public static CouchbaseAPI defaultBucket() {
-        Option<Tuple2<String,org.ancelin.play2.couchbase.Couchbase>> tuple2Option = plugin.buckets().headOption();
+        Option<Tuple2<String,org.ancelin.play2.couchbase.Couchbase>> tuple2Option = plugin().buckets().headOption();
         if (tuple2Option.isDefined()) {
             return new CouchbaseAPI(tuple2Option.get()._2().client().get());
         }
