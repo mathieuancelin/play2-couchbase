@@ -1,20 +1,27 @@
 package controllers;
 
-import play.*;
+import play.libs.F;
 import play.mvc.*;
-import play.data.*;
-import static play.data.Form.*;
 
 import models.*;
-import views.html.*;
 
 public class Application extends Controller {
 
     public static Result index() {
-        return ok(index());
+        return ok(views.html.index.render());
     }
 
     public static Result goTo(String id) {
-        return async();
+        return async(
+            ShortURL.findById(id).map(new F.Function<ShortURL, Result>() {
+                @Override
+                public Result apply(ShortURL shortURL) throws Throwable {
+                    if (shortURL == null) {
+                        return notFound();
+                    }
+                    return redirect(shortURL.originalUrl);
+                }
+            })
+        );
     }
 }

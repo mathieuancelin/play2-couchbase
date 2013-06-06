@@ -11,11 +11,13 @@ object ApplicationBuild extends Build {
     // Add your project dependencies here,
     javaCore,
     javaJdbc,
-    javaEbean
+    javaEbean,
+    "org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.1-SNAPSHOT"
   )
 
   val main = play.Project(appName, appVersion, appDependencies).settings(
-    // Add your own project settings here      
+    resolvers += "ancelin" at "https://raw.github.com/mathieuancelin/play2-couchbase/master/repository/snapshots",
+    resolvers += "Spy Repository" at "http://files.couchbase.com/maven2"
   )
 
 }
