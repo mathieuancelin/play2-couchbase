@@ -29,7 +29,7 @@ object ApplicationBuild extends Build {
     .settings(
       publishLocal := {},
       publish := {}
-    ).aggregate(plugin, scalaDummySample, scalaShortUrlsSample)//, javaShortUrlsSample)
+    ).aggregate(plugin, scalaDummySample, scalaShortUrlsSample, javaShortUrlsSample)
 
   lazy val plugin = Project(appName, base = file("plugin"))
     .settings(baseSettings: _*)
