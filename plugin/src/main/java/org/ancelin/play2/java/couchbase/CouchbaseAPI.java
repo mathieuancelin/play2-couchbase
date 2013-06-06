@@ -8,6 +8,7 @@ import net.spy.memcached.ReplicateTo;
 import net.spy.memcached.ops.OperationStatus;
 import org.ancelin.play2.couchbase.Couchbase$;
 import play.Play;
+import play.libs.F;
 import play.libs.F.Promise;
 import play.libs.Json;
 import scala.concurrent.ExecutionContext;
@@ -40,6 +41,10 @@ public class CouchbaseAPI {
 
     public <T> Promise<T> get(String key, Class<T> clazz) {
         return new Promise<T>(couchbase.javaGet(key, clazz, client, ec));
+    }
+
+    public <T> Promise<F.Option<T>> getopt(String key, Class<T> clazz) {
+        return new Promise<F.Option<T>>(couchbase.javaOptGet(key, clazz, client, ec));
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

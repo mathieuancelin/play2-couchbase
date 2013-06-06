@@ -459,6 +459,16 @@ trait ClientWrapper {
     }(ec)
   }
 
+  def javaOptGet[T](key: String, clazz: Class[T], client: CouchbaseClient, ec: ExecutionContext): Future[play.libs.F.Option[T]] = {
+    wrapJavaFutureInPureFuture( client.asyncGet(key), ec ).map { f =>
+      val opt: play.libs.F.Option[T] = f match {
+        case value: String => play.libs.F.Option.Some[T](play.libs.Json.fromJson(play.libs.Json.parse(value), clazz))
+        case _ => play.libs.F.Option.None[T]()
+      }
+      opt
+    }(ec)
+  }
+
   def javaFind[T](docName:String, viewName: String, query: Query, clazz: Class[T], client: CouchbaseClient, ec: ExecutionContext): Future[java.util.Collection[T]] = {
     view(docName, viewName)(client, ec).flatMap { view =>
       javaFind[T](view, query, clazz, client, ec)
