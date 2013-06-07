@@ -17,9 +17,18 @@ class CouchSimulation extends Simulation {
 		.acceptLanguageHeader("fr,fr-fr;q=0.8,en-us;q=0.5,en;q=0.3")
 		.disableFollowRedirect
 
-	val scn = scenario("Test couchbase plugin").repeat(1000) {
-		//exec(http("request_1").get("/urls")).pause(0 milliseconds, 1 milliseconds).
-		exec(http("request_2").get("/urls/103")).pause(0 milliseconds, 1 milliseconds)
+	val scn = scenario("Test couchbase plugin").repeat(100) {
+		exec(http("request_0").get("/urls")).pause(0 milliseconds, 1 milliseconds).
+		exec(http("request_1").get("/urls/103")).pause(0 milliseconds, 1 milliseconds).
+		exec(http("request_2").get("/urls/116")).pause(0 milliseconds, 1 milliseconds).
+		exec(http("request_3").get("/urls/117")).pause(0 milliseconds, 1 milliseconds).
+		exec(http("request_4").get("/urls/118")).pause(0 milliseconds, 1 milliseconds).
+		exec(http("request_5").get("/urls/119")).pause(0 milliseconds, 1 milliseconds).
+		exec(http("request_6").get("/urls/120")).pause(0 milliseconds, 1 milliseconds).
+		exec(http("request_7").get("/urls/121")).pause(0 milliseconds, 1 milliseconds).
+		exec(http("request_8").get("/urls/122")).pause(0 milliseconds, 1 milliseconds).
+		exec(http("request_9").get("/urls/123")).pause(0 milliseconds, 1 milliseconds).
+		exec(http("request_10").get("/urls/124")).pause(0 milliseconds, 1 milliseconds)
 	}
 	setUp(scn.users(200).ramp(1).protocolConfig(httpConf))
 }
