@@ -320,6 +320,74 @@ public class ShortURL {
 
 ```
 
+About Java Future to Scala Future
+===================================
+
+Couchbase client makes use of Java Future for its async operations. Unfortunally, Java Future API is quite broken and you can't really manage to
+transform a Java Future to a Scala Future.
+
+This plugin offers you two way for handling that.
+
+The first one, just block the current thread to get the result of the Java Future (in a custom Execution Context with appropriate configuration).
+It's done in the configuration of the plugin through :
+
+```
+
+couchbase-ec {
+  timeout=1000
+  pollfutures=false  // here, you tell the plugin to block on Java Futures
+  execution-context {      // here it's the custom Execution Context
+    fork-join-executor {
+      parallelism-factor = 20.0
+      parallelism-max = 200
+    }
+  }
+}
+
+```
+
+It's not a perfect solution, but it works well and eat no memory.
+
+The second way is to use a polling technique to check if Java Future are done and complete a Scala Promise according to it.
+It's done in the configuration of the plugin through :
+
+```
+
+couchbase-ec {
+  timeout=1000
+  pollfutures=true   // here, you tell the plugin to poll on Java Futures
+  polldelay=10       // here, you tell the plugin to poll every 10 ms
+  execution-context {
+    fork-join-executor {
+      parallelism-factor = 20.0
+      parallelism-max = 200
+    }
+  }
+}
+
+```
+
+To achieve this polling, we use an Akka scheduler. Akka scheduler run tasks according to an internal tick and may not run the polling exactly
+the way we want, so you can configure the scheduler to be more 'reactive' with :
+
+```
+
+akka {
+  scheduler {
+    tick-duration = 10ms     // here, tick delay in ms, try to change it according to your couchbase-ec.polldelay
+    ticks-per-wheel = 512
+  }
+}
+
+```
+
+It's also not a perfect solution, because the polling can induce some overhead from a response time point of view.
+Let's hope Couchbase guys will introduce some kind of custom completable Java future ;-)
+
+
+Git
+===================================
+
 If you want to clone this git repo, as we embed snapshot libs (maybe we will move it later), it can be useful to use
 
 `git clone --depth xxx git://github.com/mathieuancelin/play2-couchbase.git`
