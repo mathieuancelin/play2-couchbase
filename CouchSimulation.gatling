@@ -17,9 +17,9 @@ class CouchSimulation extends Simulation {
 		.acceptLanguageHeader("fr,fr-fr;q=0.8,en-us;q=0.5,en;q=0.3")
 		.disableFollowRedirect
 
-	val scn = scenario("Test couchbase plugin").repeat(100) {
-		exec(http("request_1").get("/urls")).pause(0 milliseconds, 1 milliseconds).
+	val scn = scenario("Test couchbase plugin").repeat(1000) {
+		//exec(http("request_1").get("/urls")).pause(0 milliseconds, 1 milliseconds).
 		exec(http("request_2").get("/urls/103")).pause(0 milliseconds, 1 milliseconds)
 	}
-	setUp(scn.users(1000).ramp(1).protocolConfig(httpConf))
+	setUp(scn.users(200).ramp(1).protocolConfig(httpConf))
 }
