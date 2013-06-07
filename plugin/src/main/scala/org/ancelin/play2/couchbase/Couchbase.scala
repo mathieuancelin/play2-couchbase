@@ -71,3 +71,7 @@ object Couchbase extends ClientWrapper {
   def withCouchbase[T](bucketName: String)(block: CouchbaseClient => T): T = bucket(bucketName).withCouchbase(block).get
 
 }
+
+object CouchbaseImplicitConversion {
+  implicit def Couchbase2CouchbaseClient(value : Couchbase): CouchbaseClient = value.client.getOrElse(throw new PlayException(s"Error with bucket ${value.bucket}", s"Bucket '${value.bucket}' is not defined or client is not connected"))
+}

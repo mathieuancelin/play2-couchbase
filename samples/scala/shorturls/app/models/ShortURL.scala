@@ -57,7 +57,7 @@ object ShortURLs {
   implicit val counterReader = Json.reads[Counter]
   implicit val counterWriter = Json.writes[Counter]
   implicit val ec = Couchbase.couchbaseExecutor
-  implicit val client = Couchbase.bucket("default").client.get
+  implicit val client = Couchbase.client("default")
 
   val urlForm = Form( "url" -> nonEmptyText )
 
