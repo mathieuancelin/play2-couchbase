@@ -10,6 +10,7 @@ import play.api.Play.current
 import scala.Some
 import scala.concurrent.ExecutionContext
 import play.api.libs.concurrent.Akka
+import akka.actor.ActorSystem
 
 class Couchbase(val client: Option[CouchbaseClient], val host: String, val port: String, val base: String, val bucket: String, val pass: String, val timeout: Long) {
 
@@ -33,6 +34,7 @@ object Couchbase extends ClientWrapper {
 
   private val initMessage = "The CouchbasePlugin has not been initialized! Please edit your conf/play.plugins file and add the following line: '400:package org.ancelin.play2.couchbase.CouchbasePlugin' (400 is an arbitrary priority and may be changed to match your needs)."
   private val connectMessage = "The CouchbasePlugin doesn't seems to be connected to a Couchbase server. Maybe an error occured!"
+  private val couchbaseActorSystem = ActorSystem("couchbase-plugin-system")
 
   def defaultBucket(implicit app: Application): Couchbase = app.plugin[CouchbasePlugin] match {
     case Some(plugin) => plugin.buckets.headOption.getOrElse(throw new PlayException("CouchbasePlugin Error", connectMessage))._2
@@ -50,7 +52,7 @@ object Couchbase extends ClientWrapper {
 
   def couchbaseExecutor(implicit app: Application): ExecutionContext = {
     app.configuration.getObject("couchbase-ec.execution-context") match {
-      case Some(_) => Akka.system(app).dispatchers.lookup("couchbase-ec.execution-context")
+      case Some(_) => couchbaseActorSystem.dispatchers.lookup("couchbase-ec.execution-context")
       case _ => throw new PlayException("Configuration issue","You have to define a 'couchbase-ec.execution-context' object in the application.conf file.")
     }
   }
