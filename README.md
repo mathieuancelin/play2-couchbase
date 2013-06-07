@@ -37,7 +37,7 @@ add in your `conf/application.conf` file :
 couchbase-ec {
   timeout=1000
   pollfutures=true
-  polldelay=5
+  polldelay=10
   execution-context {
     fork-join-executor {
       parallelism-factor = 20.0
@@ -349,6 +349,7 @@ couchbase-ec {
 It's not a perfect solution, but it works well and eat no memory.
 
 The second way is to use a polling technique to check if Java Future are done and complete a Scala Promise according to it.
+This solution comes from : http://stackoverflow.com/questions/11529145/how-do-i-wrap-a-java-util-concurrent-future-in-an-akka-future
 It's done in the configuration of the plugin through :
 
 ```
