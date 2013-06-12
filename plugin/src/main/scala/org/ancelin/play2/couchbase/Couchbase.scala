@@ -12,6 +12,7 @@ import scala.concurrent.ExecutionContext
 import play.api.libs.concurrent.Akka
 import akka.actor.ActorSystem
 
+// TODO : manage multiple hosts
 class Couchbase(val client: Option[CouchbaseClient], val host: String, val port: String, val base: String, val bucket: String, val pass: String, val timeout: Long) {
 
   def connect() = {
