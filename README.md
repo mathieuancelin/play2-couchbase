@@ -250,6 +250,38 @@ public class Application extends Controller {
 
 ```
 
+and with Java 8
+
+```java
+
+package controllers;
+
+import models.ShortURL;
+import org.ancelin.play2.java.couchbase.Couchbase;
+import org.ancelin.play2.java.couchbase.CouchbaseAPI;
+import play.libs.F;
+import static play.libs.F.*;
+import play.mvc.Controller;
+import play.mvc.Result;
+
+public class Application extends Controller {
+
+    public static CouchbaseAPI collection = Couchbase.bucket("bucket1");
+
+    public static Result  getUser(final String key) {
+        return async(
+            collection.get(key, User.class).map(user -> {
+                if (user == null) {
+                    return badRequest("Unable to find user with key: " + key);
+                }
+                return ok(views.html.user.render(user));
+            })
+        );
+    }
+}
+
+```
+
 or from model
 
 ```java
@@ -307,6 +339,73 @@ public class ShortURL {
                 return Option.Some(shortURLs.iterator().next());
             }
         });
+    }
+
+    public static Promise<OperationStatus> save(ShortURL url) {
+        return collection.set(url.id, url);
+    }
+
+    public static Promise<OperationStatus> remove(ShortURL url) {
+        return collection.delete(url.id);
+    }
+}
+
+```
+
+and with Java 8
+
+```java
+
+package models;
+
+import com.couchbase.client.protocol.views.ComplexKey;
+import com.couchbase.client.protocol.views.Query;
+import com.couchbase.client.protocol.views.Stale;
+import net.spy.memcached.ops.OperationStatus;
+import org.ancelin.play2.java.couchbase.Couchbase;
+import org.ancelin.play2.java.couchbase.CouchbaseAPI;
+import play.libs.F;
+import static play.libs.F.*;
+
+import java.util.Collection;
+
+public class ShortURL {
+
+    public String id;
+    public String originalUrl;
+
+    public ShortURL() {}
+
+    public ShortURL(String id, String originalUrl) {
+        this.id = id;
+        this.originalUrl = originalUrl;
+    }
+
+    public static CouchbaseAPI collection = Couchbase.bucket("default");
+
+    public static Promise<ShortURL> findById(String id) {
+        return collection.get(id, ShortURL.class);
+    }
+
+    public static Promise<Collection<ShortURL>> findAll() {
+        return collection.find("shorturls", "by_url",
+            new Query().setIncludeDocs(true).setStale(Stale.FALSE), ShortURL.class);
+    }
+
+    public static Promise<Option<ShortURL>> findByURL(String url) {
+        Query query = new Query()
+                .setLimit(1)
+                .setIncludeDocs(true)
+                .setStale(Stale.FALSE)
+                .setRangeStart(ComplexKey.of(url))
+                .setRangeEnd(ComplexKey.of(url + "\uefff"));
+        return collection.find("shorturls", "by_url", query, ShortURL.class)
+            .map(shortURLs -> {
+                if (shortURLs.isEmpty()) {
+                    return Option.None();
+                }
+                return Option.Some(shortURLs.iterator().next());
+            });
     }
 
     public static Promise<OperationStatus> save(ShortURL url) {
