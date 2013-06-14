@@ -23,24 +23,30 @@ class CouchbasePlugin(implicit app: Application) extends Plugin {
   }
   def connectDefault(config: ConfigObject) {
     val bucket = config.get("bucket").unwrapped().asInstanceOf[String]
-    val host = config.get("host").unwrapped().asInstanceOf[String]
+    val hosts = config.get("host").unwrapped() match {
+      case s: String => List(s)
+      case a: java.util.ArrayList[String] => a.toList
+    }
     val port = config.get("port").unwrapped().asInstanceOf[String]
     val base = config.get("base").unwrapped().asInstanceOf[String]
     val pass = config.get("pass").unwrapped().asInstanceOf[String]
     val timeout = config.get("timeout").unwrapped().asInstanceOf[String].toLong
     logger.info(s"Connection to default CouchBase bucket '$bucket' ...")
-    val cl: Couchbase = Couchbase(host, port, base, bucket, pass, timeout).connect()
+    val cl: Couchbase = Couchbase(hosts.toList, port, base, bucket, pass, timeout).connect()
     buckets = buckets + (cl.bucket -> cl)
   }
   def connectAll(configs: java.util.List[_<:ConfigObject]) {
     configs.foreach { config =>
       val bucket = config.get("bucket").unwrapped().asInstanceOf[String]
-      val host = config.get("host").unwrapped().asInstanceOf[String]
+      val hosts = config.get("host").unwrapped() match {
+        case s: String => List(s)
+        case a: java.util.ArrayList[String] => a.toList
+      }
       val port = config.get("port").unwrapped().asInstanceOf[String]
       val base = config.get("base").unwrapped().asInstanceOf[String]
       val pass = config.get("pass").unwrapped().asInstanceOf[String]
       val timeout = config.get("timeout").unwrapped().asInstanceOf[String].toLong
-      val couchbase: Couchbase = Couchbase(host, port, base, bucket, pass, timeout)
+      val couchbase: Couchbase = Couchbase(hosts.toList, port, base, bucket, pass, timeout)
       logger.info(s"Connection to bucket $bucket ...")
       buckets = buckets + (bucket -> couchbase.connect())
     }

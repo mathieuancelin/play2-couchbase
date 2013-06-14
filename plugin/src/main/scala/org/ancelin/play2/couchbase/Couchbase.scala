@@ -12,17 +12,18 @@ import scala.concurrent.ExecutionContext
 import play.api.libs.concurrent.Akka
 import akka.actor.ActorSystem
 
-class Couchbase(val client: Option[CouchbaseClient], val host: String, val port: String, val base: String, val bucket: String, val pass: String, val timeout: Long) {
+// TODO : manage multiple hosts
+class Couchbase(val client: Option[CouchbaseClient], val hosts: List[String], val port: String, val base: String, val bucket: String, val pass: String, val timeout: Long) {
 
   def connect() = {
-    val uris = ArrayBuffer(URI.create(s"http://$host:$port/$base"))
+    val uris = ArrayBuffer(hosts.map { h => URI.create(s"http://$h:$port/$base")}:_*)
     val client = new CouchbaseClient(uris, bucket, pass)
-    new Couchbase(Some(client), host, port, base, bucket, pass, timeout)
+    new Couchbase(Some(client), hosts, port, base, bucket, pass, timeout)
   }
 
   def disconnect() = {
     client.map(_.shutdown(timeout, TimeUnit.SECONDS))
-    new Couchbase(None, host, port, base, bucket, pass, timeout)
+    new Couchbase(None, hosts, port, base, bucket, pass, timeout)
   }
 
   def withCouchbase[T](block: CouchbaseClient => T): Option[T] = {
@@ -58,13 +59,13 @@ object Couchbase extends ClientWrapper {
   }
 
   def apply(
-             host:    String = Play.configuration.getString("couchbase.host").getOrElse("127.0.0.1"),
+             hosts:   List[String] = List(Play.configuration.getString("couchbase.host").getOrElse("127.0.0.1")),
              port:    String = Play.configuration.getString("couchbase.port").getOrElse("8091"),
              base:    String = Play.configuration.getString("couchbase.base").getOrElse("pools"),
              bucket:  String = Play.configuration.getString("couchbase.bucket").getOrElse("default"),
              pass:    String = Play.configuration.getString("couchbase.pass").getOrElse(""),
              timeout: Long   = Play.configuration.getLong("couchbase.timeout").getOrElse(0)): Couchbase = {
-    new Couchbase(None, host, port, base, bucket, pass, timeout)
+    new Couchbase(None, hosts, port, base, bucket, pass, timeout)
   }
 
   def withCouchbase[T](block: CouchbaseClient => T): T = defaultBucket.withCouchbase(block).get
