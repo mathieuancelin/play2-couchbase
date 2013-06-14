@@ -119,7 +119,7 @@ You can of course connect many buckets with :
 ```
 
 couchbase = [{
-    host="127.0.0.1"
+    host=["127.0.0.1", "192.168.0.42"]
     port="8091"
     base="pools"
     bucket="bucket1"
