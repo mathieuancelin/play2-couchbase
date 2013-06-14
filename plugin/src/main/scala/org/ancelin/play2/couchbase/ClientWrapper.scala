@@ -19,27 +19,27 @@ import play.api.{PlayException, Play}
 // http://stackoverflow.com/questions/11529145/how-do-i-wrap-a-java-util-concurrent-future-in-an-akka-future
 trait ClientWrapper {
 
-  def findP[T](docName:String, viewName: String)(implicit client: CouchbaseClient, r: Reads[T], ec: ExecutionContext): PartialFunction[Query, Future[List[T]]] = {
+  def findP[T](docName:String, viewName: String)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): PartialFunction[Query, Future[List[T]]] = {
     PartialFunction[Query, Future[List[T]]]((query: Query) => {
-      find[T](docName, viewName)(query)(client, r, ec)
+      find[T](docName, viewName)(query)(bucket, r, ec)
     })
   }
 
-  def findP[T](view: View)(implicit client: CouchbaseClient, r: Reads[T], ec: ExecutionContext): PartialFunction[Query, Future[List[T]]] = {
+  def findP[T](view: View)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): PartialFunction[Query, Future[List[T]]] = {
     PartialFunction[Query, Future[List[T]]]((query: Query) => {
-      find[T](view)(query)(client, r, ec)
+      find[T](view)(query)(bucket, r, ec)
     })
   }
 
-  def find[T](docName:String, viewName: String)(query: Query)(implicit client: CouchbaseClient, r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
-    view(docName, viewName)(client, ec).flatMap {
-      case view: View => find[T](view)(query)(client, r, ec)
+  def find[T](docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
+    view(docName, viewName)(bucket, ec).flatMap {
+      case view: View => find[T](view)(query)(bucket, r, ec)
       case _ => Future.failed(new PlayException("Couchbase view error", s"Can't find view $viewName from $docName. Please create it."))
     }
   }
 
-  def find[T](view: View)(query: Query)(implicit client: CouchbaseClient, r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
-    wrapJavaFutureInPureFuture( client.asyncQuery(view, query), ec ).map { results =>
+  def find[T](view: View)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
+    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncQuery(view, query), ec ).map { results =>
       results.iterator().map { result =>
         result.getDocument match {
           case s: String => r.reads(Json.parse(s)) match {
@@ -53,40 +53,40 @@ trait ClientWrapper {
     }
   }
 
-  def view(docName: String, viewName: String)(implicit client: CouchbaseClient, ec: ExecutionContext): Future[View] = {
-    wrapJavaFutureInPureFuture( client.asyncGetView(docName, viewName), ec )
+  def view(docName: String, viewName: String)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[View] = {
+    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGetView(docName, viewName), ec )
   }
 
-  def spatialView(docName: String, viewName: String)(implicit client: CouchbaseClient, ec: ExecutionContext): Future[SpatialView] = {
-    wrapJavaFutureInPureFuture( client.asyncGetSpatialView(docName, viewName), ec )
+  def spatialView(docName: String, viewName: String)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[SpatialView] = {
+    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGetSpatialView(docName, viewName), ec )
   }
 
-  def designDocument(docName: String)(implicit client: CouchbaseClient, ec: ExecutionContext): Future[DesignDocument[_]] = {
-    wrapJavaFutureInPureFuture( client.asyncGetDesignDocument(docName), ec )
+  def designDocument(docName: String)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[DesignDocument[_]] = {
+    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGetDesignDocument(docName), ec )
   }
 
-  def createDesignDoc(name: String, value: JsObject)(implicit client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.asyncCreateDesignDoc(name, Json.stringify(value)), ec )
+  def createDesignDoc(name: String, value: JsObject)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.asyncCreateDesignDoc(name, Json.stringify(value)), ec )
   }
 
-  def createDesignDoc(name: String, value: String)(implicit client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.asyncCreateDesignDoc(name, value), ec )
+  def createDesignDoc(name: String, value: String)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.asyncCreateDesignDoc(name, value), ec )
   }
 
-  def createDesignDoc(value: DesignDocument[_])(implicit client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.asyncCreateDesignDoc(value), ec )
+  def createDesignDoc(value: DesignDocument[_])(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.asyncCreateDesignDoc(value), ec )
   }
 
-  def deleteDesignDoc(name: String)(implicit client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.asyncDeleteDesignDoc(name), ec )
+  def deleteDesignDoc(name: String)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.asyncDeleteDesignDoc(name), ec )
   }
 
-  def keyStats(key: String)(implicit client: CouchbaseClient, ec: ExecutionContext): Future[Map[String, String]] = {
-    wrapJavaFutureInPureFuture( client.getKeyStats(key), ec ).map(_.toMap)
+  def keyStats(key: String)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[Map[String, String]] = {
+    wrapJavaFutureInPureFuture( bucket.couchbaseClient.getKeyStats(key), ec ).map(_.toMap)
   }
 
-  def get[T](key: String)(implicit client: CouchbaseClient, r: Reads[T], ec: ExecutionContext): Future[Option[T]] = {
-    wrapJavaFutureInPureFuture( client.asyncGet(key), ec ).map { f =>
+  def get[T](key: String)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Option[T]] = {
+    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGet(key), ec ).map { f =>
        f match {
          case value: String => r.reads(Json.parse(value)) match {
            case e:JsError => None
@@ -101,376 +101,376 @@ trait ClientWrapper {
   // Set Operations
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  def set[T <: {def id: String}](value: T, exp: Int)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    set[T](value.id, exp, value)(client, w, ec)
+  def set[T <: {def id: String}](value: T, exp: Int)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set[T](value.id, exp, value)(bucket, w, ec)
   }
 
-  def set[T <: {def id: String}](value: T)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    set[T](value.id, value)(client, w, ec)
+  def set[T <: {def id: String}](value: T)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set[T](value.id, value)(bucket, w, ec)
   }
 
-  def setWithKey[T](value: T, key: T => String, exp: Int)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    set[T](key(value), exp, value)(client, w, ec)
+  def setWithKey[T](value: T, key: T => String, exp: Int)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set[T](key(value), exp, value)(bucket, w, ec)
   }
 
-  def setWithKey[T](value: T, key: T => String)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    set[T](key(value), value)(client, w, ec)
+  def setWithKey[T](value: T, key: T => String)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set[T](key(value), value)(bucket, w, ec)
   }
 
-  def set[T <: {def id:String}](value: T, exp: Int, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    set[T](value.id, exp, value, replicateTo)(client, w, ec)
+  def set[T <: {def id:String}](value: T, exp: Int, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set[T](value.id, exp, value, replicateTo)(bucket, w, ec)
   }
 
-  def set[T <: {def id:String}](value: T, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    set[T](value.id, value, replicateTo)(client, w, ec)
+  def set[T <: {def id:String}](value: T, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set[T](value.id, value, replicateTo)(bucket, w, ec)
   }
 
-  def setWithKey[T](value: T, key: T => String, exp: Int, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    set[T](key(value), exp, value, replicateTo)(client, w, ec)
+  def setWithKey[T](value: T, key: T => String, exp: Int, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set[T](key(value), exp, value, replicateTo)(bucket, w, ec)
   }
 
-  def setWithKey[T](value: T, key: T => String, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    set[T](key(value), value, replicateTo)(client, w, ec)
+  def setWithKey[T](value: T, key: T => String, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set[T](key(value), value, replicateTo)(bucket, w, ec)
   }
 
-  def set[T <: {def id:String}](value: T, exp: Int, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    set[T](value.id, exp, value, persistTo)(client, w, ec)
+  def set[T <: {def id:String}](value: T, exp: Int, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set[T](value.id, exp, value, persistTo)(bucket, w, ec)
   }
 
-  def set[T <: {def id:String}](value: T, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    set[T](value.id, value, persistTo)(client, w, ec)
+  def set[T <: {def id:String}](value: T, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set[T](value.id, value, persistTo)(bucket, w, ec)
   }
 
-  def setWithKey[T](value: T, key: T => String, exp: Int, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    set[T](key(value), exp, value, persistTo)(client, w, ec)
+  def setWithKey[T](value: T, key: T => String, exp: Int, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set[T](key(value), exp, value, persistTo)(bucket, w, ec)
   }
 
-  def setWithKey[T](value: T, key: T => String, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    set[T](key(value), value, persistTo)(client, w, ec)
+  def setWithKey[T](value: T, key: T => String, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set[T](key(value), value, persistTo)(bucket, w, ec)
   }
 
-  def set[T <: {def id:String}](value: T, exp: Int, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    set[T](value.id, exp, value, persistTo, replicateTo)(client, w, ec)
+  def set[T <: {def id:String}](value: T, exp: Int, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set[T](value.id, exp, value, persistTo, replicateTo)(bucket, w, ec)
   }
 
-  def set[T <: {def id:String}](value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    set[T](value.id, value, persistTo, replicateTo)(client, w, ec)
+  def set[T <: {def id:String}](value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set[T](value.id, value, persistTo, replicateTo)(bucket, w, ec)
   }
 
-  def setWithKey[T](value: T, key: T => String, exp: Int, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    set[T](key(value), exp, value, persistTo, replicateTo)(client, w, ec)
+  def setWithKey[T](value: T, key: T => String, exp: Int, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set[T](key(value), exp, value, persistTo, replicateTo)(bucket, w, ec)
   }
 
-  def setWithKey[T](value: T, key: T => String, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    set[T](key(value), value, persistTo, replicateTo)(client, w, ec)
+  def setWithKey[T](value: T, key: T => String, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set[T](key(value), value, persistTo, replicateTo)(bucket, w, ec)
   }
 
-  def set[T](key: String, value: T)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    set(key, Constants.expiration, value)(client, w, ec)
+  def set[T](key: String, value: T)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set(key, Constants.expiration, value)(bucket, w, ec)
   }
 
-  def set[T](key: String, exp: Int, value: T)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.set(key, exp, Json.stringify(w.writes(value))), ec )
+  def set[T](key: String, exp: Int, value: T)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.set(key, exp, Json.stringify(w.writes(value))), ec )
   }
 
-  def set[T](key: String, exp: Int, value: T, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.set(key, exp, value, replicateTo), ec )
+  def set[T](key: String, exp: Int, value: T, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.set(key, exp, value, replicateTo), ec )
   }
   
-  def set[T](key: String, value: T, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    set(key, Constants.expiration, value, replicateTo)(client, w, ec)
+  def set[T](key: String, value: T, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set(key, Constants.expiration, value, replicateTo)(bucket, w, ec)
   }
   
-  def set[T](key: String, exp: Int, value: T, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.set(key, exp, value, persistTo), ec )
+  def set[T](key: String, exp: Int, value: T, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.set(key, exp, value, persistTo), ec )
   }
   
-  def set[T](key: String, value: T, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    set(key, Constants.expiration, value, persistTo)(client, w, ec)
+  def set[T](key: String, value: T, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set(key, Constants.expiration, value, persistTo)(bucket, w, ec)
   }
   
-  def set[T](key: String, exp: Int, value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.set(key, exp, value, persistTo, replicateTo), ec )
+  def set[T](key: String, exp: Int, value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.set(key, exp, value, persistTo, replicateTo), ec )
   }
   
-  def set[T](key: String, value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    set(key, Constants.expiration, value, persistTo, replicateTo)(client, w, ec)
+  def set[T](key: String, value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    set(key, Constants.expiration, value, persistTo, replicateTo)(bucket, w, ec)
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Add Operations
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  def add[T <: {def id:String}](value: T, exp: Int)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    add[T](value.id, exp, value)(client, w, ec)
+  def add[T <: {def id:String}](value: T, exp: Int)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    add[T](value.id, exp, value)(bucket, w, ec)
   }
 
-  def add[T <: {def id:String}](value: T)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    add[T](value.id, value)(client, w, ec)
+  def add[T <: {def id:String}](value: T)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    add[T](value.id, value)(bucket, w, ec)
   }
 
-  def addWithKey[T](value: T, key: T => String, exp: Int)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    add[T](key(value), exp, value)(client, w, ec)
+  def addWithKey[T](value: T, key: T => String, exp: Int)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    add[T](key(value), exp, value)(bucket, w, ec)
   }
 
-  def addWithKey[T](value: T, key: T => String)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    add[T](key(value), value)(client, w, ec)
+  def addWithKey[T](value: T, key: T => String)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    add[T](key(value), value)(bucket, w, ec)
   }
 
-  def add[T <: {def id:String}](value: T, exp: Int, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    add[T](value.id, exp, value, replicateTo)(client, w, ec)
+  def add[T <: {def id:String}](value: T, exp: Int, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    add[T](value.id, exp, value, replicateTo)(bucket, w, ec)
   }
 
-  def add[T <: {def id:String}](value: T, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    add[T](value.id, value, replicateTo)(client, w, ec)
+  def add[T <: {def id:String}](value: T, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    add[T](value.id, value, replicateTo)(bucket, w, ec)
   }
 
-  def addWithKey[T](value: T, key: T => String, exp: Int, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    add[T](key(value), exp, value, replicateTo)(client, w, ec)
+  def addWithKey[T](value: T, key: T => String, exp: Int, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    add[T](key(value), exp, value, replicateTo)(bucket, w, ec)
   }
 
-  def addWithKey[T](value: T, key: T => String, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    add[T](key(value), value, replicateTo)(client, w, ec)
+  def addWithKey[T](value: T, key: T => String, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    add[T](key(value), value, replicateTo)(bucket, w, ec)
   }
 
-  def add[T <: {def id:String}](value: T, exp: Int, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    add[T](value.id, exp, value, persistTo)(client, w, ec)
+  def add[T <: {def id:String}](value: T, exp: Int, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    add[T](value.id, exp, value, persistTo)(bucket, w, ec)
   }
 
-  def add[T <: {def id:String}](value: T, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    add[T](value.id, value, persistTo)(client, w, ec)
+  def add[T <: {def id:String}](value: T, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    add[T](value.id, value, persistTo)(bucket, w, ec)
   }
 
-  def addWithKey[T](value: T, key: T => String, exp: Int, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    add[T](key(value), exp, value, persistTo)(client, w, ec)
+  def addWithKey[T](value: T, key: T => String, exp: Int, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    add[T](key(value), exp, value, persistTo)(bucket, w, ec)
   }
 
-  def addWithKey[T](value: T, key: T => String, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    add[T](key(value), value, persistTo)(client, w, ec)
+  def addWithKey[T](value: T, key: T => String, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    add[T](key(value), value, persistTo)(bucket, w, ec)
   }
 
-  def add[T <: {def id:String}](value: T, exp: Int, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    add[T](value.id, exp, value, persistTo, replicateTo)(client, w, ec)
+  def add[T <: {def id:String}](value: T, exp: Int, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    add[T](value.id, exp, value, persistTo, replicateTo)(bucket, w, ec)
   }
 
-  def add[T <: {def id:String}](value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    add[T](value.id, value, persistTo, replicateTo)(client, w, ec)
+  def add[T <: {def id:String}](value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    add[T](value.id, value, persistTo, replicateTo)(bucket, w, ec)
   }
 
-  def addWithKey[T](value: T, key: T => String, exp: Int, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    add[T](key(value), exp, value, persistTo, replicateTo)(client, w, ec)
+  def addWithKey[T](value: T, key: T => String, exp: Int, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    add[T](key(value), exp, value, persistTo, replicateTo)(bucket, w, ec)
   }
 
-  def addWithKey[T](value: T, key: T => String, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    add[T](key(value), value, persistTo, replicateTo)(client, w, ec)
+  def addWithKey[T](value: T, key: T => String, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    add[T](key(value), value, persistTo, replicateTo)(bucket, w, ec)
   }
 
-  def add[T](key: String, value: T)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    add(key, Constants.expiration, value)(client, w, ec)
+  def add[T](key: String, value: T)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    add(key, Constants.expiration, value)(bucket, w, ec)
   }
 
-  def add[T](key: String, exp: Int, value: T)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.add(key, exp, Json.stringify(w.writes(value))), ec )
+  def add[T](key: String, exp: Int, value: T)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.add(key, exp, Json.stringify(w.writes(value))), ec )
   }
 
-  def add[T](key: String, exp: Int, value: T, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.add(key, exp, value, replicateTo), ec )
+  def add[T](key: String, exp: Int, value: T, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.add(key, exp, value, replicateTo), ec )
   }
   
-  def add[T](key: String, value: T, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    add(key, Constants.expiration, value, replicateTo)(client, w, ec)
+  def add[T](key: String, value: T, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    add(key, Constants.expiration, value, replicateTo)(bucket, w, ec)
   }
   
-  def add[T](key: String, exp: Int, value: T, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.add(key, exp, value, persistTo), ec )
+  def add[T](key: String, exp: Int, value: T, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.add(key, exp, value, persistTo), ec )
   }
   
-  def add[T](key: String, value: T, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    add(key, Constants.expiration, value, persistTo)(client, w, ec)
+  def add[T](key: String, value: T, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    add(key, Constants.expiration, value, persistTo)(bucket, w, ec)
   }
   
-  def add[T](key: String, exp: Int, value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.add(key, exp, value, persistTo, replicateTo), ec )
+  def add[T](key: String, exp: Int, value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.add(key, exp, value, persistTo, replicateTo), ec )
   }
   
-  def add[T](key: String, value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    add(key, Constants.expiration, value, persistTo, replicateTo)(client, w, ec)
+  def add[T](key: String, value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    add(key, Constants.expiration, value, persistTo, replicateTo)(bucket, w, ec)
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Replace Operations
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  def replace[T <: {def id:String}](value: T, exp: Int)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    replace[T](value.id, exp, value)(client, w, ec)
+  def replace[T <: {def id:String}](value: T, exp: Int)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    replace[T](value.id, exp, value)(bucket, w, ec)
   }
 
-  def replace[T <: {def id:String}](value: T)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    replace[T](value.id, value)(client, w, ec)
+  def replace[T <: {def id:String}](value: T)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    replace[T](value.id, value)(bucket, w, ec)
   }
 
-  def replaceWithKey[T](value: T, key: T => String, exp: Int)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    replace[T](key(value), exp, value)(client, w, ec)
+  def replaceWithKey[T](value: T, key: T => String, exp: Int)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    replace[T](key(value), exp, value)(bucket, w, ec)
   }
 
-  def replaceWithKey[T](value: T, key: T => String)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    replace[T](key(value), value)(client, w, ec)
+  def replaceWithKey[T](value: T, key: T => String)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    replace[T](key(value), value)(bucket, w, ec)
   }
 
-  def replace[T <: {def id:String}](value: T, exp: Int, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    replace[T](value.id, exp, value, replicateTo)(client, w, ec)
+  def replace[T <: {def id:String}](value: T, exp: Int, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    replace[T](value.id, exp, value, replicateTo)(bucket, w, ec)
   }
 
-  def replace[T <: {def id:String}](value: T, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    replace[T](value.id, value, replicateTo)(client, w, ec)
+  def replace[T <: {def id:String}](value: T, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    replace[T](value.id, value, replicateTo)(bucket, w, ec)
   }
 
-  def replaceWithKey[T](value: T, key: T => String, exp: Int, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    replace[T](key(value), exp, value, replicateTo)(client, w, ec)
+  def replaceWithKey[T](value: T, key: T => String, exp: Int, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    replace[T](key(value), exp, value, replicateTo)(bucket, w, ec)
   }
 
-  def replaceWithKey[T](value: T, key: T => String, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    replace[T](key(value), value, replicateTo)(client, w, ec)
+  def replaceWithKey[T](value: T, key: T => String, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    replace[T](key(value), value, replicateTo)(bucket, w, ec)
   }
 
-  def replace[T <: {def id:String}](value: T, exp: Int, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    replace[T](value.id, exp, value, persistTo)(client, w, ec)
+  def replace[T <: {def id:String}](value: T, exp: Int, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    replace[T](value.id, exp, value, persistTo)(bucket, w, ec)
   }
 
-  def replace[T <: {def id:String}](value: T, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    replace[T](value.id, value, persistTo)(client, w, ec)
+  def replace[T <: {def id:String}](value: T, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    replace[T](value.id, value, persistTo)(bucket, w, ec)
   }
 
-  def replaceWithKey[T](value: T, key: T => String, exp: Int, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    replace[T](key(value), exp, value, persistTo)(client, w, ec)
+  def replaceWithKey[T](value: T, key: T => String, exp: Int, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    replace[T](key(value), exp, value, persistTo)(bucket, w, ec)
   }
 
-  def replaceWithKey[T](value: T, key: T => String, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    replace[T](key(value), value, persistTo)(client, w, ec)
+  def replaceWithKey[T](value: T, key: T => String, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    replace[T](key(value), value, persistTo)(bucket, w, ec)
   }
 
-  def replace[T <: {def id:String}](value: T, exp: Int, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    replace[T](value.id, exp, value, persistTo, replicateTo)(client, w, ec)
+  def replace[T <: {def id:String}](value: T, exp: Int, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    replace[T](value.id, exp, value, persistTo, replicateTo)(bucket, w, ec)
   }
 
-  def replace[T <: {def id:String}](value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    replace[T](value.id, value, persistTo, replicateTo)(client, w, ec)
+  def replace[T <: {def id:String}](value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    replace[T](value.id, value, persistTo, replicateTo)(bucket, w, ec)
   }
 
-  def replaceWithKey[T](value: T, key: T => String, exp: Int, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    replace[T](key(value), exp, value, persistTo, replicateTo)(client, w, ec)
+  def replaceWithKey[T](value: T, key: T => String, exp: Int, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    replace[T](key(value), exp, value, persistTo, replicateTo)(bucket, w, ec)
   }
 
-  def replaceWithKey[T](value: T, key: T => String, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    replace[T](key(value), value, persistTo, replicateTo)(client, w, ec)
+  def replaceWithKey[T](value: T, key: T => String, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    replace[T](key(value), value, persistTo, replicateTo)(bucket, w, ec)
   }
 
-  def replace[T](key: String, exp: Int, value: T)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.replace(key, exp, Json.stringify(w.writes(value))), ec )
+  def replace[T](key: String, exp: Int, value: T)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.replace(key, exp, Json.stringify(w.writes(value))), ec )
   }
 
-  def replace[T](key: String, exp: Int, value: T, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.replace(key, exp, value, replicateTo), ec )
+  def replace[T](key: String, exp: Int, value: T, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.replace(key, exp, value, replicateTo), ec )
   }
   
-  def replace[T](key: String, value: T, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-     replace(key, Constants.expiration, value, replicateTo)(client, w, ec)
+  def replace[T](key: String, value: T, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+     replace(key, Constants.expiration, value, replicateTo)(bucket, w, ec)
   }
   
-  def replace[T](key: String, exp: Int, value: T, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.replace(key, exp, value, persistTo), ec )
+  def replace[T](key: String, exp: Int, value: T, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.replace(key, exp, value, persistTo), ec )
   }
   
-  def replace[T](key: String, value: T, persistTo: PersistTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    replace(key, Constants.expiration, value, persistTo)(client, w, ec)
+  def replace[T](key: String, value: T, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    replace(key, Constants.expiration, value, persistTo)(bucket, w, ec)
   }
   
-  def replace[T](key: String, exp: Int, value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.replace(key, exp, value, persistTo, replicateTo), ec )
+  def replace[T](key: String, exp: Int, value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.replace(key, exp, value, persistTo, replicateTo), ec )
   }
   
-  def replace[T](key: String, value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    replace(key, Constants.expiration, value, persistTo,replicateTo)(client, w, ec)
+  def replace[T](key: String, value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    replace(key, Constants.expiration, value, persistTo,replicateTo)(bucket, w, ec)
   }
 
-  def replace[T](key: String, value: T)(implicit client: CouchbaseClient, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    replace(key, Constants.expiration, value)(client, w, ec)
+  def replace[T](key: String, value: T)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+    replace(key, Constants.expiration, value)(bucket, w, ec)
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Delete Operations
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  def delete(key: String)(implicit client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.delete(key), ec )
+  def delete(key: String)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.delete(key), ec )
   }
 
-  def delete(key: String, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.delete(key, replicateTo), ec )
+  def delete(key: String, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.delete(key, replicateTo), ec )
   }
 
-  def delete(key: String, persistTo: PersistTo)(implicit client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.delete(key, persistTo), ec )
+  def delete(key: String, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.delete(key, persistTo), ec )
   }
 
-  def delete(key: String, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.delete(key, persistTo, replicateTo), ec )
+  def delete(key: String, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.delete(key, persistTo, replicateTo), ec )
   }
 
-  def delete[T <: {def id:String}](value: T)(implicit client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.delete(value.id), ec )
+  def delete[T <: {def id:String}](value: T)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.delete(value.id), ec )
   }
 
-  def delete[T <: {def id:String}](value: T, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.delete(value.id, replicateTo), ec )
+  def delete[T <: {def id:String}](value: T, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.delete(value.id, replicateTo), ec )
   }
 
-  def delete[T <: {def id:String}](value: T, persistTo: PersistTo)(implicit client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.delete(value.id, persistTo), ec )
+  def delete[T <: {def id:String}](value: T, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.delete(value.id, persistTo), ec )
   }
 
-  def delete[T <: {def id:String}](value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.delete(value.id, persistTo, replicateTo), ec )
+  def delete[T <: {def id:String}](value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.delete(value.id, persistTo, replicateTo), ec )
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Flush Operations
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  def flush(delay: Int)(implicit client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.flush(delay), ec )
+  def flush(delay: Int)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.flush(delay), ec )
   }
 
-  def flush()(implicit client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
-     flush(Constants.expiration)(client, ec)
+  def flush()(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+     flush(Constants.expiration)(bucket, ec)
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Java Operations
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  def javaReplace(key: String, exp: Int, value: String, persistTo: PersistTo, replicateTo: ReplicateTo, client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.replace(key, exp, value, persistTo, replicateTo), ec )
+  def javaReplace(key: String, exp: Int, value: String, persistTo: PersistTo, replicateTo: ReplicateTo, bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.replace(key, exp, value, persistTo, replicateTo), ec )
   }
 
-  def javaAdd(key: String, exp: Int, value: String, persistTo: PersistTo, replicateTo: ReplicateTo, client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.add(key, exp, value, persistTo, replicateTo), ec )
+  def javaAdd(key: String, exp: Int, value: String, persistTo: PersistTo, replicateTo: ReplicateTo, bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.add(key, exp, value, persistTo, replicateTo), ec )
   }
 
-  def javaSet(key: String, exp: Int, value: String, persistTo: PersistTo, replicateTo: ReplicateTo, client: CouchbaseClient, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( client.set(key, exp, value, persistTo, replicateTo), ec )
+  def javaSet(key: String, exp: Int, value: String, persistTo: PersistTo, replicateTo: ReplicateTo, bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.set(key, exp, value, persistTo, replicateTo), ec )
   }
 
-  def javaGet[T](key: String, clazz: Class[T], client: CouchbaseClient, ec: ExecutionContext): Future[T] = {
-    wrapJavaFutureInPureFuture( client.asyncGet(key), ec ).map { f =>
+  def javaGet[T](key: String, clazz: Class[T], bucket: CouchbaseBucket, ec: ExecutionContext): Future[T] = {
+    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGet(key), ec ).map { f =>
       f match {
         case value: String => play.libs.Json.fromJson(play.libs.Json.parse(value), clazz)
       }
     }(ec)
   }
 
-  def javaOptGet[T](key: String, clazz: Class[T], client: CouchbaseClient, ec: ExecutionContext): Future[play.libs.F.Option[T]] = {
-    wrapJavaFutureInPureFuture( client.asyncGet(key), ec ).map { f =>
+  def javaOptGet[T](key: String, clazz: Class[T], bucket: CouchbaseBucket, ec: ExecutionContext): Future[play.libs.F.Option[T]] = {
+    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGet(key), ec ).map { f =>
       val opt: play.libs.F.Option[T] = f match {
         case value: String => play.libs.F.Option.Some[T](play.libs.Json.fromJson(play.libs.Json.parse(value), clazz))
         case _ => play.libs.F.Option.None[T]()
@@ -479,22 +479,22 @@ trait ClientWrapper {
     }(ec)
   }
 
-  def javaFind[T](docName:String, viewName: String, query: Query, clazz: Class[T], client: CouchbaseClient, ec: ExecutionContext): Future[java.util.Collection[T]] = {
-    view(docName, viewName)(client, ec).flatMap { view =>
-      javaFind[T](view, query, clazz, client, ec)
+  def javaFind[T](docName:String, viewName: String, query: Query, clazz: Class[T], bucket: CouchbaseBucket, ec: ExecutionContext): Future[java.util.Collection[T]] = {
+    view(docName, viewName)(bucket, ec).flatMap { view =>
+      javaFind[T](view, query, clazz, bucket, ec)
     }(ec)
   }
 
-  def javaFind[T](view: View, query: Query, clazz: Class[T], client: CouchbaseClient, ec: ExecutionContext): Future[java.util.Collection[T]] = {
-    wrapJavaFutureInPureFuture( client.asyncQuery(view, query), ec ).map { results =>
+  def javaFind[T](view: View, query: Query, clazz: Class[T], bucket: CouchbaseBucket, ec: ExecutionContext): Future[java.util.Collection[T]] = {
+    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncQuery(view, query), ec ).map { results =>
       asJavaCollection(results.iterator().map { result =>
         play.libs.Json.fromJson(play.libs.Json.parse(result.getDocument.asInstanceOf[String]), clazz)
       }.toList)
     }(ec)
   }
 
-  def javaView(docName: String, viewName: String, client: CouchbaseClient, ec: ExecutionContext): Future[View] = {
-    wrapJavaFutureInPureFuture( client.asyncGetView(docName, viewName), ec )
+  def javaView(docName: String, viewName: String, bucket: CouchbaseBucket, ec: ExecutionContext): Future[View] = {
+    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGetView(docName, viewName), ec )
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

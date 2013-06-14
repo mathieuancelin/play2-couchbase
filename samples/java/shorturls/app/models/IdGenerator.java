@@ -39,12 +39,12 @@ public class IdGenerator {
         public void onReceive(Object message) throws Exception {
             if (message instanceof IncrementAndGet) {
                 final ActorRef ref = sender();
-                ShortURL.collection.get(counterKey, Counter.class).map(new F.Function<Counter, Object>() {
+                ShortURL.bucket.get(counterKey, Counter.class).map(new F.Function<Counter, Object>() {
                     @Override
                     public Object apply(Counter counter) throws Throwable {
                         if (counter != null) {
                             final Counter newValue = new Counter(counter.value + 1);
-                            ShortURL.collection.set(counterKey, newValue).map(new F.Function<OperationStatus, Object>() {
+                            ShortURL.bucket.set(counterKey, newValue).map(new F.Function<OperationStatus, Object>() {
                                 @Override
                                 public Object apply(OperationStatus operationStatus) throws Throwable {
                                     ref.tell(newValue.value, self());
@@ -53,7 +53,7 @@ public class IdGenerator {
                             });
                             return null;
                         } else {
-                            ShortURL.collection.set(counterKey, 1L).map(new F.Function<OperationStatus, Object>() {
+                            ShortURL.bucket.set(counterKey, 1L).map(new F.Function<OperationStatus, Object>() {
                                 @Override
                                 public Object apply(OperationStatus operationStatus) throws Throwable {
                                     ref.tell(1L, self());

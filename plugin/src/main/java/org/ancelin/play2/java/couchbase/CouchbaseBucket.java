@@ -1,6 +1,5 @@
 package org.ancelin.play2.java.couchbase;
 
-import com.couchbase.client.CouchbaseClient;
 import com.couchbase.client.protocol.views.Query;
 import com.couchbase.client.protocol.views.View;
 import net.spy.memcached.PersistTo;
@@ -16,14 +15,14 @@ import scala.concurrent.ExecutionContext;
 import java.util.Collection;
 
 
-public class CouchbaseAPI {
+public class CouchbaseBucket {
 
-    public final CouchbaseClient client;
+    public final org.ancelin.play2.couchbase.CouchbaseBucket client;
 
     private final Couchbase$ couchbase = Couchbase$.MODULE$;
     private final ExecutionContext ec = couchbase.couchbaseExecutor(Play.application().getWrappedApplication());
 
-    CouchbaseAPI(CouchbaseClient client) {
+    CouchbaseBucket(org.ancelin.play2.couchbase.CouchbaseBucket client) {
         this.client = client;
     }
 

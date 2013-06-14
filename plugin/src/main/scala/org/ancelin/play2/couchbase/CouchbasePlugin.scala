@@ -6,7 +6,7 @@ import collection.JavaConversions._
 
 class CouchbasePlugin(implicit app: Application) extends Plugin {
   val logger = Logger("CouchbasePlugin")
-  var buckets: Map[String, Couchbase] = Map[String, Couchbase]()
+  var buckets: Map[String, CouchbaseBucket] = Map[String, CouchbaseBucket]()
   override def onStart {
     play.api.Play.configuration.getObjectList("couchbase").map { configs =>
       if (configs.size() == 1) {
@@ -17,7 +17,7 @@ class CouchbasePlugin(implicit app: Application) extends Plugin {
       configs
     }.getOrElse {
       logger.info(s"Connection to default CouchBase ...")
-      val cl: Couchbase = Couchbase().connect()
+      val cl: CouchbaseBucket = Couchbase().connect()
       buckets = buckets + (cl.bucket -> cl)
     }
   }
@@ -32,7 +32,7 @@ class CouchbasePlugin(implicit app: Application) extends Plugin {
     val pass = config.get("pass").unwrapped().asInstanceOf[String]
     val timeout = config.get("timeout").unwrapped().asInstanceOf[String].toLong
     logger.info(s"Connection to default CouchBase bucket '$bucket' ...")
-    val cl: Couchbase = Couchbase(hosts.toList, port, base, bucket, pass, timeout).connect()
+    val cl: CouchbaseBucket = Couchbase(hosts.toList, port, base, bucket, pass, timeout).connect()
     buckets = buckets + (cl.bucket -> cl)
   }
   def connectAll(configs: java.util.List[_<:ConfigObject]) {
@@ -46,7 +46,7 @@ class CouchbasePlugin(implicit app: Application) extends Plugin {
       val base = config.get("base").unwrapped().asInstanceOf[String]
       val pass = config.get("pass").unwrapped().asInstanceOf[String]
       val timeout = config.get("timeout").unwrapped().asInstanceOf[String].toLong
-      val couchbase: Couchbase = Couchbase(hosts.toList, port, base, bucket, pass, timeout)
+      val couchbase: CouchbaseBucket = Couchbase(hosts.toList, port, base, bucket, pass, timeout)
       logger.info(s"Connection to bucket $bucket ...")
       buckets = buckets + (bucket -> couchbase.connect())
     }

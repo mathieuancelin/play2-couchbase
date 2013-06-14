@@ -23,14 +23,14 @@ class IdGenerator extends Actor {
   def receive = {
     case _:IncrementAndGet ⇒ {
       val customSender = sender
-      Couchbase.get[Counter](IdGenerator.counterKey)(ShortURLs.client, ShortURLs.counterReader, ShortURLs.ec).map { maybe =>
+      Couchbase.get[Counter](IdGenerator.counterKey)(ShortURLs.bucket, ShortURLs.counterReader, ShortURLs.ec).map { maybe =>
         maybe.map { value =>
           val newValue = value.copy(value.value + 1L)
-          Couchbase.set[Counter](IdGenerator.counterKey, newValue)(ShortURLs.client, ShortURLs.counterWriter, ShortURLs.ec).map { status =>
+          Couchbase.set[Counter](IdGenerator.counterKey, newValue)(ShortURLs.bucket, ShortURLs.counterWriter, ShortURLs.ec).map { status =>
             customSender.tell(newValue.value, self)
           }
         }.getOrElse {
-          Couchbase.set[Counter](IdGenerator.counterKey, Counter(1L))(ShortURLs.client, ShortURLs.counterWriter, ShortURLs.ec).map { status =>
+          Couchbase.set[Counter](IdGenerator.counterKey, Counter(1L))(ShortURLs.bucket, ShortURLs.counterWriter, ShortURLs.ec).map { status =>
             customSender.tell(1L, self)
           }
         }
@@ -57,7 +57,7 @@ object ShortURLs {
   implicit val counterReader = Json.reads[Counter]
   implicit val counterWriter = Json.writes[Counter]
   implicit val ec = Couchbase.couchbaseExecutor
-  implicit val client = Couchbase.client("default")
+  implicit val bucket = Couchbase.bucket("default")
 
   val urlForm = Form( "url" -> nonEmptyText )
 

@@ -13,21 +13,25 @@ import play.api.libs.concurrent.Akka
 import akka.actor.ActorSystem
 
 // TODO : manage multiple hosts
-class Couchbase(val client: Option[CouchbaseClient], val hosts: List[String], val port: String, val base: String, val bucket: String, val pass: String, val timeout: Long) {
+class CouchbaseBucket(val client: Option[CouchbaseClient], val hosts: List[String], val port: String, val base: String, val bucket: String, val pass: String, val timeout: Long) {
 
   def connect() = {
     val uris = ArrayBuffer(hosts.map { h => URI.create(s"http://$h:$port/$base")}:_*)
     val client = new CouchbaseClient(uris, bucket, pass)
-    new Couchbase(Some(client), hosts, port, base, bucket, pass, timeout)
+    new CouchbaseBucket(Some(client), hosts, port, base, bucket, pass, timeout)
   }
 
   def disconnect() = {
     client.map(_.shutdown(timeout, TimeUnit.SECONDS))
-    new Couchbase(None, hosts, port, base, bucket, pass, timeout)
+    new CouchbaseBucket(None, hosts, port, base, bucket, pass, timeout)
   }
 
-  def withCouchbase[T](block: CouchbaseClient => T): Option[T] = {
-    client.map(block(_))
+  def withCouchbase[T](block: CouchbaseBucket => T): Option[T] = {
+    client.map(_ => block(this))
+  }
+
+  def couchbaseClient: CouchbaseClient = {
+    client.getOrElse(throw new PlayException(s"Error with bucket ${bucket}", s"Bucket '${bucket}' is not defined or client is not connected"))
   }
 }
 
@@ -37,15 +41,15 @@ object Couchbase extends ClientWrapper {
   private val connectMessage = "The CouchbasePlugin doesn't seems to be connected to a Couchbase server. Maybe an error occured!"
   private val couchbaseActorSystem = ActorSystem("couchbase-plugin-system")
 
-  def defaultBucket(implicit app: Application): Couchbase = app.plugin[CouchbasePlugin] match {
+  def defaultBucket(implicit app: Application): CouchbaseBucket = app.plugin[CouchbasePlugin] match {
     case Some(plugin) => plugin.buckets.headOption.getOrElse(throw new PlayException("CouchbasePlugin Error", connectMessage))._2
     case _ => throw new PlayException("CouchbasePlugin Error", initMessage)
   }
 
-  def bucket(bucket: String)(implicit app: Application): Couchbase = buckets(app).get(bucket).getOrElse(throw new PlayException(s"Error with bucket $bucket", s"Bucket '$bucket' is not defined"))
+  def bucket(bucket: String)(implicit app: Application): CouchbaseBucket = buckets(app).get(bucket).getOrElse(throw new PlayException(s"Error with bucket $bucket", s"Bucket '$bucket' is not defined"))
   def client(bucket: String)(implicit app: Application): CouchbaseClient = buckets(app).get(bucket).flatMap(_.client).getOrElse(throw new PlayException(s"Error with bucket $bucket", s"Bucket '$bucket' is not defined or client is not connected"))
 
-  def buckets(implicit app: Application): Map[String, Couchbase] =  app.plugin[CouchbasePlugin] match {
+  def buckets(implicit app: Application): Map[String, CouchbaseBucket] =  app.plugin[CouchbasePlugin] match {
     case Some(plugin) => plugin.buckets
     case _ => throw new PlayException("CouchbasePlugin Error", initMessage)
   }
@@ -64,15 +68,15 @@ object Couchbase extends ClientWrapper {
              base:    String = Play.configuration.getString("couchbase.base").getOrElse("pools"),
              bucket:  String = Play.configuration.getString("couchbase.bucket").getOrElse("default"),
              pass:    String = Play.configuration.getString("couchbase.pass").getOrElse(""),
-             timeout: Long   = Play.configuration.getLong("couchbase.timeout").getOrElse(0)): Couchbase = {
-    new Couchbase(None, hosts, port, base, bucket, pass, timeout)
+             timeout: Long   = Play.configuration.getLong("couchbase.timeout").getOrElse(0)): CouchbaseBucket = {
+    new CouchbaseBucket(None, hosts, port, base, bucket, pass, timeout)
   }
 
-  def withCouchbase[T](block: CouchbaseClient => T): T = defaultBucket.withCouchbase(block).get
-  def withCouchbase[T](bucketName: String)(block: CouchbaseClient => T): T = bucket(bucketName).withCouchbase(block).get
+  def withCouchbase[T](block: CouchbaseBucket => T): T = defaultBucket.withCouchbase(block).get
+  def withCouchbase[T](bucketName: String)(block: CouchbaseBucket => T): T = bucket(bucketName).withCouchbase(block).get
 
 }
 
 object CouchbaseImplicitConversion {
-  implicit def Couchbase2CouchbaseClient(value : Couchbase): CouchbaseClient = value.client.getOrElse(throw new PlayException(s"Error with bucket ${value.bucket}", s"Bucket '${value.bucket}' is not defined or client is not connected"))
+  implicit def Couchbase2CouchbaseClient(value : CouchbaseBucket): CouchbaseClient = value.client.getOrElse(throw new PlayException(s"Error with bucket ${value.bucket}", s"Bucket '${value.bucket}' is not defined or client is not connected"))
 }

@@ -5,7 +5,7 @@ import com.couchbase.client.protocol.views.Query;
 import com.couchbase.client.protocol.views.Stale;
 import net.spy.memcached.ops.OperationStatus;
 import org.ancelin.play2.java.couchbase.Couchbase;
-import org.ancelin.play2.java.couchbase.CouchbaseAPI;
+import org.ancelin.play2.java.couchbase.CouchbaseBucket;
 import play.data.Form;
 import play.libs.F;
 
@@ -15,7 +15,7 @@ import static play.data.Form.form;
 
 public class ShortURL {
 
-    public static CouchbaseAPI collection = Couchbase.bucket("default");
+    public static CouchbaseBucket bucket = Couchbase.bucket("default");
 
     public String id;
     public String originalUrl;
@@ -36,11 +36,11 @@ public class ShortURL {
     public static Form<URLValue> form = form(URLValue.class);
 
     public static F.Promise<ShortURL> findById(String id) {
-        return collection.get(id, ShortURL.class);
+        return bucket.get(id, ShortURL.class);
     }
 
     public static F.Promise<Collection<ShortURL>> findAll() {
-        return collection.find("shorturls", "by_url", new Query().setIncludeDocs(true).setStale(Stale.FALSE), ShortURL.class);
+        return bucket.find("shorturls", "by_url", new Query().setIncludeDocs(true).setStale(Stale.FALSE), ShortURL.class);
     }
 
     public static F.Promise<F.Option<ShortURL>> findByURL(String url) {
@@ -50,7 +50,7 @@ public class ShortURL {
                 .setStale(Stale.FALSE)
                 .setRangeStart(ComplexKey.of(url))
                 .setRangeEnd(ComplexKey.of(url + "\uefff"));
-        return collection.find("shorturls", "by_url", query, ShortURL.class).map(new F.Function<Collection<ShortURL>, F.Option<ShortURL>>() {
+        return bucket.find("shorturls", "by_url", query, ShortURL.class).map(new F.Function<Collection<ShortURL>, F.Option<ShortURL>>() {
             @Override
             public F.Option<ShortURL> apply(Collection<ShortURL> shortURLs) throws Throwable {
                 if (shortURLs.isEmpty()) {
@@ -62,15 +62,15 @@ public class ShortURL {
     }
 
     public static F.Promise<OperationStatus> save(ShortURL url) {
-        return collection.set(url.id, url);
+        return bucket.set(url.id, url);
     }
 
     public static F.Promise<OperationStatus> remove(String id) {
-        return collection.delete(id);
+        return bucket.delete(id);
     }
 
     public static F.Promise<OperationStatus> remove(ShortURL url) {
-        return collection.delete(url.id);
+        return bucket.delete(url.id);
     }
 }
 

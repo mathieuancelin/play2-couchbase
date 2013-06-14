@@ -65,6 +65,7 @@ import play.api.mvc.{Action, Controller}
 import play.api.libs.json._
 import org.ancelin.play2.couchbase.Couchbase._
 import org.ancelin.play2.couchbase.Couchbase
+import org.ancelin.play2.couchbase.CouchbaseBucket
 import org.ancelin.play2.couchbase.CouchbaseController
 import play.api.Play.current
 
@@ -75,7 +76,7 @@ object UserController extends Controller with CouchbaseController {
   implicit val couchbaseExecutionContext = Couchbase.couchbaseExecutor
   implicit val userReader = Json.reads[User]
 
-  def getUser(key: String) = CouchbaseAction { implicit couchbaseclient =>
+  def getUser(key: String) = CouchbaseAction { implicit bucket =>
     get[User](key).map { maybeUser =>
       maybeUser.map(user => Ok(views.html.user(user)).getOrElse(BadRequest(s"Unable to find user with key: $key"))
     }
@@ -92,6 +93,7 @@ import play.api.mvc.{Action, Controller}
 import play.api.libs.json._
 import org.ancelin.play2.couchbase.Couchbase._
 import org.ancelin.play2.couchbase.Couchbase
+import org.ancelin.play2.couchbase.CouchbaseBucket
 import play.api.Play.current
 
 case class User(name: String, surname: String, email: String)
@@ -103,7 +105,7 @@ object UserController extends Controller {
 
   def getUser(key: String) = Action { 
     Async {
-      withCouchbase { implicit couchbaseclient =>
+      withCouchbase { implicit bucket =>
         get[User](key).map { maybeUser =>
           maybeUser.map(user => Ok(views.html.user(user)).getOrElse(BadRequest(s"Unable to find user with key: $key"))
         }
@@ -153,13 +155,13 @@ object UserController extends Controller with CouchbaseController {
   implicit val userReader = Json.reads[User]
   implicit val beerReader = Json.reads[Beer]
 
-  def getUser(key: String) = CouchbaseAction("bucket1") { implicit couchbaseclient =>
+  def getUser(key: String) = CouchbaseAction("bucket1") { implicit bucket =>
     get[User](key).map { maybeUser =>
       maybeUser.map(user => Ok(views.html.user(user)).getOrElse(BadRequest(s"Unable to find user with key: $key"))
     }
   }
 
-  def getBeer(key: String) = CouchbaseAction("bucket2") { request => implicit couchbaseclient =>
+  def getBeer(key: String) = CouchbaseAction("bucket2") { request => implicit bucket =>
     get[Beer](key).map { maybeBeer =>
       maybeBeer.map(beer => Ok(views.html.beer(beer)).getOrElse(BadRequest(s"Unable to find beer with key: $key"))
     }
@@ -175,6 +177,7 @@ or from inside a model :
 import play.api.libs.json._
 import org.ancelin.play2.couchbase.Couchbase._
 import org.ancelin.play2.couchbase.Couchbase
+import org.ancelin.play2.couchbase.CouchbaseBucket
 import play.api.Play.current
 
 case class Beer(id: String, name: String, brewery: String) {
@@ -186,8 +189,8 @@ object Beer {
 
   implicit val beerReader = Json.reads[Beer]
   implicit val beerWriter = Json.writes[Beer]
+  implicit val bucket = Couchbase.bucket("bucket2")
   implicit val ec = Couchbase.couchbaseExecutor
-  implicit val client = Couchbase.client("bucket2")
 
   def findById(id: String): Future[Option[Beer]] = {
     get[Beer](id)
@@ -223,7 +226,7 @@ package controllers;
 
 import models.ShortURL;
 import org.ancelin.play2.java.couchbase.Couchbase;
-import org.ancelin.play2.java.couchbase.CouchbaseAPI;
+import org.ancelin.play2.java.couchbase.CouchbaseBucket;
 import play.libs.F;
 import static play.libs.F.*;
 import play.mvc.Controller;
@@ -231,11 +234,11 @@ import play.mvc.Result;
 
 public class Application extends Controller {
 
-    public static CouchbaseAPI collection = Couchbase.bucket("bucket1");
+    public static CouchbaseBucket bucket = Couchbase.bucket("bucket1");
 
     public static Result  getUser(final String key) {
         return async(
-            collection.get(key, User.class).map(new Function<User, Result>() {
+            bucket.get(key, User.class).map(new Function<User, Result>() {
                 @Override
                 public Result apply(User user) throws Throwable {
                     if (user == null) {
@@ -258,7 +261,7 @@ package controllers;
 
 import models.ShortURL;
 import org.ancelin.play2.java.couchbase.Couchbase;
-import org.ancelin.play2.java.couchbase.CouchbaseAPI;
+import org.ancelin.play2.java.couchbase.CouchbaseBucket;
 import play.libs.F;
 import static play.libs.F.*;
 import play.mvc.Controller;
@@ -266,11 +269,11 @@ import play.mvc.Result;
 
 public class Application extends Controller {
 
-    public static CouchbaseAPI collection = Couchbase.bucket("bucket1");
+    public static CouchbaseBucket bucket = Couchbase.bucket("bucket1");
 
     public static Result  getUser(final String key) {
         return async(
-            collection.get(key, User.class).map(user -> {
+            bucket.get(key, User.class).map(user -> {
                 if (user == null) {
                     return badRequest("Unable to find user with key: " + key);
                 }
@@ -293,7 +296,7 @@ import com.couchbase.client.protocol.views.Query;
 import com.couchbase.client.protocol.views.Stale;
 import net.spy.memcached.ops.OperationStatus;
 import org.ancelin.play2.java.couchbase.Couchbase;
-import org.ancelin.play2.java.couchbase.CouchbaseAPI;
+import org.ancelin.play2.java.couchbase.CouchbaseBucket;
 import play.libs.F;
 import static play.libs.F.*;
 
@@ -311,14 +314,14 @@ public class ShortURL {
         this.originalUrl = originalUrl;
     }
 
-    public static CouchbaseAPI collection = Couchbase.bucket("default");
+    public static CouchbaseBucket bucket = Couchbase.bucket("default");
 
     public static Promise<ShortURL> findById(String id) {
-        return collection.get(id, ShortURL.class);
+        return bucket.get(id, ShortURL.class);
     }
 
     public static Promise<Collection<ShortURL>> findAll() {
-        return collection.find("shorturls", "by_url",
+        return bucket.find("shorturls", "by_url",
             new Query().setIncludeDocs(true).setStale(Stale.FALSE), ShortURL.class);
     }
 
@@ -329,7 +332,7 @@ public class ShortURL {
                 .setStale(Stale.FALSE)
                 .setRangeStart(ComplexKey.of(url))
                 .setRangeEnd(ComplexKey.of(url + "\uefff"));
-        return collection.find("shorturls", "by_url", query, ShortURL.class)
+        return bucket.find("shorturls", "by_url", query, ShortURL.class)
                 .map(new Function<Collection<ShortURL>, Option<ShortURL>>() {
             @Override
             public Option<ShortURL> apply(Collection<ShortURL> shortURLs) throws Throwable {
@@ -342,11 +345,11 @@ public class ShortURL {
     }
 
     public static Promise<OperationStatus> save(ShortURL url) {
-        return collection.set(url.id, url);
+        return bucket.set(url.id, url);
     }
 
     public static Promise<OperationStatus> remove(ShortURL url) {
-        return collection.delete(url.id);
+        return bucket.delete(url.id);
     }
 }
 
@@ -363,7 +366,7 @@ import com.couchbase.client.protocol.views.Query;
 import com.couchbase.client.protocol.views.Stale;
 import net.spy.memcached.ops.OperationStatus;
 import org.ancelin.play2.java.couchbase.Couchbase;
-import org.ancelin.play2.java.couchbase.CouchbaseAPI;
+import org.ancelin.play2.java.couchbase.CouchbaseBucket;
 import play.libs.F;
 import static play.libs.F.*;
 
@@ -381,14 +384,14 @@ public class ShortURL {
         this.originalUrl = originalUrl;
     }
 
-    public static CouchbaseAPI collection = Couchbase.bucket("default");
+    public static CouchbaseBucket bucket = Couchbase.bucket("default");
 
     public static Promise<ShortURL> findById(String id) {
         return collection.get(id, ShortURL.class);
     }
 
     public static Promise<Collection<ShortURL>> findAll() {
-        return collection.find("shorturls", "by_url",
+        return bucket.find("shorturls", "by_url",
             new Query().setIncludeDocs(true).setStale(Stale.FALSE), ShortURL.class);
     }
 
@@ -399,7 +402,7 @@ public class ShortURL {
                 .setStale(Stale.FALSE)
                 .setRangeStart(ComplexKey.of(url))
                 .setRangeEnd(ComplexKey.of(url + "\uefff"));
-        return collection.find("shorturls", "by_url", query, ShortURL.class)
+        return bucket.find("shorturls", "by_url", query, ShortURL.class)
             .map(shortURLs -> {
                 if (shortURLs.isEmpty()) {
                     return Option.None();
@@ -409,11 +412,11 @@ public class ShortURL {
     }
 
     public static Promise<OperationStatus> save(ShortURL url) {
-        return collection.set(url.id, url);
+        return bucket.set(url.id, url);
     }
 
     public static Promise<OperationStatus> remove(ShortURL url) {
-        return collection.delete(url.id);
+        return bucket.delete(url.id);
     }
 }
 
