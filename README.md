@@ -487,7 +487,6 @@ akka {
 It's also not a perfect solution, because the polling can induce some overhead from a response time point of view.
 Let's hope Couchbase guys will introduce some kind of custom completable Java future ;-)
 
-
 Use Couchbase as Cache implementation
 =====================================
 
@@ -503,7 +502,6 @@ couchbase.cache.enable=true
 
 you can also specify a common namespace for the cache keys with
 
-
 ```
 couchbase.cache.namespace="play-cache."
 ```
@@ -514,8 +512,6 @@ then you can use your Play Cache the standard way
 
 Cache.set("item.key", connectedUser)
 val maybeUser: Option[User] = Cache.getAs[User]("item.key")
-
-
 ```
 
 Git
