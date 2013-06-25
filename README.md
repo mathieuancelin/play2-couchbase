@@ -488,6 +488,36 @@ It's also not a perfect solution, because the polling can induce some overhead f
 Let's hope Couchbase guys will introduce some kind of custom completable Java future ;-)
 
 
+Use Couchbase as Cache implementation
+=====================================
+
+in `conf/play.plugins` file and add :
+`5000:org.ancelin.play2.couchbase.CouchbaseCachePlugin`
+
+then you need to add the following to your configuration
+
+```
+couchbase.cache.bucket="name of the bucket to use"
+couchbase.cache.enable=true
+```
+
+you can also specify a common namespace for the cache keys with
+
+
+```
+couchbase.cache.namespace="play-cache."
+```
+
+then you can use your Play Cache the standard way
+
+```scala
+
+Cache.set("item.key", connectedUser)
+val maybeUser: Option[User] = Cache.getAs[User]("item.key")
+
+
+```
+
 Git
 ===================================
 
