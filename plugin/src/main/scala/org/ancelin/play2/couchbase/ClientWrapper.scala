@@ -1,7 +1,6 @@
 package org.ancelin.play2.couchbase
 
 import play.api.libs.json._
-import com.couchbase.client.CouchbaseClient
 import scala.concurrent.{Promise, Future, ExecutionContext}
 import net.spy.memcached.ops.OperationStatus
 import com.couchbase.client.protocol.views.{SpatialView, DesignDocument, Query, View}
