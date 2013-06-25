@@ -1,1 +1,2 @@
 400:org.ancelin.play2.couchbase.CouchbasePlugin
+500:org.ancelin.play2.couchbase.CouchbaseCachePlugin
