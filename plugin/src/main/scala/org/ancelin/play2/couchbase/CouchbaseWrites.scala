@@ -8,4 +8,8 @@ object CouchbaseWrites {
       Json.parse(o)
     }
   }
+
+  implicit val jsObjectToDocumentWriter = new Writes[JsObject] {
+    def writes(o: JsObject): JsValue = o
+  }
 }

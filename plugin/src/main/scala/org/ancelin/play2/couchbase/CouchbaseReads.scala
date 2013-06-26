@@ -7,4 +7,7 @@ object CouchbaseReads {
   implicit val documentAsStringReader = new Reads[String] {
     def reads(json: JsValue): JsResult[String] = JsSuccess(Json.stringify(json))
   }
+  implicit val documentAsJsObjectReader = new Reads[JsObject] {
+    def reads(json: JsValue): JsResult[JsObject] = JsSuccess(json.as[JsObject])
+  }
 }
