@@ -14,6 +14,8 @@ import com.couchbase.client.internal.HttpFuture
 import play.api.Play.current
 import play.api.{PlayException, Play}
 
+class JsonValidationException(message: String) extends RuntimeException
+
 // Yeah I know JavaFuture.get is really ugly, but what can I do ???
 // http://stackoverflow.com/questions/11529145/how-do-i-wrap-a-java-util-concurrent-future-in-an-akka-future
 trait ClientWrapper {
@@ -42,7 +44,7 @@ trait ClientWrapper {
       results.iterator().map { result =>
         result.getDocument match {
           case s: String => r.reads(Json.parse(s)) match {
-            case e:JsError => None
+            case e:JsError => if (Constants.jsonStrictValidation) throw new JsonValidationException("Invalid JSON content") else None
             case s:JsSuccess[T] => s.asOpt
           }
           case t: T => Some(t)
@@ -88,7 +90,7 @@ trait ClientWrapper {
     wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGet(key), ec ).map { f =>
        f match {
          case value: String => r.reads(Json.parse(value)) match {
-           case e:JsError => None
+           case e:JsError => if (Constants.jsonStrictValidation) throw new JsonValidationException("Invalid JSON content") else None
            case s:JsSuccess[T] => s.asOpt
          }
          case _ => None
@@ -570,6 +572,7 @@ trait ClientWrapper {
 
 object Constants {
   val expiration: Int = -1
+  val jsonStrictValidation = Play.configuration.getBoolean("couchbase.json.validate").getOrElse(false)
   val timeout: Long = Play.configuration.getLong("couchbase.execution-context.timeout").getOrElse(1000L)
   implicit val defaultPersistTo: PersistTo = PersistTo.ZERO
   implicit val defaultReplicateTo: ReplicateTo = ReplicateTo.ZERO
