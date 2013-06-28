@@ -34,26 +34,28 @@ add in your `conf/application.conf` file :
 
 ```
 
-couchbase-ec {
-  timeout=1000
-  pollfutures=true
-  polldelay=10
+couchbase {
   execution-context {
-    fork-join-executor {
-      parallelism-factor = 20.0
-      parallelism-max = 200
+    timeout=1000
+    pollfutures=true
+    polldelay=10
+    execution-context {
+      fork-join-executor {
+        parallelism-factor = 20.0
+        parallelism-max = 200
+      }
     }
   }
-}
-
-couchbase = [{
+  servers = [{
     host="127.0.0.1"
     port="8091"
     base="pools"
     bucket="bucketname"
     pass=""
     timeout="0"
-}]
+  }]
+}
+
 
 ```
 
@@ -119,29 +121,33 @@ object UserController extends Controller {
 You can of course connect many buckets with :
 
 ```
+couchbase {
 
-couchbase = [{
-    host=["127.0.0.1", "192.168.0.42"]
-    port="8091"
-    base="pools"
-    bucket="bucket1"
-    pass=""
-    timeout="0"
-}, {
-   host="127.0.0.1"
-   port="8091"
-   base="pools"
-   bucket="bucket2"
-   pass=""
-   timeout="0"
-}, {
-   host="192.168.0.42"
-   port="8091"
-   base="pools"
-   bucket="bucket3"
-   pass=""
-   timeout="0"
-}]
+  ...
+
+  servers = [{
+      host=["127.0.0.1", "192.168.0.42"]
+      port="8091"
+      base="pools"
+      bucket="bucket1"
+      pass=""
+      timeout="0"
+  }, {
+     host="127.0.0.1"
+     port="8091"
+     base="pools"
+     bucket="bucket2"
+     pass=""
+     timeout="0"
+  }, {
+     host="192.168.0.42"
+     port="8091"
+     base="pools"
+     bucket="bucket3"
+     pass=""
+     timeout="0"
+  }]
+}
 
 ```
 
@@ -435,15 +441,20 @@ It's done in the configuration of the plugin through :
 
 ```
 
-couchbase-ec {
-  timeout=1000
-  pollfutures=false  // here, you tell the plugin to block on Java Futures
-  execution-context {      // here it's the custom Execution Context
-    fork-join-executor {
-      parallelism-factor = 20.0
-      parallelism-max = 200
+couchbase {
+  execution-context {
+    timeout=1000
+    pollfutures=false  // here, you tell the plugin to block on Java Futures
+    execution-context {      // here it's the custom Execution Context
+      fork-join-executor {
+        parallelism-factor = 20.0
+        parallelism-max = 200
+      }
     }
   }
+
+  ...
+
 }
 
 ```
@@ -456,16 +467,21 @@ It's done in the configuration of the plugin through :
 
 ```
 
-couchbase-ec {
-  timeout=1000
-  pollfutures=true   // here, you tell the plugin to poll on Java Futures
-  polldelay=10       // here, you tell the plugin to poll every 10 ms
+couchbase {
   execution-context {
-    fork-join-executor {
-      parallelism-factor = 20.0
-      parallelism-max = 200
+    timeout=1000
+    pollfutures=true   // here, you tell the plugin to poll on Java Futures
+    polldelay=10       // here, you tell the plugin to poll every 10 ms
+    execution-context {
+      fork-join-executor {
+        parallelism-factor = 20.0
+        parallelism-max = 200
+      }
     }
   }
+
+  ...
+
 }
 
 ```
@@ -496,14 +512,30 @@ in `conf/play.plugins` file and add :
 then you need to add the following to your configuration
 
 ```
-cache.couchbase.bucket="name of the bucket to use"
-cache.couchbase.enable=true
+couchbase {
+  cache {
+    bucket="name of the bucket to use"
+    enabled=true
+  }
+
+  ...
+
+}
 ```
 
 you can also specify a common namespace for the cache keys with
 
 ```
-cache.couchbase.namespace="play-cache."
+couchbase {
+  cache {
+    bucket="name of the bucket to use"
+    enabled=true
+    namespace="play-cache."
+  }
+
+  ...
+
+}
 ```
 
 then you can use your Play Cache the standard way

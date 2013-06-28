@@ -8,7 +8,7 @@ class CouchbasePlugin(implicit app: Application) extends Plugin {
   val logger = Logger("CouchbasePlugin")
   var buckets: Map[String, CouchbaseBucket] = Map[String, CouchbaseBucket]()
   override def onStart {
-    play.api.Play.configuration.getObjectList("couchbase").map { configs =>
+    play.api.Play.configuration.getObjectList("couchbase.servers").map { configs =>
       if (configs.size() == 1) {
         connectDefault(configs.head)
       } else {

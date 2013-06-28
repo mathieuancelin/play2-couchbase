@@ -570,14 +570,14 @@ trait ClientWrapper {
 
 object Constants {
   val expiration: Int = -1
-  val timeout: Long = Play.configuration.getLong("couchbase-ec.timeout").getOrElse(1000L)
+  val timeout: Long = Play.configuration.getLong("couchbase.execution-context.timeout").getOrElse(1000L)
   implicit val defaultPersistTo: PersistTo = PersistTo.ZERO
   implicit val defaultReplicateTo: ReplicateTo = ReplicateTo.ZERO
 }
 
 object Polling {
-  val delay: Long = Play.configuration.getLong("couchbase-ec.polldelay").getOrElse(50L)
-  val pollingFutures: Boolean = Play.configuration.getBoolean("couchbase-ec.pollfutures").getOrElse(false)
+  val delay: Long = Play.configuration.getLong("couchbase.execution-context.polldelay").getOrElse(50L)
+  val pollingFutures: Boolean = Play.configuration.getBoolean("couchbase.execution-context.pollfutures").getOrElse(false)
   val system = ActorSystem("JavaFutureToScalaFuture")
   if (pollingFutures) {
     play.api.Logger("CouchbasePlugin").info("Using polling to wait for Java Future.")

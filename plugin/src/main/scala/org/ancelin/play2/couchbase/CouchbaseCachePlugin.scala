@@ -61,10 +61,10 @@ class CouchbaseCachePlugin(app: Application) extends CachePlugin {
       client.delete(namespace + key)
     }
   }
-  lazy val client = Couchbase.client( app.configuration.getString("cache.couchbase.bucket").getOrElse(throw new PlayException("Unspecified bucket", "You have to specify a bucket to use Couchbase as a cache.")))(app)
-  lazy val namespace: String = app.configuration.getString("cache.couchbase.namespace").getOrElse("")
+  lazy val client = Couchbase.client( app.configuration.getString("couchbase.cache.bucket").getOrElse(throw new PlayException("Unspecified bucket", "You have to specify a bucket to use Couchbase as a cache.")))(app)
+  lazy val namespace: String = app.configuration.getString("couchbase.cache.namespace").getOrElse("")
 
   override lazy val enabled = {
-    app.configuration.getBoolean("cache.couchbase.enable").getOrElse(false)
+    app.configuration.getBoolean("couchbase.cache.enabled").getOrElse(false)
   }
 }

@@ -56,19 +56,19 @@ object Couchbase extends ClientWrapper {
 
 
   def couchbaseExecutor(implicit app: Application): ExecutionContext = {
-    app.configuration.getObject("couchbase-ec.execution-context") match {
-      case Some(_) => couchbaseActorSystem.dispatchers.lookup("couchbase-ec.execution-context")
-      case _ => throw new PlayException("Configuration issue","You have to define a 'couchbase-ec.execution-context' object in the application.conf file.")
+    app.configuration.getObject("couchbase.execution-context.execution-context") match {
+      case Some(_) => couchbaseActorSystem.dispatchers.lookup("couchbase.execution-context.execution-context")
+      case _ => throw new PlayException("Configuration issue","You have to define a 'couchbase.execution-context.execution-context' object in the application.conf file.")
     }
   }
 
   def apply(
-             hosts:   List[String] = List(Play.configuration.getString("couchbase.host").getOrElse("127.0.0.1")),
-             port:    String = Play.configuration.getString("couchbase.port").getOrElse("8091"),
-             base:    String = Play.configuration.getString("couchbase.base").getOrElse("pools"),
-             bucket:  String = Play.configuration.getString("couchbase.bucket").getOrElse("default"),
-             pass:    String = Play.configuration.getString("couchbase.pass").getOrElse(""),
-             timeout: Long   = Play.configuration.getLong("couchbase.timeout").getOrElse(0)): CouchbaseBucket = {
+             hosts:   List[String] = List(Play.configuration.getString("couchbase.server.host").getOrElse("127.0.0.1")),
+             port:    String = Play.configuration.getString("couchbase.server.port").getOrElse("8091"),
+             base:    String = Play.configuration.getString("couchbase.server.base").getOrElse("pools"),
+             bucket:  String = Play.configuration.getString("couchbase.server.bucket").getOrElse("default"),
+             pass:    String = Play.configuration.getString("couchbase.server.pass").getOrElse(""),
+             timeout: Long   = Play.configuration.getLong("couchbase.server.timeout").getOrElse(0)): CouchbaseBucket = {
     new CouchbaseBucket(None, hosts, port, base, bucket, pass, timeout)
   }
 
