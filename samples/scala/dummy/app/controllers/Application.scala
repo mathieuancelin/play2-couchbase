@@ -2,7 +2,7 @@ package controllers
 
 import play.api.mvc.{Action, Controller}
 import play.api.libs.json._
-import org.ancelin.play2.couchbase.CouchbaseReads._
+import org.ancelin.play2.couchbase.CouchbaseRWImplicits._
 import org.ancelin.play2.couchbase.Couchbase._
 import org.ancelin.play2.couchbase.Couchbase
 import com.couchbase.client.protocol.views.{ComplexKey, Query}
