@@ -32,7 +32,7 @@ class CouchbaseCachePlugin(app: Application) extends CachePlugin {
     def get(key: String) = {
       val future = client.asyncGet(namespace + key, tc)
       try {
-        val any = future.get(1, TimeUnit.SECONDS)
+        val any = future.get(Constants.timeout, TimeUnit.MILLISECONDS)
         Option(
           any match {
             case x: java.lang.Byte => x.byteValue()
