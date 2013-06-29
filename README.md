@@ -46,7 +46,7 @@ couchbase {
       }
     }
   }
-  servers = [{
+  buckets = [{
     host="127.0.0.1"
     port="8091"
     base="pools"
@@ -125,7 +125,7 @@ couchbase {
 
   ...
 
-  servers = [{
+  buckets = [{
       host=["127.0.0.1", "192.168.0.42"]
       port="8091"
       base="pools"
