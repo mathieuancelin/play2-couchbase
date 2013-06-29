@@ -99,6 +99,42 @@ trait ClientWrapper {
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // Counter Operations
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  def incr(key: String, by: Int)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.asyncIncr(key, by), ec )
+  }
+
+  def incr(key: String, by: Long)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.asyncIncr(key, by), ec )
+  }
+
+  def decr(key: String, by: Int)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.asyncDecr(key, by), ec )
+  }
+
+  def decr(key: String, by: Long)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.asyncDecr(key, by), ec )
+  }
+
+  def incrAndGet(key: String, by: Int)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[Int] = {
+    Future( bucket.couchbaseClient.incr(key, by) )(ec).map(_.toInt)
+  }
+
+  def incrAndGet(key: String, by: Long)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[Long] = {
+    Future( bucket.couchbaseClient.incr(key, by) )(ec)
+  }
+
+  def decrAndGet(key: String, by: Int)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[Int] = {
+    Future( bucket.couchbaseClient.decr(key, by) )(ec).map(_.toInt)
+  }
+
+  def decrAndGet(key: String, by: Long)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[Long] = {
+    Future( bucket.couchbaseClient.decr(key, by) )(ec)
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Set Operations
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
