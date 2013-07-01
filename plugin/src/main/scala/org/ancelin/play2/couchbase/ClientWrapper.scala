@@ -15,6 +15,7 @@ import play.api.Play.current
 import play.api.{PlayException, Play}
 
 class JsonValidationException(message: String, errors: JsObject) extends RuntimeException(message + " : " + Json.stringify(errors))
+class OperationFailedException(status: OperationStatus) extends RuntimeException(status.getMessage)
 
 // Yeah I know JavaFuture.get is really ugly, but what can I do ???
 // http://stackoverflow.com/questions/11529145/how-do-i-wrap-a-java-util-concurrent-future-in-an-akka-future
@@ -559,6 +560,16 @@ trait ClientWrapper {
       Future {
         javaFuture.get(Constants.timeout, TimeUnit.MILLISECONDS)
         javaFuture.getStatus
+      }(ec).flatMap { status =>
+        if (!Constants.failWithOpStatus) {
+          Future(status)(ec)
+        } else {
+          if (status.isSuccess) {
+            Future.successful(status)
+          } else {
+            Future.failed(new OperationFailedException(status))
+          }
+        }
       }(ec)
     }
   }
@@ -572,6 +583,16 @@ trait ClientWrapper {
       Future {
         javaFuture.get(Constants.timeout, TimeUnit.MILLISECONDS)
         javaFuture.getStatus
+      }(ec).flatMap { status =>
+        if (!Constants.failWithOpStatus) {
+          Future(status)(ec)
+        } else {
+          if (status.isSuccess) {
+            Future.successful(status)
+          } else {
+            Future.failed(new OperationFailedException(status))
+          }
+        }
       }(ec)
     }
   }
@@ -591,11 +612,21 @@ trait ClientWrapper {
       javaFuture match {
         case o: OperationFuture[T] => {
           o.get(Constants.timeout, TimeUnit.MILLISECONDS)
-          promise.success(o.getStatus)
+          if (!Constants.failWithOpStatus) {
+            promise.success(o.getStatus)
+          } else {
+            if (o.getStatus.isSuccess) promise.success(o.getStatus)
+            else promise.failure(new OperationFailedException(o.getStatus))
+          }
         }
         case h: HttpFuture[T] => {
           h.get(Constants.timeout, TimeUnit.MILLISECONDS)
-          promise.success(h.getStatus)
+          if (!Constants.failWithOpStatus) {
+            promise.success(h.getStatus)
+          } else {
+            if (h.getStatus.isSuccess) promise.success(h.getStatus)
+            else promise.failure(new OperationFailedException(h.getStatus))
+          }
         }
       }
     } else {
@@ -609,9 +640,16 @@ trait ClientWrapper {
 object Constants {
   val expiration: Int = -1
   val jsonStrictValidation = Play.configuration.getBoolean("couchbase.json.validate").getOrElse(true)
+  val failWithOpStatus = Play.configuration.getBoolean("couchbase.failfutures").getOrElse(false)
   val timeout: Long = Play.configuration.getLong("couchbase.execution-context.timeout").getOrElse(1000L)
   implicit val defaultPersistTo: PersistTo = PersistTo.ZERO
   implicit val defaultReplicateTo: ReplicateTo = ReplicateTo.ZERO
+  if (jsonStrictValidation) {
+    play.api.Logger("CouchbasePlugin").info("Failing on bad JSON structure enabled.")
+  }
+  if (failWithOpStatus) {
+    play.api.Logger("CouchbasePlugin").info("Failing Futures on failed OperationStatus enabled.")
+  }
 }
 
 object Polling {
