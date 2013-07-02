@@ -120,19 +120,19 @@ trait ClientWrapper {
   }
 
   def incrAndGet(key: String, by: Int)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[Int] = {
-    Future( bucket.couchbaseClient.incr(key, by) )(ec).map(_.toInt)
+    Future[Long]( bucket.couchbaseClient.incr(key, by) )(ec).map(_.toInt)
   }
 
   def incrAndGet(key: String, by: Long)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[Long] = {
-    Future( bucket.couchbaseClient.incr(key, by) )(ec)
+    Future[Long]( bucket.couchbaseClient.incr(key, by) )(ec)
   }
 
   def decrAndGet(key: String, by: Int)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[Int] = {
-    Future( bucket.couchbaseClient.decr(key, by) )(ec).map(_.toInt)
+    Future[Long]( bucket.couchbaseClient.decr(key, by) )(ec).map(_.toInt)
   }
 
   def decrAndGet(key: String, by: Long)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[Long] = {
-    Future( bucket.couchbaseClient.decr(key, by) )(ec)
+    Future[Long]( bucket.couchbaseClient.decr(key, by) )(ec)
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -533,6 +533,14 @@ trait ClientWrapper {
 
   def javaView(docName: String, viewName: String, bucket: CouchbaseBucket, ec: ExecutionContext): Future[View] = {
     wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGetView(docName, viewName), ec )
+  }
+
+  def asJavaLong(f: Future[Long], ec: ExecutionContext): Future[java.lang.Long] = {
+    f.map { (v: Long) => v: java.lang.Long }(ec)
+  }
+
+  def asJavaInt(f: Future[Int], ec: ExecutionContext): Future[java.lang.Integer] = {
+    f.map { (v: Int) => v: java.lang.Integer }(ec)
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

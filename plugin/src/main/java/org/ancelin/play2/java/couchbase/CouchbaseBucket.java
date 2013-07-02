@@ -42,8 +42,40 @@ public class CouchbaseBucket {
         return new Promise<T>(couchbase.javaGet(key, clazz, client, ec));
     }
 
-    public <T> Promise<F.Option<T>> getopt(String key, Class<T> clazz) {
+    public <T> Promise<F.Option<T>> getOpt(String key, Class<T> clazz) {
         return new Promise<F.Option<T>>(couchbase.javaOptGet(key, clazz, client, ec));
+    }
+
+    public Promise<OperationStatus> incr(String key, Integer of) {
+        return new Promise<OperationStatus>(couchbase.incr(key, of, client, ec));
+    }
+
+    public Promise<OperationStatus> incr(String key, Long of) {
+        return new Promise<OperationStatus>(couchbase.incr(key, of, client, ec));
+    }
+
+    public Promise<OperationStatus> decr(String key, Integer of) {
+        return new Promise<OperationStatus>(couchbase.decr(key, of, client, ec));
+    }
+
+    public Promise<OperationStatus> decr(String key, Long of) {
+        return new Promise<OperationStatus>(couchbase.decr(key, of, client, ec));
+    }
+
+    public Promise<Integer> incrAndGet(String key, Integer of) {
+        return new Promise<Integer>(couchbase.asJavaInt(couchbase.incrAndGet(key, of, client, ec), ec));
+    }
+
+    public Promise<Long> incrAndGet(String key, Long of) {
+        return new Promise<Long>(couchbase.asJavaLong(couchbase.incrAndGet(key, of, client, ec), ec));
+    }
+
+    public Promise<Integer> decrAndGet(String key, Integer of) {
+        return new Promise<Integer>(couchbase.asJavaInt(couchbase.decrAndGet(key, of, client, ec), ec));
+    }
+
+    public Promise<Long> decrAndGet(String key, Long of) {
+        return new Promise<Long>(couchbase.asJavaLong(couchbase.decrAndGet(key, of, client, ec), ec));
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
