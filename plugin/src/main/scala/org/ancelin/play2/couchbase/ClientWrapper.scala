@@ -34,6 +34,18 @@ trait ClientWrapper {
     })
   }
 
+  def findPAsEnumerator[T](docName:String, viewName: String)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): PartialFunction[Query, Future[Enumerator[T]]] = {
+    PartialFunction[Query, Future[Enumerator[T]]]((query: Query) => {
+      findAsEnumerator[T](docName, viewName)(query)(bucket, r, ec)
+    })
+  }
+
+  def findPAsEnumerator[T](view: View)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): PartialFunction[Query, Future[Enumerator[T]]] = {
+    PartialFunction[Query, Future[Enumerator[T]]]((query: Query) => {
+      findAsEnumerator[T](view)(query)(bucket, r, ec)
+    })
+  }
+
   def find[T](docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
     view(docName, viewName)(bucket, ec).flatMap {
       case view: View => find[T](view)(query)(bucket, r, ec)
@@ -53,6 +65,17 @@ trait ClientWrapper {
           case _ => None
         }
       }.toList.filter(_.isDefined).map(_.get)
+    }
+  }
+
+  def findAsEnumerator[T](view: View)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Enumerator[T]] = {
+     find[T](view)(query)(bucket, r, ec).map(Enumerator.enumerate(_))
+  }
+
+  def findAsEnumerator[T](docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Enumerator[T]] = {
+    view(docName, viewName)(bucket, ec).flatMap {
+      case view: View => findAsEnumerator[T](view)(query)(bucket, r, ec)
+      case _ => Future.failed(new PlayException("Couchbase view error", s"Can't find view $viewName from $docName. Please create it."))
     }
   }
 
