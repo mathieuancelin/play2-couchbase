@@ -93,14 +93,22 @@ trait ClientWrapper {
     ).through( Enumeratee.mapConcat[List[T]](identity) ).through( Enumeratee.filter[T]( filter ) )
   }
 
+  def repeatQuery[T](doc: String, view: String, query: Query, trigger: Future[AnyRef])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
+    repeatQuery[T](doc, view, query, trigger, { chunk: T => true })(bucket, r, ec)
+  }
+
+  def repeatQuery[T](doc: String, view: String, query: Query, trigger: Future[AnyRef], filter: T => Boolean)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
+    Enumerator.repeatM(
+      trigger.flatMap { _ => find[T](doc, view)(query)(bucket, r, ec) }
+    ).through( Enumeratee.mapConcat[List[T]](identity) ).through( Enumeratee.filter[T]( filter ) )
+  }
+
   def repeatQuery[T](doc: String, view: String, query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
     repeatQuery[T](doc, view, query, { chunk: T => true })(bucket, r, ec)
   }
 
   def repeatQuery[T](doc: String, view: String, query: Query, filter: T => Boolean)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
-    Enumerator.repeatM(
-      find[T](doc, view)(query)(bucket, r, ec)
-    ).through( Enumeratee.mapConcat[List[T]](identity) ).through( Enumeratee.filter[T]( filter ) )
+    repeatQuery[T](doc, view, query, Future.successful(Some),filter)(bucket, r, ec)
   }
 
   def view(docName: String, viewName: String)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[View] = {
