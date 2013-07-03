@@ -7,14 +7,13 @@ import akka.pattern.ask
 import akka.util.Timeout
 import java.util.concurrent.TimeUnit
 import play.api.libs.json.{Reads, Json}
-import org.ancelin.play2.couchbase.Couchbase._
 import com.couchbase.client.protocol.views.{ComplexKey, Stale, Query}
 import net.spy.memcached.ops.OperationStatus
 import play.api.data.Form
 import play.api.data.Forms._
 import play.api.Play.current
 import play.api.libs.iteratee.{Enumeratee, Enumerator}
-import play.api.libs.concurrent.Promise
+import org.ancelin.play2.couchbase.CouchbaseImplicitConversion.Couchbase2ClientWrapper
 
 case class Counter(value: Long)
 case class IncrementAndGet()
@@ -64,20 +63,20 @@ object ShortURLs {
   val urlForm = Form( "url" -> nonEmptyText )
 
   def findById(id: String): Future[Option[ShortURL]] = {
-    get[ShortURL](id)
+    bucket.get[ShortURL](id)
   }
 
   def findAll(): Future[List[ShortURL]] = {
-    find[ShortURL]("shorturls", "by_url")( new Query().setIncludeDocs(true).setStale(Stale.FALSE) )
+    bucket.find[ShortURL]("shorturls", "by_url")( new Query().setIncludeDocs(true).setStale(Stale.FALSE) )
   }
 
   def findAllAsEnumerator(): Future[Enumerator[ShortURL]] = {
-    findAsEnumerator[ShortURL]("shorturls", "by_url")( new Query().setIncludeDocs(true).setStale(Stale.FALSE) )
+    bucket.findAsEnumerator[ShortURL]("shorturls", "by_url")( new Query().setIncludeDocs(true).setStale(Stale.FALSE) )
   }
 
   def pollAll(): Enumerator[ShortURL] = {
     var i = 0L
-    pollQuery[ShortURL]("shorturls", "by_url", new Query().setIncludeDocs(true).setStale(Stale.FALSE), 1000, { chunk: ShortURL =>
+    bucket.pollQuery[ShortURL]("shorturls", "by_url", new Query().setIncludeDocs(true).setStale(Stale.FALSE), 1000, { chunk: ShortURL =>
       val old = i
       val actual = chunk.id.toLong
       if (actual > old) {
@@ -95,18 +94,18 @@ object ShortURLs {
       .setStale(Stale.FALSE)
       .setRangeStart(ComplexKey.of(url))
       .setRangeEnd(ComplexKey.of(s"$url\uefff"))
-    find[ShortURL]("shorturls", "by_url")(query).map(_.headOption)
+    bucket.find[ShortURL]("shorturls", "by_url")(query).map(_.headOption)
   }
 
   def save(url: ShortURL): Future[OperationStatus] = {
-    set[ShortURL]( url )
+    bucket.set[ShortURL]( url )
   }
 
   def remove(id: String): Future[OperationStatus] = {
-    delete(id)
+    bucket.delete(id)
   }
 
   def remove(url: ShortURL): Future[OperationStatus] = {
-    delete(url)
+    bucket.delete(url)
   }
 }
