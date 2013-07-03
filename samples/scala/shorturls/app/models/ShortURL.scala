@@ -1,19 +1,20 @@
 package models
 
 import akka.actor.{Props, Actor, ActorSystem}
-import org.ancelin.play2.couchbase.Couchbase
-import scala.concurrent.Future
+import org.ancelin.play2.couchbase.{CouchbaseBucket, Couchbase}
+import scala.concurrent.{ExecutionContext, Future}
 import akka.pattern.ask
 import akka.util.Timeout
 import java.util.concurrent.TimeUnit
-import play.api.libs.json.Json
+import play.api.libs.json.{Reads, Json}
 import org.ancelin.play2.couchbase.Couchbase._
 import com.couchbase.client.protocol.views.{ComplexKey, Stale, Query}
 import net.spy.memcached.ops.OperationStatus
 import play.api.data.Form
 import play.api.data.Forms._
 import play.api.Play.current
-import play.api.libs.iteratee.Enumerator
+import play.api.libs.iteratee.{Enumeratee, Enumerator}
+import play.api.libs.concurrent.Promise
 
 case class Counter(value: Long)
 case class IncrementAndGet()
@@ -72,6 +73,18 @@ object ShortURLs {
 
   def findAllAsEnumerator(): Future[Enumerator[ShortURL]] = {
     findAsEnumerator[ShortURL]("shorturls", "by_url")( new Query().setIncludeDocs(true).setStale(Stale.FALSE) )
+  }
+
+  def pollAll(): Enumerator[ShortURL] = {
+    var i = 0L
+    pollQuery[ShortURL]("shorturls", "by_url", new Query().setIncludeDocs(true).setStale(Stale.FALSE), 1000, { chunk: ShortURL =>
+      val old = i
+      val actual = chunk.id.toLong
+      if (actual > old) {
+        i = actual
+        true
+      } else false
+    })
   }
 
   def findByURL(url: String): Future[Option[ShortURL]] = {

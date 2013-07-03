@@ -34,6 +34,10 @@ object ApiController extends Controller {
     }
   }
 
+  def pollAll() = Action {
+    Ok.stream( ShortURLs.pollAll().through( EventSource() ) )
+  }
+
   def createUrl() = Action { implicit request =>
     Async {
       ShortURLs.urlForm.bindFromRequest.fold(
