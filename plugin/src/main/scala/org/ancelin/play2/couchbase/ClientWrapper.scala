@@ -13,7 +13,11 @@ import net.spy.memcached.internal.{BulkFuture, OperationFuture}
 import com.couchbase.client.internal.HttpFuture
 import play.api.Play.current
 import play.api.{PlayException, Play}
-import play.api.libs.iteratee.{Iteratee, Enumerator}
+import play.api.libs.iteratee.{Enumeratee, Iteratee, Enumerator}
+import scala.concurrent.Promise
+import play.api.libs.json.JsSuccess
+import scala.Some
+import play.api.libs.json.JsObject
 
 class JsonValidationException(message: String, errors: JsObject) extends RuntimeException(message + " : " + Json.stringify(errors))
 class OperationFailedException(status: OperationStatus) extends RuntimeException(status.getMessage)
@@ -77,6 +81,26 @@ trait ClientWrapper {
       case view: View => findAsEnumerator[T](view)(query)(bucket, r, ec)
       case _ => Future.failed(new PlayException("Couchbase view error", s"Can't find view $viewName from $docName. Please create it."))
     }
+  }
+
+  def pollQuery[T](doc: String, view: String, query: Query, everyMillis: Long)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
+    pollQuery[T](doc, view, query, everyMillis, { chunk: T => true })(bucket, r, ec)
+  }
+
+  def pollQuery[T](doc: String, view: String, query: Query, everyMillis: Long, filter: T => Boolean)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
+    Enumerator.repeatM(
+      play.api.libs.concurrent.Promise.timeout(Some, everyMillis, TimeUnit.MILLISECONDS).flatMap(_ => find[T](doc, view)(query)(bucket, r, ec))
+    ).through( Enumeratee.mapConcat[List[T]](identity) ).through( Enumeratee.filter[T]( filter ) )
+  }
+
+  def repeatQuery[T](doc: String, view: String, query: Query, everyMillis: Long)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
+    repeatQuery[T](doc, view, query, everyMillis, { chunk: T => true })(bucket, r, ec)
+  }
+
+  def repeatQuery[T](doc: String, view: String, query: Query, everyMillis: Long, filter: T => Boolean)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
+    Enumerator.repeatM(
+      find[T](doc, view)(query)(bucket, r, ec)
+    ).through( Enumeratee.mapConcat[List[T]](identity) ).through( Enumeratee.filter[T]( filter ) )
   }
 
   def view(docName: String, viewName: String)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[View] = {
