@@ -85,6 +85,7 @@ object ShortURLs {
         true
       } else false
     })
+    //repeatQuery[ShortURL]("shorturls", "by_url", new Query().setIncludeDocs(true).setStale(Stale.FALSE))
   }
 
   def findByURL(url: String): Future[Option[ShortURL]] = {
