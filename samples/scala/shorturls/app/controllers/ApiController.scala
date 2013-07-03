@@ -7,6 +7,7 @@ import play.api.libs.json.Json
 import models.ShortURLs._
 import scala.concurrent.Future
 import play.api.Play.current
+import play.api.libs.{EventSource, Comet}
 
 
 object ApiController extends Controller {
@@ -22,6 +23,14 @@ object ApiController extends Controller {
   def getAllUrls() =  Action {
     Async {
       ShortURLs.findAll().map(urls => Ok( Json.toJson( urls ) ) )
+    }
+  }
+
+  implicit val toJson = Comet.CometMessage[ShortURL]( url => Json.stringify( ShortURLs.urlWriter.writes( url ) ) )
+
+  def getAllUrlsAsSSE() = Action {
+    Async {
+      ShortURLs.findAllAsEnumerator().map { enumerator => Ok.stream( enumerator.through( EventSource() ) ) }
     }
   }
 

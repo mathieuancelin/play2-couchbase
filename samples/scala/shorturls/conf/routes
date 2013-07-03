@@ -5,6 +5,7 @@
 # Home page
 GET     /                           controllers.Application.index()
 
+GET     /api/urls/sse               controllers.ApiController.getAllUrlsAsSSE()
 GET     /api/urls/:id               controllers.ApiController.getUrl(id)
 DELETE  /api/urls/:id               controllers.ApiController.delete(id)
 GET     /api/urls                   controllers.ApiController.getAllUrls()

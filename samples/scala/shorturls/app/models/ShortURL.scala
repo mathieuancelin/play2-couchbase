@@ -13,6 +13,7 @@ import net.spy.memcached.ops.OperationStatus
 import play.api.data.Form
 import play.api.data.Forms._
 import play.api.Play.current
+import play.api.libs.iteratee.Enumerator
 
 case class Counter(value: Long)
 case class IncrementAndGet()
@@ -67,6 +68,10 @@ object ShortURLs {
 
   def findAll(): Future[List[ShortURL]] = {
     find[ShortURL]("shorturls", "by_url")( new Query().setIncludeDocs(true).setStale(Stale.FALSE) )
+  }
+
+  def findAllAsEnumerator(): Future[Enumerator[ShortURL]] = {
+    findAsEnumerator[ShortURL]("shorturls", "by_url")( new Query().setIncludeDocs(true).setStale(Stale.FALSE) )
   }
 
   def findByURL(url: String): Future[Option[ShortURL]] = {
