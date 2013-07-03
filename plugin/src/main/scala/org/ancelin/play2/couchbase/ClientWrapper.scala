@@ -9,10 +9,11 @@ import net.spy.memcached.{ReplicateTo, PersistTo}
 import akka.actor.ActorSystem
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
-import net.spy.memcached.internal.OperationFuture
+import net.spy.memcached.internal.{BulkFuture, OperationFuture}
 import com.couchbase.client.internal.HttpFuture
 import play.api.Play.current
 import play.api.{PlayException, Play}
+import play.api.libs.iteratee.{Iteratee, Enumerator}
 
 class JsonValidationException(message: String, errors: JsObject) extends RuntimeException(message + " : " + Json.stringify(errors))
 class OperationFailedException(status: OperationStatus) extends RuntimeException(status.getMessage)
@@ -97,6 +98,63 @@ trait ClientWrapper {
          case _ => None
        }
     }
+  }
+
+  def getBulkWithKeys[T](keys: Seq[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Map[String, T]] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.asyncGetBulk(keys), ec ).map { value =>
+      value.filter { tuple =>
+        tuple._2 match {
+          case s: String => true
+          case t: T => true
+          case _ => false
+        }
+      }.map { tuple =>
+        tuple._2 match {
+          case s: String => r.reads(Json.parse(s)) match {
+            case e:JsError => if (Constants.jsonStrictValidation) throw new JsonValidationException("Invalid JSON content", JsError.toFlatJson(e.errors)) else (tuple._1, None)
+            case s:JsSuccess[T] => (tuple._1, s.asOpt)
+          }
+          case t: T => (tuple._1, Some(t))
+          case _ => (tuple._1, None)
+        }
+      }.filter(_._2.isDefined).map( v => v._1 -> v._2.get).toMap[String, T]
+    }
+  }
+
+  def getBulk[T](keys: Seq[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
+    getBulkWithKeys[T](keys)(bucket, r, ec).map(_.map(_._2).toList)
+  }
+
+  def getBulkWithKeys[T](keys: Enumerator[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Map[String, T]] = {
+    keys.apply(Iteratee.getChunks[String]).flatMap { iteratee =>
+      iteratee.run
+    }.flatMap { values =>
+      getBulkWithKeys[T](values)(bucket, r, ec)
+    }
+  }
+
+  def getBulk[T](keys: Enumerator[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
+    keys.apply(Iteratee.getChunks[String]).flatMap { iteratee =>
+      iteratee.run
+    }.flatMap { values =>
+      getBulk[T](values)(bucket, r, ec)
+    }
+  }
+
+  def getBulkWithKeysAsEnumerator[T](keys: Enumerator[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Enumerator[(String, T)]] = {
+    getBulkWithKeys[T](keys)(bucket, r, ec).map(Enumerator.enumerate(_))
+  }
+
+  def getBulkAsEnumerator[T](keys: Enumerator[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Enumerator[T]] = {
+    getBulk[T](keys)(bucket, r, ec).map(Enumerator.enumerate(_))
+  }
+
+  def getBulkWithKeysAsEnumerator[T](keys: Seq[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Enumerator[(String, T)]] = {
+    getBulkWithKeys[T](keys)(bucket, r, ec).map(Enumerator.enumerate(_))
+  }
+
+  def getBulkAsEnumerator[T](keys: Seq[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Enumerator[T]] = {
+    getBulk[T](keys)(bucket, r, ec).map(Enumerator.enumerate(_))
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -578,6 +636,18 @@ trait ClientWrapper {
             Future.failed(new OperationFailedException(status))
           }
         }
+      }(ec)
+    }
+  }
+
+  private def wrapJavaFutureInFuture[T](javaFuture: BulkFuture[T], ec: ExecutionContext): Future[T] = {
+    if (Polling.pollingFutures) {
+      val promise = Promise[T]()
+      pollJavaFutureUntilDoneOrCancelled(javaFuture, promise, ec)
+      promise.future
+    } else {
+      Future {
+        javaFuture.get(Constants.timeout, TimeUnit.MILLISECONDS)
       }(ec)
     }
   }
