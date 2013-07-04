@@ -428,7 +428,86 @@ public class ShortURL {
 
 ```
 
-About Java Future to Scala Future
+CRUD Application
+=================
+
+If you want to quickly bootstrap a project with Play2 Couchbase, it's pretty easy, you can use the CRUD utilities.
+
+To do so, first create a model :
+
+```scala
+
+case class ShortURL(id: String, originalUrl: String)
+
+```
+
+then declare an implicit Json Formatter that will be used for Json serialization/deserialization
+
+```scala
+
+import play.api.libs.json.Json
+
+object ShortURL {
+  implicit val fmt = Json.format[ShortURL]
+}
+
+```
+
+Now you can do two things :
+* create a CRUD source
+* create a CRUD controller
+
+let's try the CRUD controller
+
+```scala
+
+import org.ancelin.play2.couchbase.crud.CouchbaseCrudSourceController
+import models.ShortURL
+import models.ShortURLs.fmt
+import org.ancelin.play2.couchbase.Couchbase
+import play.api.Play.current
+
+object ShortURLController extends CouchbaseCrudSourceController[ShortURL] {
+  val bucket = Couchbase.bucket("default")
+}
+
+```
+
+and add the following route to your `routes` file
+
+```
+->      /urls                       controllers.ShortURLController
+```
+
+now you will be able to do :
+
+```
+
+GET     /urls/?doc=docName&view=viewName                    # get all urls according to a view
+GET     /urls/{id}                                          # get a url
+POST    /urls/                                              # create a url
+PUT     /urls/{id}                                          # update url
+DELETE  /urls/{id}                                          # delete url
+POST    /urls/stream/?doc=docName&view=viewName&q=query     # search urls
+GET     /urls/stream/?doc=docName&view=viewName&q=query     # search urls as HTTP stream
+
+```
+
+you can also only define a CRUD source containing all needed methods with :
+
+```scala
+
+import org.ancelin.play2.couchbase.crud.CouchbaseCrudSource
+import models.ShortURL
+import models.ShortURLs.fmt
+import org.ancelin.play2.couchbase.Couchbase
+import play.api.Play.current
+
+object ShortURLSource extends CouchbaseCrudSource[ShortURL]( Couchbase.bucket("default") ) {}
+
+``
+
+About Java Future to Scala Future conversion
 ===================================
 
 Couchbase client makes use of Java Future for its async operations. Unfortunally, Java Future API is quite broken and you can't really manage to
