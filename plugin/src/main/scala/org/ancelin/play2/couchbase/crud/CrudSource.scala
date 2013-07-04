@@ -12,6 +12,7 @@ import play.core.Router
 import scala.Some
 import play.api.libs.json.JsObject
 
+// Higly inspired (not to say copied ;)) from https://github.com/mandubian/play-autosource
 class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket) {
 
   import org.ancelin.play2.couchbase.CouchbaseImplicitConversion.Couchbase2ClientWrapper
