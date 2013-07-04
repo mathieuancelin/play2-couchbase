@@ -505,7 +505,7 @@ import play.api.Play.current
 
 object ShortURLSource extends CouchbaseCrudSource[ShortURL]( Couchbase.bucket("default") ) {}
 
-``
+```
 
 About Java Future to Scala Future conversion
 ===================================
