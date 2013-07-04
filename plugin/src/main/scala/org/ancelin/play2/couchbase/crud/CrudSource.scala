@@ -3,7 +3,7 @@ package org.ancelin.play2.couchbase.crud
 import scala.concurrent.{Future, ExecutionContext}
 import play.api.libs.json._
 import com.couchbase.client.protocol.views.{ComplexKey, Stale, Query, View}
-import play.api.libs.iteratee.{Iteratee, Enumerator}
+import play.api.libs.iteratee.{Enumerator}
 import play.api.mvc._
 import org.ancelin.play2.couchbase.{Couchbase, CouchbaseBucket}
 import java.util.UUID
@@ -63,7 +63,6 @@ abstract class CrudRouterController(implicit idBindable: PathBindable[String])
   with CrudController {
 
   private var path: String = ""
-
   private val Slash        = "/?".r
   private val Id           = "/([^/]+)/?".r
   private val Find         = "/find/?".r
@@ -140,7 +139,7 @@ abstract class CouchbaseCrudSourceController[T:Format] extends CrudRouterControl
     Async{
       res.get(id).map{
         case None    => NotFound(s"ID ${id} not found")
-        case Some(tid) => Ok(Json.obj("id" -> id))
+        case Some(tid) => Ok(Json.toJson(tid._1)(res.writer))
       }
     }
   }
