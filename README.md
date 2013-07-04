@@ -488,7 +488,7 @@ GET     /urls/{id}                                          # get a url
 POST    /urls/                                              # create a url
 PUT     /urls/{id}                                          # update url
 DELETE  /urls/{id}                                          # delete url
-POST    /urls/stream/?doc=docName&view=viewName&q=query     # search urls
+POST    /urls/find/?doc=docName&view=viewName&q=query       # search urls
 GET     /urls/stream/?doc=docName&view=viewName&q=query     # search urls as HTTP stream
 
 ```
