@@ -142,7 +142,7 @@ abstract class CouchbaseCrudSourceController[T:Format] extends CrudRouterControl
   def get(id: String) = Action {
     Async{
       res.get(id).map{
-        case None    => NotFound(s"ID ${id} not found")
+        case None    => NotFound(s"ID '${id}' not found")
         case Some(tid) => Ok(Json.toJson(tid._1)(res.writer))
       }
     }
@@ -164,13 +164,32 @@ abstract class CouchbaseCrudSourceController[T:Format] extends CrudRouterControl
 
   def find = Action { request =>
     val q = request.queryString.get("q").flatMap(_.headOption).getOrElse("")
+
+    val limit = request.queryString.get("limit").flatMap(_.headOption.map(_.toInt)).getOrElse(-1)
+    val descending = request.queryString.get("descending").flatMap(_.headOption.map(_.toBoolean)).getOrElse(false)
+    val skip = request.queryString.get("skip").flatMap(_.headOption.map(_.toInt)).getOrElse(-1)
+    val from = request.queryString.get("from").flatMap(_.headOption).getOrElse("")
+    val to = request.queryString.get("to").flatMap(_.headOption).getOrElse("")
+
     val v = request.queryString.get("view").flatMap(_.headOption).getOrElse(defaultViewName)
     val doc = request.queryString.get("doc").flatMap(_.headOption).getOrElse(defaultDesignDocname)
     Async {
       bucket.view(doc, v)(bucket, res.ctx).flatMap { view =>
-        val query = new Query().setIncludeDocs(true).setStale(Stale.FALSE)
-          .setRangeStart(ComplexKey.of(q))
-          .setRangeEnd(ComplexKey.of(s"$q\uefff"))
+        var query = new Query().setIncludeDocs(true).setStale(Stale.FALSE)
+        if (q != "") {
+          query = query.setRangeStart(ComplexKey.of(q))
+            .setRangeEnd(ComplexKey.of(s"$q\uefff"))
+        } else if (from != "" && to != "") {
+          query = query.setRangeStart(from)
+            .setRangeEnd(to)
+        }
+        if (limit != -1) {
+          query = query.setLimit(limit)
+        }
+        if (skip != -1) {
+          query = query.setSkip(skip)
+        }
+        query = query.setDescending(descending)
         res.find(view, query)
       }.map( s => Ok(Json.toJson(s)(Writes.list(res.writer))) )
     }
@@ -178,13 +197,32 @@ abstract class CouchbaseCrudSourceController[T:Format] extends CrudRouterControl
 
   def findStream = Action { request =>
     val q = request.queryString.get("q").flatMap(_.headOption).getOrElse("")
+
+    val limit = request.queryString.get("limit").flatMap(_.headOption.map(_.toInt)).getOrElse(-1)
+    val descending = request.queryString.get("descending").flatMap(_.headOption.map(_.toBoolean)).getOrElse(false)
+    val skip = request.queryString.get("skip").flatMap(_.headOption.map(_.toInt)).getOrElse(-1)
+    val from = request.queryString.get("from").flatMap(_.headOption).getOrElse("")
+    val to = request.queryString.get("to").flatMap(_.headOption).getOrElse("")
+
     val v = request.queryString.get("view").flatMap(_.headOption).getOrElse(defaultViewName)
     val doc = request.queryString.get("doc").flatMap(_.headOption).getOrElse(defaultDesignDocname)
     Async {
       bucket.view(doc, v)(bucket, res.ctx).flatMap { view =>
-        val query = new Query().setIncludeDocs(true).setStale(Stale.FALSE)
-          .setRangeStart(ComplexKey.of(q))
-          .setRangeEnd(ComplexKey.of(s"$q\uefff"))
+        var query = new Query().setIncludeDocs(true).setStale(Stale.FALSE)
+        if (q != "") {
+          query = query.setRangeStart(ComplexKey.of(q))
+            .setRangeEnd(ComplexKey.of(s"$q\uefff"))
+        } else if (from != "" && to != "") {
+          query = query.setRangeStart(from)
+            .setRangeEnd(to)
+        }
+        if (limit != -1) {
+          query = query.setLimit(limit)
+        }
+        if (skip != -1) {
+          query = query.setSkip(skip)
+        }
+        query = query.setDescending(descending)
         res.findStream(view, query)
       }.map { s => Ok.stream(
         s.map( it => Json.toJson(it)(res.writer) ).andThen(Enumerator.eof) )
