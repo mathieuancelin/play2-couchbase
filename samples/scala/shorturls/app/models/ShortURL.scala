@@ -53,6 +53,7 @@ object IdGenerator {
 case class ShortURL(id: String, originalUrl: String, t: String = "shorturl")
 
 object ShortURLs {
+  implicit val fmt = Json.format[ShortURL]
   implicit val urlReader = Json.reads[ShortURL]
   implicit val urlWriter = Json.writes[ShortURL]
   implicit val counterReader = Json.reads[Counter]

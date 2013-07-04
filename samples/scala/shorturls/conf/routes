@@ -4,6 +4,7 @@
 
 # Home page
 GET     /                           controllers.Application.index()
+->      /urls                       controllers.ShortURLController
 
 GET     /api/urls/sse               controllers.ApiController.getAllUrlsAsSSE()
 GET     /api/urls/poll              controllers.ApiController.pollAll()
