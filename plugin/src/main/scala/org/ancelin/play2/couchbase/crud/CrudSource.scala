@@ -163,71 +163,89 @@ abstract class CouchbaseCrudSourceController[T:Format] extends CrudRouterControl
   }
 
   def find = Action { request =>
-    val q = request.queryString.get("q").flatMap(_.headOption).getOrElse("")
-
-    val limit = request.queryString.get("limit").flatMap(_.headOption.map(_.toInt)).getOrElse(-1)
-    val descending = request.queryString.get("descending").flatMap(_.headOption.map(_.toBoolean)).getOrElse(false)
-    val skip = request.queryString.get("skip").flatMap(_.headOption.map(_.toInt)).getOrElse(-1)
-    val from = request.queryString.get("from").flatMap(_.headOption).getOrElse("")
-    val to = request.queryString.get("to").flatMap(_.headOption).getOrElse("")
-
-    val v = request.queryString.get("view").flatMap(_.headOption).getOrElse(defaultViewName)
-    val doc = request.queryString.get("doc").flatMap(_.headOption).getOrElse(defaultDesignDocname)
+    val (queryObject, query) = QueryObject.extractQuery(request, defaultDesignDocname, defaultViewName)
     Async {
-      bucket.view(doc, v)(bucket, res.ctx).flatMap { view =>
-        var query = new Query().setIncludeDocs(true).setStale(Stale.FALSE)
-        if (q != "") {
-          query = query.setRangeStart(ComplexKey.of(q))
-            .setRangeEnd(ComplexKey.of(s"$q\uefff"))
-        } else if (from != "" && to != "") {
-          query = query.setRangeStart(from)
-            .setRangeEnd(to)
-        }
-        if (limit != -1) {
-          query = query.setLimit(limit)
-        }
-        if (skip != -1) {
-          query = query.setSkip(skip)
-        }
-        query = query.setDescending(descending)
+      bucket.view(queryObject.docName, queryObject.view)(bucket, res.ctx).flatMap { view =>
         res.find(view, query)
       }.map( s => Ok(Json.toJson(s)(Writes.list(res.writer))) )
     }
   }
 
   def findStream = Action { request =>
-    val q = request.queryString.get("q").flatMap(_.headOption).getOrElse("")
-
-    val limit = request.queryString.get("limit").flatMap(_.headOption.map(_.toInt)).getOrElse(-1)
-    val descending = request.queryString.get("descending").flatMap(_.headOption.map(_.toBoolean)).getOrElse(false)
-    val skip = request.queryString.get("skip").flatMap(_.headOption.map(_.toInt)).getOrElse(-1)
-    val from = request.queryString.get("from").flatMap(_.headOption).getOrElse("")
-    val to = request.queryString.get("to").flatMap(_.headOption).getOrElse("")
-
-    val v = request.queryString.get("view").flatMap(_.headOption).getOrElse(defaultViewName)
-    val doc = request.queryString.get("doc").flatMap(_.headOption).getOrElse(defaultDesignDocname)
+    val (queryObject, query) = QueryObject.extractQuery(request, defaultDesignDocname, defaultViewName)
     Async {
-      bucket.view(doc, v)(bucket, res.ctx).flatMap { view =>
-        var query = new Query().setIncludeDocs(true).setStale(Stale.FALSE)
-        if (q != "") {
-          query = query.setRangeStart(ComplexKey.of(q))
-            .setRangeEnd(ComplexKey.of(s"$q\uefff"))
-        } else if (from != "" && to != "") {
-          query = query.setRangeStart(from)
-            .setRangeEnd(to)
-        }
-        if (limit != -1) {
-          query = query.setLimit(limit)
-        }
-        if (skip != -1) {
-          query = query.setSkip(skip)
-        }
-        query = query.setDescending(descending)
+      bucket.view(queryObject.docName, queryObject.view)(bucket, res.ctx).flatMap { view =>
         res.findStream(view, query)
       }.map { s => Ok.stream(
         s.map( it => Json.toJson(it)(res.writer) ).andThen(Enumerator.eof) )
       }
     }
+  }
+}
+
+case class QueryObject(
+  docName: String,
+  view: String,
+  q: Option[String],
+  from: Option[String],
+  to: Option[String],
+  limit: Option[Int],
+  descending: Option[Boolean],
+  skip: Option[Int]
+)
+
+object QueryObject {
+
+  def extractQueryObject[T](request: Request[T], defaultDesignDocname: String, defaultViewName: String): QueryObject = {
+    val q = request.queryString.get("q").flatMap(_.headOption)
+    val limit = request.queryString.get("limit").flatMap(_.headOption.map(_.toInt))
+    val descending = request.queryString.get("descending").flatMap(_.headOption.map(_.toBoolean))
+    val skip = request.queryString.get("skip").flatMap(_.headOption.map(_.toInt))
+    val from = request.queryString.get("from").flatMap(_.headOption)
+    val to = request.queryString.get("to").flatMap(_.headOption)
+    val v = request.queryString.get("view").flatMap(_.headOption).getOrElse(defaultViewName)
+    val doc = request.queryString.get("doc").flatMap(_.headOption).getOrElse(defaultDesignDocname)
+    val maybeQueryObject = QueryObject(doc, v, q, from, to, limit, descending, skip)
+    request.body match {
+      case AnyContentAsJson(json) => {
+        QueryObject(
+          (json \ "docName").asOpt[String].getOrElse(defaultDesignDocname),
+          (json \ "view").asOpt[String].getOrElse(defaultViewName),
+          (json \ "q").asOpt[String],
+          (json \ "from").asOpt[String],
+          (json \ "to").asOpt[String],
+          (json \ "limit").asOpt[Int],
+          (json \ "descending").asOpt[Boolean],
+          (json \ "skip").asOpt[Int]
+        )
+      }
+      case _ => maybeQueryObject
+    }
+  }
+
+  def extractQuery[T](request: Request[T], defaultDesignDocname: String, defaultViewName: String): (QueryObject, Query) = {
+    val q = extractQueryObject( request, defaultDesignDocname, defaultViewName )
+    ( q, extractQuery( q ) )
+  }
+
+  def extractQuery(queryObject: QueryObject): Query = {
+    var query = new Query().setIncludeDocs(true).setStale(Stale.FALSE)
+    if (queryObject.q.isDefined) {
+      query = query.setRangeStart(ComplexKey.of(queryObject.q.get))
+        .setRangeEnd(ComplexKey.of(s"${queryObject.q.get}\uefff"))
+    } else if (queryObject.from.isDefined && queryObject.to.isDefined) {
+      query = query.setRangeStart(queryObject.from.get).setRangeEnd(queryObject.to.get)
+    }
+    if (queryObject.limit.isDefined) {
+      query = query.setLimit(queryObject.limit.get)
+    }
+    if (queryObject.skip.isDefined) {
+      query = query.setSkip(queryObject.skip.get)
+    }
+    if (queryObject.descending.isDefined) {
+      query = query.setDescending(queryObject.descending.get)
+    }
+    query
   }
 }
 
