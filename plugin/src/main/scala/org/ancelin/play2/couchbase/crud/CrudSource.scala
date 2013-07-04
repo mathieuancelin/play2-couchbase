@@ -4,10 +4,13 @@ import scala.concurrent.{Future, ExecutionContext}
 import play.api.libs.json._
 import com.couchbase.client.protocol.views.{ComplexKey, Stale, Query, View}
 import play.api.libs.iteratee.{Iteratee, Enumerator}
-import play.api.mvc.{Action, EssentialAction, Controller}
+import play.api.mvc._
 import org.ancelin.play2.couchbase.{Couchbase, CouchbaseBucket}
 import java.util.UUID
 import net.spy.memcached.ops.OperationStatus
+import play.core.Router
+import scala.Some
+import play.api.libs.json.JsObject
 
 class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket) {
 
@@ -44,7 +47,71 @@ class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket) {
   }
 }
 
-abstract class CouchbaseCrudSourceController[T:Format] extends Controller {
+trait CrudController extends Controller {
+  def insert: EssentialAction
+
+  def get(id: String): EssentialAction
+  def delete(id: String): EssentialAction
+  def update(id: String): EssentialAction
+
+  def find: EssentialAction
+  def findStream: EssentialAction
+}
+
+abstract class CrudRouterController(implicit idBindable: PathBindable[String])
+  extends Router.Routes
+  with CrudController {
+
+  private var path: String = ""
+
+  private val Slash        = "/?".r
+  private val Id           = "/([^/]+)/?".r
+  private val Find         = "/find/?".r
+  private val Stream       = "/stream/?".r
+
+  def withId(id: String, action: String => EssentialAction) =
+    idBindable.bind("id", id).fold(badRequest, action)
+
+  def setPrefix(prefix: String) {
+    path = prefix
+  }
+
+  def prefix = path
+  def documentation = Nil
+  def routes = new scala.runtime.AbstractPartialFunction[RequestHeader, Handler] {
+    override def applyOrElse[A <: RequestHeader, B >: Handler](rh: A, default: A => B) = {
+      if (rh.path.startsWith(path)) {
+        (rh.method, rh.path.drop(path.length)) match {
+          case ("GET",    Stream())    => findStream
+          case ("GET",    Id(id))      => withId(id, get)
+          case ("GET",    Slash())     => find
+          case ("PUT",    Id(id))      => withId(id, update)
+          case ("POST",   Find())      => find
+          case ("POST",   Slash())     => insert
+          case ("DELETE", Id(id))      => withId(id, delete)
+          case _                       => default(rh)
+        }
+      } else {
+        default(rh)
+      }
+    }
+
+    def isDefinedAt(rh: RequestHeader) =
+      if (rh.path.startsWith(path)) {
+        (rh.method, rh.path.drop(path.length)) match {
+          case ("GET",    Stream()   | Id(_)    | Slash()) => true
+          case ("PUT",    Id(_))                           => true
+          case ("POST",   Slash())                         => true
+          case ("DELETE", Id(_))                           => true
+          case _ => false
+        }
+      } else {
+        false
+      }
+  }
+}
+
+abstract class CouchbaseCrudSourceController[T:Format] extends CrudRouterController {
 
   import org.ancelin.play2.couchbase.CouchbaseImplicitConversion.Couchbase2ClientWrapper
   import play.api.Play.current
@@ -122,3 +189,4 @@ abstract class CouchbaseCrudSourceController[T:Format] extends Controller {
     }
   }
 }
+
