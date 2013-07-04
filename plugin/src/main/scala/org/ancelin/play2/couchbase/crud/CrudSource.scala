@@ -117,6 +117,9 @@ abstract class CouchbaseCrudSourceController[T:Format] extends CrudRouterControl
 
   val bucket: CouchbaseBucket
 
+  val defaultDesignDocname = ""
+  val defaultViewName= ""
+
   lazy val res = new CouchbaseCrudSource[T](bucket)
 
   implicit val ctx = Couchbase.couchbaseExecutor
@@ -160,8 +163,8 @@ abstract class CouchbaseCrudSourceController[T:Format] extends CrudRouterControl
 
   def find = Action { request =>
     val q = request.queryString.get("q").flatMap(_.headOption).getOrElse("")
-    val v = request.queryString.get("view").flatMap(_.headOption).getOrElse("")
-    val doc = request.queryString.get("doc").flatMap(_.headOption).getOrElse("")
+    val v = request.queryString.get("view").flatMap(_.headOption).getOrElse(defaultViewName)
+    val doc = request.queryString.get("doc").flatMap(_.headOption).getOrElse(defaultDesignDocname)
     Async {
       bucket.view(doc, v)(bucket, res.ctx).flatMap { view =>
         val query = new Query().setIncludeDocs(true).setStale(Stale.FALSE)
@@ -174,8 +177,8 @@ abstract class CouchbaseCrudSourceController[T:Format] extends CrudRouterControl
 
   def findStream = Action { request =>
     val q = request.queryString.get("q").flatMap(_.headOption).getOrElse("")
-    val v = request.queryString.get("view").flatMap(_.headOption).getOrElse("")
-    val doc = request.queryString.get("doc").flatMap(_.headOption).getOrElse("")
+    val v = request.queryString.get("view").flatMap(_.headOption).getOrElse(defaultViewName)
+    val doc = request.queryString.get("doc").flatMap(_.headOption).getOrElse(defaultDesignDocname)
     Async {
       bucket.view(doc, v)(bucket, res.ctx).flatMap { view =>
         val query = new Query().setIncludeDocs(true).setStale(Stale.FALSE)

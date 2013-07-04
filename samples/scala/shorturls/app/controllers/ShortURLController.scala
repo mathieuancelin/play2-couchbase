@@ -8,4 +8,6 @@ import play.api.Play.current
 
 object ShortURLController extends CouchbaseCrudSourceController[ShortURL] {
   val bucket = Couchbase.bucket("default")
+  override val defaultViewName = "by_url"
+  override val defaultDesignDocname = "shorturls"
 }

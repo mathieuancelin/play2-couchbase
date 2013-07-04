@@ -493,6 +493,18 @@ GET     /urls/stream/?doc=docName&view=viewName&q=query     # search urls as HTT
 
 ```
 
+it is also possible to define default design doc name and view :
+
+```scala
+
+object ShortURLController extends CouchbaseCrudSourceController[ShortURL] {
+  val bucket = Couchbase.bucket("default")
+  override val defaultViewName = "by_url"
+  override val defaultDesignDocname = "shorturls"
+}
+
+```
+
 you can also only define a CRUD source containing all needed methods with :
 
 ```scala
