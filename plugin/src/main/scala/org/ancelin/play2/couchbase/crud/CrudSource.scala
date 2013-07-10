@@ -202,9 +202,14 @@ abstract class CouchbaseCrudSourceController[T:Format] extends CrudRouterControl
   implicit val ctx = Couchbase.couchbaseExecutor
 
   val writerWithId = Writes[(T, String)] {
-    case (t, id) =>
-      res.writer.writes(t).as[JsObject] ++ Json.obj(res.ID -> JsString(id))    // TODO : don't send id if already defined
-  }                                                                            // TODO : writer seems to write "id":"\"1\"" instead of "id":"1"
+    case (t, id) => {
+      val jsObj = res.writer.writes(t).as[JsObject]
+      (jsObj \ res.ID) match {
+        case JsUndefined(_) => jsObj ++ Json.obj(res.ID -> id)
+        case actualId => jsObj
+      }
+    }
+  }
 
   def insert: EssentialAction = Action(parse.json) { request =>
     Json.fromJson[T](request.body)(res.reader).map{ t =>
@@ -218,7 +223,13 @@ abstract class CouchbaseCrudSourceController[T:Format] extends CrudRouterControl
     Async{
       res.get(id).map{
         case None    => NotFound(s"ID '${id}' not found")
-        case Some(tid) => Ok(Json.toJson(tid._1)(res.writer).as[JsObject] ++ Json.obj(res.ID -> JsString(id)))  // TODO : don't send id if already defined
+        case Some(tid) => {
+          val jsObj = Json.toJson(tid._1)(res.writer).as[JsObject]
+          (jsObj \ res.ID) match {
+            case JsUndefined(_) => Ok( jsObj ++ Json.obj(res.ID -> JsString(id)) )
+            case actualId => Ok( jsObj )
+          }
+        }
       }
     }
   }
@@ -242,7 +253,7 @@ abstract class CouchbaseCrudSourceController[T:Format] extends CrudRouterControl
     Async {
       res.view(queryObject.docName, queryObject.view).flatMap { view =>
         res.find((view, query))
-      }.map( s => Ok(Json.toJson(s)(Writes.seq(writerWithId))))   // TODO : don't send id if already defined
+      }.map( s => Ok(Json.toJson(s)(Writes.seq(writerWithId))))
     }
   }
 
@@ -252,7 +263,7 @@ abstract class CouchbaseCrudSourceController[T:Format] extends CrudRouterControl
       res.view(queryObject.docName, queryObject.view).map { view =>
         res.findStream((view, query), 0, 0)
       }.map { s => Ok.stream(
-        s.map( it => Json.toJson(it.toSeq)(Writes.seq(writerWithId)) ).andThen(Enumerator.eof) )   // TODO : don't send id if already defined
+        s.map( it => Json.toJson(it.toSeq)(Writes.seq(writerWithId)) ).andThen(Enumerator.eof) )
       }
     }
   }
