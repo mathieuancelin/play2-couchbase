@@ -3,9 +3,9 @@ package org.ancelin.play2.couchbase.crud
 import scala.concurrent.{Future, ExecutionContext}
 import play.api.libs.json._
 import com.couchbase.client.protocol.views.{ComplexKey, Stale, Query, View}
-import play.api.libs.iteratee.{Enumerator}
+import play.api.libs.iteratee.{Iteratee, Enumerator}
 import play.api.mvc._
-import org.ancelin.play2.couchbase.{Couchbase, CouchbaseBucket}
+import org.ancelin.play2.couchbase.{CouchbaseRWImplicits, Couchbase, CouchbaseBucket}
 import java.util.UUID
 import net.spy.memcached.ops.OperationStatus
 import play.core.Router
@@ -15,36 +15,97 @@ import play.api.libs.json.JsObject
 // Higly inspired (not to say copied ;)) from https://github.com/mandubian/play-autosource
 class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket) {
 
+  /*
+  def findStream(view: View, query: Query): Future[Enumerator[T]] = {
+    bucket.findAsEnumerator[T](view)(query)(bucket, reader, ctx)
+  }*/
+
   import org.ancelin.play2.couchbase.CouchbaseImplicitConversion.Couchbase2ClientWrapper
+  import org.ancelin.play2.couchbase.CouchbaseRWImplicits._
   import play.api.Play.current
 
   val reader: Reads[T] = implicitly[Reads[T]]
   val writer: Writes[T] = implicitly[Writes[T]]
-  val ctx: ExecutionContext = Couchbase.couchbaseExecutor
+  var ID = "_id"
+  implicit val ctx: ExecutionContext = Couchbase.couchbaseExecutor
 
   def insert(t: T): Future[String] = {
-    val id = UUID.randomUUID().toString
-    bucket.set(id, t)(bucket, writer, ctx).map(_ => id)(ctx)
+    val id: String = UUID.randomUUID().toString
+    val json = writer.writes(t).as[JsObject]
+    json \ ID match {
+      case JsUndefined(_) => {
+        val newJson = json ++ Json.obj(ID -> JsString(id))
+        Couchbase.set(id, newJson)(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ctx).map(_ => id)(ctx)
+      }
+      case actualId => {
+        Couchbase.set(actualId.as[String], json)(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ctx).map(_ => id)(ctx)
+      }
+    }
   }
 
   def get(id: String): Future[Option[(T, String)]] = {
-    bucket.get[T]( id )(bucket ,reader, ctx).map( _.map( v => ( v, id ) ) )(ctx)
+    Couchbase.get[T]( id )(bucket ,reader, ctx).map( _.map( v => ( v, id ) ) )(ctx)
   }
 
-  def delete(id: String): Future[OperationStatus] = {
-    bucket.delete(id)(bucket, ctx)
+  def delete(id: String): Future[Unit] = {
+    Couchbase.delete(id)(bucket, ctx).map(_ => ())
   }
 
-  def update(id: String, t: T): Future[OperationStatus] = {
-    bucket.replace(id, t)(bucket, writer, ctx)
+  def update(id: String, t: T): Future[Unit] = {
+    Couchbase.replace(id, t)(bucket, writer, ctx).map(_ => ())
   }
 
-  def find(view: View, query: Query): Future[List[T]] = {
-    bucket.find[T](view)(query)(bucket, reader, ctx)
+  def updatePartial(id: String, upd: JsObject): Future[Unit] = {
+    get(id).flatMap { opt =>
+      opt.map { t =>
+        val json = Json.toJson(t._1)(writer).as[JsObject]
+        val newJson = json.deepMerge(upd)
+        Couchbase.replace((json \ ID).as[String], newJson)(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ctx).map(_ => ())
+      }.getOrElse(throw new RuntimeException(s"Cannot find ID $id"))
+    }
   }
 
-  def findStream(view: View, query: Query): Future[Enumerator[T]] = {
-    bucket.findAsEnumerator[T](view)(query)(bucket, reader, ctx)
+  def batchInsert(elems: Enumerator[T]): Future[Int] = {
+    elems(Iteratee.foldM[T, Int](0)( (s, t) => insert(t).map(_ => s + 1))).flatMap(_.run)
+  }
+
+  def find(sel: (View, Query), limit: Int = 0, skip: Int = 0): Future[Seq[(T, String)]] = {
+    var query = sel._2
+    if (limit != 0) query = query.setLimit(limit)
+    if (skip != 0) query = query.setSkip(skip)
+    Couchbase.find[T](sel._1)(query)(bucket, reader, ctx).map(l => l.map(i => (i, (Json.toJson(i)(writer) \ ID).as[String])))
+  }
+
+  def findStream(sel: (View, Query), skip: Int = 0, pageSize: Int = 0): Enumerator[Iterator[(T, String)]] = {
+    var query = sel._2
+    if (skip != 0) query = query.setSkip(skip)
+    val futureEnumerator = Couchbase.find[T](sel._1)(query)(bucket, reader, ctx).map { l =>
+      val size = if(pageSize != 0) pageSize else l.size
+      Enumerator.enumerate(l.map(i => (i, (Json.toJson(i)(writer) \ ID).as[String])).grouped(size).map(_.iterator))
+    }
+    Enumerator.flatten(futureEnumerator)
+  }
+
+  def batchDelete(sel: (View, Query)): Future[Unit] = {
+    Couchbase.find[JsObject](sel._1)(sel._2)(bucket, CouchbaseRWImplicits.documentAsJsObjectReader, ctx).map { list =>
+      list.map { t =>
+        delete((t \ ID).as[String])
+      }
+    }
+  }
+
+  def batchUpdate(sel: (View, Query), upd: JsObject): Future[Unit] = {
+    Couchbase.find[T](sel._1)(sel._2)(bucket, reader, ctx).map { list =>
+      list.map { t =>
+        val json = Json.toJson(t)(writer).as[JsObject]
+        val newJson = json.deepMerge(upd)
+        Couchbase.replace((json \ ID).as[String], newJson)(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ctx).map(_ => ())
+      }
+    }
+  }
+
+  def view(docName: String, viewName: String): Future[View] = {
+    Couchbase.view(docName, viewName)(bucket, ctx)
   }
 }
 
@@ -54,9 +115,14 @@ trait CrudController extends Controller {
   def get(id: String): EssentialAction
   def delete(id: String): EssentialAction
   def update(id: String): EssentialAction
+  def updatePartial(id: String): EssentialAction
 
   def find: EssentialAction
   def findStream: EssentialAction
+
+  def batchInsert: EssentialAction
+  def batchDelete: EssentialAction
+  def batchUpdate: EssentialAction
 }
 
 abstract class CrudRouterController(implicit idBindable: PathBindable[String])
@@ -64,9 +130,12 @@ abstract class CrudRouterController(implicit idBindable: PathBindable[String])
   with CrudController {
 
   private var path: String = ""
+
   private val Slash        = "/?".r
   private val Id           = "/([^/]+)/?".r
+  private val Partial      = "/([^/]+)/partial".r
   private val Find         = "/find/?".r
+  private val Batch        = "/batch/?".r
   private val Stream       = "/stream/?".r
 
   def withId(id: String, action: String => EssentialAction) =
@@ -85,9 +154,16 @@ abstract class CrudRouterController(implicit idBindable: PathBindable[String])
           case ("GET",    Stream())    => findStream
           case ("GET",    Id(id))      => withId(id, get)
           case ("GET",    Slash())     => find
+
+          case ("PUT",    Partial(id)) => withId(id, updatePartial)
           case ("PUT",    Id(id))      => withId(id, update)
+          case ("PUT",    Batch())     => batchUpdate
+
+          case ("POST",   Batch())     => batchInsert
           case ("POST",   Find())      => find
           case ("POST",   Slash())     => insert
+
+          case ("DELETE", Batch())     => batchDelete
           case ("DELETE", Id(id))      => withId(id, delete)
           case _                       => default(rh)
         }
@@ -100,9 +176,9 @@ abstract class CrudRouterController(implicit idBindable: PathBindable[String])
       if (rh.path.startsWith(path)) {
         (rh.method, rh.path.drop(path.length)) match {
           case ("GET",    Stream()   | Id(_)    | Slash()) => true
-          case ("PUT",    Id(_))                           => true
-          case ("POST",   Slash())                         => true
-          case ("DELETE", Id(_))                           => true
+          case ("PUT",    Partial(_) | Id(_)    | Batch()) => true
+          case ("POST",   Batch()    | Slash())            => true
+          case ("DELETE", Batch()    | Id(_))              => true
           case _ => false
         }
       } else {
@@ -127,11 +203,10 @@ abstract class CouchbaseCrudSourceController[T:Format] extends CrudRouterControl
 
   val writerWithId = Writes[(T, String)] {
     case (t, id) =>
-      Json.obj("id" -> id) ++
-        res.writer.writes(t).as[JsObject]
-  }
+      res.writer.writes(t).as[JsObject] ++ Json.obj(res.ID -> JsString(id))    // TODO : don't send id if already defined
+  }                                                                            // TODO : writer seems to write "id":"\"1\"" instead of "id":"1"
 
-  def insert = Action(parse.json){ request =>
+  def insert: EssentialAction = Action(parse.json) { request =>
     Json.fromJson[T](request.body)(res.reader).map{ t =>
       Async{
         res.insert(t).map{ id => Ok(Json.obj("id" -> id)) }
@@ -139,22 +214,22 @@ abstract class CouchbaseCrudSourceController[T:Format] extends CrudRouterControl
     }.recoverTotal{ e => BadRequest(JsError.toFlatJson(e)) }
   }
 
-  def get(id: String) = Action {
+  def get(id: String): EssentialAction = Action {
     Async{
       res.get(id).map{
         case None    => NotFound(s"ID '${id}' not found")
-        case Some(tid) => Ok(Json.toJson(tid._1)(res.writer))
+        case Some(tid) => Ok(Json.toJson(tid._1)(res.writer).as[JsObject] ++ Json.obj(res.ID -> JsString(id)))  // TODO : don't send id if already defined
       }
     }
   }
 
-  def delete(id: String) = Action {
+  def delete(id: String): EssentialAction = Action {
     Async{
       res.delete(id).map{ le => Ok(Json.obj("id" -> id)) }
     }
   }
 
-  def update(id: String) = Action(parse.json) { request =>
+  def update(id: String): EssentialAction = Action(parse.json) { request =>
     Json.fromJson[T](request.body)(res.reader).map{ t =>
       Async{
         res.update(id, t).map{ _ => Ok(Json.obj("id" -> id)) }
@@ -162,24 +237,60 @@ abstract class CouchbaseCrudSourceController[T:Format] extends CrudRouterControl
     }.recoverTotal{ e => BadRequest(JsError.toFlatJson(e)) }
   }
 
-  def find = Action { request =>
+  def find: EssentialAction = Action { request =>
     val (queryObject, query) = QueryObject.extractQuery(request, defaultDesignDocname, defaultViewName)
     Async {
-      bucket.view(queryObject.docName, queryObject.view)(bucket, res.ctx).flatMap { view =>
-        res.find(view, query)
-      }.map( s => Ok(Json.toJson(s)(Writes.list(res.writer))) )
+      res.view(queryObject.docName, queryObject.view).flatMap { view =>
+        res.find((view, query))
+      }.map( s => Ok(Json.toJson(s)(Writes.seq(writerWithId))))   // TODO : don't send id if already defined
     }
   }
 
-  def findStream = Action { request =>
+  def findStream: EssentialAction = Action { request =>
     val (queryObject, query) = QueryObject.extractQuery(request, defaultDesignDocname, defaultViewName)
     Async {
-      bucket.view(queryObject.docName, queryObject.view)(bucket, res.ctx).flatMap { view =>
-        res.findStream(view, query)
+      res.view(queryObject.docName, queryObject.view).map { view =>
+        res.findStream((view, query), 0, 0)
       }.map { s => Ok.stream(
-        s.map( it => Json.toJson(it)(res.writer) ).andThen(Enumerator.eof) )
+        s.map( it => Json.toJson(it.toSeq)(Writes.seq(writerWithId)) ).andThen(Enumerator.eof) )   // TODO : don't send id if already defined
       }
     }
+  }
+
+  def updatePartial(id: String): EssentialAction = Action(parse.json) { request =>
+    Json.fromJson[JsObject](request.body)(CouchbaseRWImplicits.documentAsJsObjectReader).map{ upd =>
+      Async{
+        res.updatePartial(id, upd).map{ _ => Ok(Json.obj("id" -> id)) }
+      }
+    }.recoverTotal{ e => BadRequest(JsError.toFlatJson(e)) }
+  }
+
+  def batchInsert: EssentialAction = Action(parse.json) { request =>
+    Json.fromJson[Seq[T]](request.body)(Reads.seq(res.reader)).map{ elems =>
+      Async{
+        res.batchInsert(Enumerator(elems:_*)).map{ nb => Ok(Json.obj("nb" -> nb)) }
+      }
+    }.recoverTotal{ e => BadRequest(JsError.toFlatJson(e)) }
+  }
+
+  def batchDelete: EssentialAction = Action { request =>
+    val (queryObject, query) = QueryObject.extractQuery(request, defaultDesignDocname, defaultViewName)
+    Async {
+      res.view(queryObject.docName, queryObject.view).flatMap { view =>
+        res.batchDelete((view, query)).map{ _ => Ok("deleted") }
+      }
+    }
+  }
+
+  def batchUpdate: EssentialAction = Action(parse.json) { request =>
+    val (queryObject, query) = QueryObject.extractQuery(request, defaultDesignDocname, defaultViewName)
+    Json.fromJson[JsObject](request.body)(CouchbaseRWImplicits.documentAsJsObjectReader).map{ upd =>
+      Async{
+        res.view(queryObject.docName, queryObject.view).flatMap { view =>
+          res.batchUpdate((view, query), upd).map{ _ => Ok("updated") }
+        }
+      }
+    }.recoverTotal{ e => BadRequest(JsError.toFlatJson(e)) }
   }
 }
 

@@ -10,4 +10,5 @@ object ShortURLController extends CouchbaseCrudSourceController[ShortURL] {
   val bucket = Couchbase.bucket("default")
   override val defaultViewName = "by_url"
   override val defaultDesignDocname = "shorturls"
+  res.ID = "id"
 }
