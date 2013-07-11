@@ -393,7 +393,7 @@ public class ShortURL {
     public static CouchbaseBucket bucket = Couchbase.bucket("default");
 
     public static Promise<ShortURL> findById(String id) {
-        return collection.get(id, ShortURL.class);
+        return bucket.get(id, ShortURL.class);
     }
 
     public static Promise<Collection<ShortURL>> findAll() {
