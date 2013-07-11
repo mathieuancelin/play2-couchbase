@@ -40,6 +40,7 @@ class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket) {
       case actualId: JsString => {
         Couchbase.set(actualId.value, json)(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ctx).map(_ => actualId.value)(ctx)
       }
+      case _ => throw new RuntimeException(s"Field with $ID already exists and not of type JsString")
     }
   }
 
@@ -69,19 +70,39 @@ class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket) {
     elems(Iteratee.foldM[T, Int](0)( (s, t) => insert(t).map(_ => s + 1))).flatMap(_.run)
   }
 
-  def find(sel: (View, Query), limit: Int = 0, skip: Int = 0): Future[Seq[(T, String)]] = {
+  def find(sel: (View, Query), limit: Int = 0, skip: Int = 0)(implicit ctx: ExecutionContext): Future[Seq[(T, String)]] = {
     var query = sel._2
     if (limit != 0) query = query.setLimit(limit)
     if (skip != 0) query = query.setSkip(skip)
-    Couchbase.find[T](sel._1)(query)(bucket, reader, ctx).map(l => l.map(i => (i, (Json.toJson(i)(writer) \ ID).as[JsString].value)))
+    Couchbase.find[JsObject](sel._1)(query)(bucket, CouchbaseRWImplicits.documentAsJsObjectReader, ctx).map{ l =>
+      l.map { i =>
+        val t = reader.reads(i) match {
+          case e:JsError => throw new RuntimeException("Document does not match object")
+          case s:JsSuccess[T] => s.get
+        }
+        i \ ID match {
+          case actualId: JsString => (t, actualId.value)
+          case _ => (t, "null")
+        }
+      }
+    }
   }
 
-  def findStream(sel: (View, Query), skip: Int = 0, pageSize: Int = 0): Enumerator[Iterator[(T, String)]] = {
+  def findStream(sel: (View, Query), skip: Int = 0, pageSize: Int = 0)(implicit ctx: ExecutionContext): Enumerator[Iterator[(T, String)]] = {
     var query = sel._2
     if (skip != 0) query = query.setSkip(skip)
-    val futureEnumerator = Couchbase.find[T](sel._1)(query)(bucket, reader, ctx).map { l =>
+    val futureEnumerator = Couchbase.find[JsObject](sel._1)(query)(bucket, CouchbaseRWImplicits.documentAsJsObjectReader, ctx).map { l =>
       val size = if(pageSize != 0) pageSize else l.size
-      Enumerator.enumerate(l.map(i => (i, (Json.toJson(i)(writer) \ ID).as[JsString].value)).grouped(size).map(_.iterator))
+      Enumerator.enumerate(l.map { i =>
+        val t = reader.reads(i) match {
+          case e:JsError => throw new RuntimeException("Document does not match object")
+          case s:JsSuccess[T] => s.get
+        }
+        i \ ID match {
+          case actualId: JsString => (t, actualId.value)
+          case _ => (t, "null")
+        }
+      }.grouped(size).map(_.iterator))
     }
     Enumerator.flatten(futureEnumerator)
   }
