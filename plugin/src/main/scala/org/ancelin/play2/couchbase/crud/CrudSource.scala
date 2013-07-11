@@ -82,7 +82,7 @@ class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket) {
         }
         i \ ID match {
           case actualId: JsString => (t, actualId.value)
-          case _ => (t, "null")
+          case _ => (t, "")
         }
       }
     }
@@ -100,7 +100,7 @@ class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket) {
         }
         i \ ID match {
           case actualId: JsString => (t, actualId.value)
-          case _ => (t, "null")
+          case _ => (t, "")
         }
       }.grouped(size).map(_.iterator))
     }
