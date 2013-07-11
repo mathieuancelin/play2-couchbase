@@ -484,12 +484,16 @@ now you will be able to do :
 ```
 
 GET     /urls/?doc=docName&view=viewName                    # get all urls according to a view
-GET     /urls/{id}                                          # get a url
 POST    /urls/                                              # create a url
+GET     /urls/{id}                                          # get a url
 PUT     /urls/{id}                                          # update url
 DELETE  /urls/{id}                                          # delete url
 POST    /urls/find/?doc=docName&view=viewName&q=query       # search urls
 GET     /urls/stream/?doc=docName&view=viewName&q=query     # search urls as HTTP stream
+
+POST    /urls/batch                                         # create multiple urls
+PUT     /urls/batch                                         # update multiple urls
+DELETE  /urls/batch                                         # delete multiple urls
 
 ```
 
