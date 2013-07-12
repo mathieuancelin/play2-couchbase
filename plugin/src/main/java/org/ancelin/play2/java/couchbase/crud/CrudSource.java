@@ -18,9 +18,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class CrudSource<T> {
 
-    private final CouchbaseBucket bucket;
-    private final Class<T> clazz;
-    public final String ID = "_id";
+    public final CouchbaseBucket bucket;
+    public final Class<T> clazz;
+    public String ID = "_id";
 
     public CrudSource(CouchbaseBucket bucket, Class<T> clazz) {
         this.bucket = bucket;
