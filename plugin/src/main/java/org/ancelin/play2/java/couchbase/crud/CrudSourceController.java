@@ -67,15 +67,15 @@ public abstract class CrudSourceController<T> extends Controller {
     }
 
     public Result get(final String id) {
-        return async(getSource().get(id).map(new F.Function<F.Option<T>, Result>() {
+        return async(getSource().get(id).map(new F.Function<F.Tuple<F.Option<T>, String>, Result>() {
             @Override
-            public Result apply(F.Option<T> ts) throws Throwable {
-                if (!ts.isDefined()) {
+            public Result apply(F.Tuple<F.Option<T>, String> ts) throws Throwable {
+                if (!ts._1.isDefined()) {
                    return notFound("ID '" + id + "' not found.");
                 } else {
-                    T t = ts.get();
+                    T t = ts._1.get();
                     JsonNode node = Json.toJson(t);
-                    final JsonNode idField = node.findValue(getSource().ID);
+                    final JsonNode idField = node.get(getSource().ID);
                     if (idField != null) {
                         return ok(node);
                     } else {
@@ -130,15 +130,15 @@ public abstract class CrudSourceController<T> extends Controller {
 
     public Result find() {
         final F.Tuple<QueryObject, Query> tuple = QueryObject.extractQuery(request(), defaultDesignDocname(), defaultViewName());
-        return async(getSource().view(tuple._1.docName, tuple._1.view).map(new F.Function<View, F.Promise<Collection<F.Tuple<T, String>>>>() {
+        return async(getSource().view(tuple._1.docName, tuple._1.view).flatMap(new F.Function<View, F.Promise<Collection<F.Tuple<T, String>>>>() {
             @Override
             public F.Promise<Collection<F.Tuple<T, String>>> apply(View view) throws Throwable {
                 return getSource().find(view, tuple._2);
             }
-        }).map(new F.Function<F.Promise<Collection<F.Tuple<T, String>>>, Result>() {
+        }).map(new F.Function<Collection<F.Tuple<T, String>>, Result>() {
             @Override
-            public Result apply(F.Promise<Collection<F.Tuple<T, String>>> collectionPromise) throws Throwable {
-                return ok(Json.toJson(collectionPromise.get())); // TODO : custom writer here
+            public Result apply(Collection<F.Tuple<T, String>> collectionPromise) throws Throwable {
+                return ok(Json.toJson(collectionPromise)); // TODO : custom writer here
             }
         }));
     }
@@ -208,6 +208,20 @@ public abstract class CrudSourceController<T> extends Controller {
             this.limit = limit;
             this.descending = descending;
             this.skip = skip;
+        }
+
+        @Override
+        public String toString() {
+            return "QueryObject{" +
+                    "docName='" + docName + '\'' +
+                    ", view='" + view + '\'' +
+                    ", q='" + q + '\'' +
+                    ", from='" + from + '\'' +
+                    ", to='" + to + '\'' +
+                    ", limit=" + limit +
+                    ", descending=" + descending +
+                    ", skip=" + skip +
+                    '}';
         }
 
         public QueryObject() {}

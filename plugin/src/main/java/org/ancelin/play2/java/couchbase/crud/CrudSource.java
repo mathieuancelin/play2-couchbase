@@ -27,8 +27,13 @@ public class CrudSource<T> {
         this.clazz = clazz;
     }
 
-    public F.Promise<F.Option<T>> get(String id) {
-        return bucket.getOpt(id, clazz);
+    public F.Promise<F.Tuple<F.Option<T>, String>> get(final String id) {
+        return bucket.getOpt(id, clazz).map(new F.Function<F.Option<T>, F.Tuple<F.Option<T>, String>>() {
+            @Override
+            public F.Tuple<F.Option<T>, String> apply(F.Option<T> ts) throws Throwable {
+                return new F.Tuple<F.Option<T>, String>(ts, id);
+            }
+        });
     }
 
     public F.Promise<String> insert(T t) {
@@ -75,10 +80,10 @@ public class CrudSource<T> {
     }
 
     private F.Promise<OperationStatus> updatePartialWithStatus(final String id, final JsonNode update) {
-        return get(id).flatMap(new F.Function<F.Option<T>, F.Promise<OperationStatus>>() {
+        return get(id).flatMap(new F.Function<F.Tuple<F.Option<T>, String>, F.Promise<OperationStatus>>() {
             @Override
-            public F.Promise<OperationStatus> apply(F.Option<T> ts) throws Throwable {
-                T updatedValue = ts.map(new F.Function<T, T>() {
+            public F.Promise<OperationStatus> apply(F.Tuple<F.Option<T>, String> ts) throws Throwable {
+                T updatedValue = ts._1.map(new F.Function<T, T>() {
                     @Override
                     public T apply(T t) throws Throwable {
                         ObjectMapper objectMapper = new ObjectMapper();
