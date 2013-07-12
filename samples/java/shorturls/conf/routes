@@ -5,6 +5,17 @@
 # Home page
 GET     /                           controllers.Application.index()
 
+GET     /urls/                      @controllers.ShortURLController.find()
+GET     /urls/:id                   @controllers.ShortURLController.get(id)
+POST    /urls/                      @controllers.ShortURLController.insert()
+POST    /urls/find/                 @controllers.ShortURLController.find()
+POST    /urls/batch                 @controllers.ShortURLController.batchInsert()
+PUT     /urls/:id                   @controllers.ShortURLController.update(id)
+PUT     /urls/:id/partial           @controllers.ShortURLController.updatePartial(id)
+PUT     /urls/batch                 @controllers.ShortURLController.batchUpdate()
+DELETE  /urls/:id                   @controllers.ShortURLController.delete(id)
+DELETE  /urls/batch                 @controllers.ShortURLController.batchDelete()
+
 GET     /api/urls/:id               controllers.ApiController.getUrl(id)
 DELETE  /api/urls/:id               controllers.ApiController.delete(id)
 GET     /api/urls                   controllers.ApiController.getAllUrls()
