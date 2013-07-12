@@ -569,7 +569,7 @@ public class Global extends GlobalSettings {
 
 ```
 
-and also to define routes (it's a work in progress right now)
+and also to define routes (yeah I know it's boring, but it's a work in progress right now)
 
 ```
 
