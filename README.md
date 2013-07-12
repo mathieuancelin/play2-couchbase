@@ -558,7 +558,7 @@ import controllers.ShortURLController;
 import play.GlobalSettings;
 
 public class Global extends GlobalSettings {
-
+    // You can really do something more clever here ;-)
     public <A> A getControllerInstance(java.lang.Class<A> aClass) throws java.lang.Exception {
         if (aClass.equals(ShortURLController.class)) {
             return (A) new ShortURLController();
