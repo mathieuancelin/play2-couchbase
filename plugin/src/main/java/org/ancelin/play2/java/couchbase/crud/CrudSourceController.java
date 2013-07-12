@@ -82,7 +82,7 @@ public abstract class CrudSourceController<T> extends Controller {
                         ObjectNode idNode = Json.newObject();
                         idNode.put(getSource().ID, id);
                         idNode.putAll((ObjectNode) node);
-                        return ok(node);
+                        return ok(idNode);
                     }
                 }
             }
@@ -138,7 +138,20 @@ public abstract class CrudSourceController<T> extends Controller {
         }).map(new F.Function<Collection<F.Tuple<T, String>>, Result>() {
             @Override
             public Result apply(Collection<F.Tuple<T, String>> collectionPromise) throws Throwable {
-                return ok(Json.toJson(collectionPromise)); // TODO : custom writer here
+                List<JsonNode> nodes = new ArrayList<JsonNode>();
+                for (F.Tuple<T, String> tuple : collectionPromise) {
+                    JsonNode node = Json.toJson(tuple._1);
+                    final JsonNode idField = node.get(getSource().ID);
+                    if (idField != null) {
+                        nodes.add(node);
+                    } else {
+                        ObjectNode idNode = Json.newObject();
+                        idNode.put(getSource().ID, tuple._2);
+                        idNode.putAll((ObjectNode) node);
+                        nodes.add(idNode);
+                    }
+                }
+                return ok(Json.toJson(nodes));
             }
         }));
     }

@@ -736,12 +736,12 @@ The plugin will search your design documents in folders named as your buckets in
 
 ```
 conf
-	couchbase
-		default
-			tweets.json
-			users.json
-			...
-		...
+    couchbase
+        default
+            tweets.json
+            users.json
+            ...
+        ...
 ```
 
 Your json might look like
