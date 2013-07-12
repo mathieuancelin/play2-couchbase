@@ -524,6 +524,68 @@ object ShortURLSource extends CouchbaseCrudSource[ShortURL]( Couchbase.bucket("d
 
 ```
 
+You can also access this feature from Java
+
+```java
+
+public class ShortURLController extends CrudSourceController<ShortURL> {
+
+    private final CrudSource<ShortURL> source = new CrudSource<ShortURL>( Couchbase.bucket("default"), ShortURL.class );
+
+    @Override
+    public CrudSource<ShortURL> getSource() {
+        return source;
+    }
+
+    @Override
+    public String defaultDesignDocname() {
+        return "shorturls";
+    }
+
+    @Override
+    public String defaultViewName() {
+        return "by_url";
+    }
+}
+
+```
+
+You will need a controller instanciator for that :
+
+```java
+
+import controllers.ShortURLController;
+import play.GlobalSettings;
+
+public class Global extends GlobalSettings {
+
+    public <A> A getControllerInstance(java.lang.Class<A> aClass) throws java.lang.Exception {
+        if (aClass.equals(ShortURLController.class)) {
+            return (A) new ShortURLController();
+        }
+        throw new RuntimeException("Cannot instanciate " + aClass.getName());
+    }
+}
+
+```
+
+and also to define routes (it's a work in progress right now)
+
+```
+
+POST    /urls/find/                 @controllers.ShortURLController.find()
+GET     /urls/                      @controllers.ShortURLController.find()
+GET     /urls/:id                   @controllers.ShortURLController.get(id)
+POST    /urls/                      @controllers.ShortURLController.insert()
+POST    /urls/batch                 @controllers.ShortURLController.batchInsert()
+PUT     /urls/:id                   @controllers.ShortURLController.update(id)
+PUT     /urls/:id/partial           @controllers.ShortURLController.updatePartial(id)
+PUT     /urls/batch                 @controllers.ShortURLController.batchUpdate()
+DELETE  /urls/:id                   @controllers.ShortURLController.delete(id)
+DELETE  /urls/batch                 @controllers.ShortURLController.batchDelete()
+
+```
+
 About Java Future to Scala Future conversion
 ===================================
 
