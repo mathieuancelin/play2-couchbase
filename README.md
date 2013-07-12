@@ -641,6 +641,75 @@ Cache.set("item.key", connectedUser)
 val maybeUser: Option[User] = Cache.getAs[User]("item.key")
 ```
 
+Synchonise couchbase design documents
+=====================================
+
+You can use CouchbaseEvolutionsPlugin to automaticaly create your design documents at application start from json files.
+
+in `conf/play.plugins` file and add :
+`600:org.ancelin.play2.couchbase.CouchbaseEvolutionsPlugin`
+
+then configure the plugin
+
+```
+couchbase {
+
+  ...
+  evolutions {
+    #documents = ...    #optional, default conf/couchbase
+    #disabled = ...     #optional, default false
+    #use.locks = ...    #optional, default true
+
+    default { #default is the name of your bucket
+        apply = true
+        synchronise = true
+    }
+  }
+
+}
+```
+
+The plugin will search your design documents in folders named as your buckets in the `couchbase.evolutions.documents` value
+
+```
+conf
+	couchbase
+		default
+			tweets.json
+			users.json
+			...
+		...
+```
+
+Your json might look like
+
+```json
+
+{
+    "views":{
+       "withMedia": {
+           "map": "function (doc, meta) {\n if(doc.entities.media)\n  emit(dateToArray(doc.created_at))\n}"
+       }
+    }
+}
+```
+
+The name of the design document will be the name of the json file. You can specify another one in the json
+
+```json
+
+{
+	"name":"my_doc",
+    "views":{
+       "withMedia": {
+           "map": "function (doc, meta) {\n if(doc.entities.media)\n  emit(dateToArray(doc.created_at))\n}"
+       }
+    }
+}
+```
+
+**Note : Design documents synchronisation is not yet available**
+
 Git
 ===================================
 
