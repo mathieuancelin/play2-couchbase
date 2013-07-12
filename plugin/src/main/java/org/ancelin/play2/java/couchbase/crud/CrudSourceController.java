@@ -221,11 +221,11 @@ public abstract class CrudSourceController<T> extends Controller {
         }
 
         public static QueryObject extractQueryObject(Http.Request request, String defaultDesignDocname, String defaultViewName) {
-            QueryObject maybeQuery = Json.fromJson(request().body().asJson(), QueryObject.class);
+            QueryObject maybeQuery = request().body().asJson() == null ? new QueryObject() : Json.fromJson(request().body().asJson(), QueryObject.class);
             String q = get(request, "q", maybeQuery.q);
-            Integer limit = Integer.valueOf(get(request, "limit", maybeQuery.limit));
-            Boolean descending = Boolean.valueOf(get(request, "descending", maybeQuery.descending));
-            Integer skip = Integer.valueOf(get(request, "skip", maybeQuery.skip));
+            Integer limit = get(request, "limit", maybeQuery.limit) == null ? null : Integer.valueOf(get(request, "limit", maybeQuery.limit));
+            Boolean descending = get(request, "descending", maybeQuery.descending) == null ? null : Boolean.valueOf(get(request, "descending", maybeQuery.descending));
+            Integer skip = get(request, "skip", maybeQuery.skip) == null ? null : Integer.valueOf(get(request, "skip", maybeQuery.skip));
             String from = get(request, "from", maybeQuery.from);
             String to = get(request, "to", maybeQuery.to);
             String v = get(request, "v", maybeQuery.view) == null ? defaultViewName : get(request, "v", maybeQuery.view);
