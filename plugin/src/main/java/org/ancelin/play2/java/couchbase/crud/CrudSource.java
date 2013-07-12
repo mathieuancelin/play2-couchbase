@@ -100,7 +100,7 @@ public class CrudSource<T> {
     }
 
     public F.Promise<Integer> batchInsert(Iterable<T> values) {
-        List<F.Promise<OperationStatus>> promises = new ArrayList<F.Promise<OperationStatus>>();
+        List<F.Promise<? extends OperationStatus>> promises = new ArrayList<F.Promise<? extends OperationStatus>>();
         for (T t : values) {
             String id = UUID.randomUUID().toString();
             JsonNode node = Json.toJson(t);
@@ -128,7 +128,7 @@ public class CrudSource<T> {
         return bucket.find(view, query, clazz).flatMap(new F.Function<Collection<T>, F.Promise<Integer>>() {
             @Override
             public F.Promise<Integer> apply(Collection<T> ts) throws Throwable {
-                List<F.Promise<OperationStatus>> promises = new ArrayList<F.Promise<OperationStatus>>();
+                List<F.Promise<? extends OperationStatus>> promises = new ArrayList<F.Promise<? extends OperationStatus>>();
                 for (T t : ts) {
                     JsonNode node = Json.toJson(t);
                     JsonNode idField = node.findValue(ID);
@@ -156,7 +156,7 @@ public class CrudSource<T> {
         return bucket.find(view, query, clazz).flatMap(new F.Function<Collection<T>, F.Promise<Integer>>() {
             @Override
             public F.Promise<Integer> apply(Collection<T> ts) throws Throwable {
-                List<F.Promise<OperationStatus>> promises = new ArrayList<F.Promise<OperationStatus>>();
+                List<F.Promise<? extends OperationStatus>> promises = new ArrayList<F.Promise<? extends OperationStatus>>();
                 for (T t : ts) {
                     JsonNode node = Json.toJson(t);
                     final JsonNode idField = node.findValue(ID);
