@@ -13,7 +13,6 @@ public abstract class CrudSourceController<T> extends Controller {
     private String Partial = "/([^/]+)/partial";
     private String Find    = "/find/?";
     private String Batch   = "/batch/?";
-    private String Stream  = "/stream/?";
 
     private String extractId(String path) {
         return path.replace("/", "");
@@ -28,7 +27,7 @@ public abstract class CrudSourceController<T> extends Controller {
             } else if (method.equals("GET") && partialPath.matches(Slash)) {
                 return find();
             } else if (method.equals("PUT") && partialPath.matches(Partial)) {
-                return updatePartial(extractId(partialPath));
+                return updatePartial(extractId(partialPath).replace("/partial", ""));
             } else if (method.equals("PUT") && partialPath.matches(Id)) {
                 return update(extractId(partialPath));
             } else if (method.equals("PUT") && partialPath.matches(Batch)) {
