@@ -641,7 +641,7 @@ Cache.set("item.key", connectedUser)
 val maybeUser: Option[User] = Cache.getAs[User]("item.key")
 ```
 
-Synchonise couchbase design documents
+Synchonize Couchbase design documents
 =====================================
 
 You can use CouchbaseEvolutionsPlugin to automaticaly create your design documents at application start from json files.
