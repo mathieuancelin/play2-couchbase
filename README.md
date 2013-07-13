@@ -735,7 +735,7 @@ conf
             users.json
 ```
 
-Your json is an array structure (even if there is only one doc inside) and might look like :
+Your json **IS** an **array** structure (even if there is only one doc inside) and might look like :
 
 ```json
 
