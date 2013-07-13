@@ -773,6 +773,65 @@ The name of the design document will be the name of the json file. You can speci
 
 **Note : Design documents synchronisation is not yet available**
 
+
+Automatically insert documents at sartup
+=====================================
+
+You can use CouchbaseFixturesPlugin to automaticaly insert data into buckets.
+
+in `conf/play.plugins` file and add :
+`700:org.ancelin.play2.couchbase.plugins.CouchbaseFixturesPlugin`
+
+then configure the plugin
+
+```
+couchbase {
+
+  ...
+  fixtures {
+    #documents = ...    #optional, default conf/couchbase-fixtures
+    #disabled = ...     #optional, default false
+
+    default { #default is the name of your bucket
+      insert = true
+      key = "_id" # the json member to extract key for insertion
+    }
+  }
+
+}
+```
+
+The plugin will search data in folders named as your buckets in the `couchbase.fixtures.documents` value
+
+```
+conf
+    couchbase-fixtures
+        default
+            users.json
+```
+
+Your json is an array structure (even if there is only one doc inside) and might look like :
+
+```json
+
+[
+    {
+        "_id": "1",
+        "name": "John Doe",
+        "email": "john.doe@gmail.com",
+        "password": "password"
+    },
+    {
+        "_id": "2",
+        "name": "Jane Doe",
+        "email": "jane.doe@gmail.com",
+        "password": "password"
+    }
+]
+```
+
+**Note : Your documents will be overwritten at each startup. Removed json files won't be removed from your buckets. **
+
 Git
 ===================================
 

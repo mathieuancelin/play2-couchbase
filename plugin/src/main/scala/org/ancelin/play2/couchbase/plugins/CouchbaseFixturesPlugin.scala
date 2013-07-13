@@ -50,7 +50,9 @@ class CouchbaseFixturesPlugin(app: Application) extends Plugin {
             app.mode match {
               case Mode.Test if applyFixtures => insertDocuments(id, documents, bucket)
               case Mode.Dev if applyFixtures => insertDocuments(id, documents, bucket)
-              case _ => new PlayException(s"Couchbase fixtures should be applied, set couchbase.fixtures.$name.apply=true in application.conf", null)
+              case Mode.Prod if applyFixtures => insertDocuments(id, documents, bucket)
+              case Mode.Prod => throw new PlayException(s"Couchbase evolution should be applied, set couchbase.fixtures.$name.insert=true in application.conf", null)
+              case _ => new PlayException(s"Couchbase fixtures should be applied, set couchbase.fixtures.$name.insert=true in application.conf", null)
             }
           }
         }
