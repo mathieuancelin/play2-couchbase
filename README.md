@@ -699,7 +699,7 @@ The name of the design document will be the name of the json file. You can speci
 **Note : Design documents synchronisation is not yet available**
 
 
-Automatically insert documents at sartup
+Automatically insert documents at startup
 =====================================
 
 You can use CouchbaseFixturesPlugin to automaticaly insert data into buckets.
