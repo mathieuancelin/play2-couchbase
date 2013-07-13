@@ -665,7 +665,7 @@ Use Couchbase as Cache implementation
 =====================================
 
 in `conf/play.plugins` file and add :
-`500:org.ancelin.play2.couchbase.CouchbaseCachePlugin`
+`500:org.ancelin.play2.couchbase.plugins.CouchbaseCachePlugin`
 
 then you need to add the following to your configuration
 
@@ -710,7 +710,7 @@ Synchonize Couchbase design documents
 You can use CouchbaseEvolutionsPlugin to automaticaly create your design documents at application start from json files.
 
 in `conf/play.plugins` file and add :
-`600:org.ancelin.play2.couchbase.CouchbaseEvolutionsPlugin`
+`600:org.ancelin.play2.couchbase.plugins.CouchbaseEvolutionsPlugin`
 
 then configure the plugin
 

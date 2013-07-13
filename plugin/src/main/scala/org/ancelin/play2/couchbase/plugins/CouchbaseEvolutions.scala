@@ -1,4 +1,4 @@
-package org.ancelin.play2.couchbase
+package org.ancelin.play2.couchbase.plugins
 
 import play.api._
 import scala.reflect.io.Directory
@@ -9,6 +9,7 @@ import scala.concurrent.{Future, Await, ExecutionContext}
 import scala.concurrent.duration.Duration
 import java.util.concurrent.TimeUnit
 import net.spy.memcached.ops.OperationStatus
+import org.ancelin.play2.couchbase.{Couchbase, CouchbaseBucket}
 
 case class DocumentDescription(fileName:String, bucket:CouchbaseBucket , bytes:Array[Byte]) {
 

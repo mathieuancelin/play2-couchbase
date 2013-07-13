@@ -1,4 +1,4 @@
-package org.ancelin.play2.couchbase
+package org.ancelin.play2.couchbase.plugins
 
 import play.api._
 import scala.reflect.io.Directory
@@ -7,6 +7,7 @@ import play.api.libs.json._
 import play.api.libs.json.JsArray
 import play.api.libs.json.JsObject
 import play.api.libs.json.JsString
+import org.ancelin.play2.couchbase.{CouchbaseRWImplicits, CouchbaseBucket, Couchbase}
 
 class CouchbaseFixturesPlugin(app: Application) extends Plugin {
 

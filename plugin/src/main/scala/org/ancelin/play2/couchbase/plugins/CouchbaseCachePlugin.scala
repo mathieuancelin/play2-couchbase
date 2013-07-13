@@ -1,11 +1,13 @@
-package org.ancelin.play2.couchbase
+package org.ancelin.play2.couchbase.plugins
 
 import play.api.cache.{CacheAPI, CachePlugin}
 import play.api.{PlayException, Logger, Plugin, Application}
 import java.util.concurrent.TimeUnit
 import net.spy.memcached.transcoders.{Transcoder, SerializingTranscoder}
 import java.io.{ObjectOutputStream, ByteArrayOutputStream, ObjectStreamClass}
+import org.ancelin.play2.couchbase.{Couchbase, Constants}
 
+// Highly inspired (not to say copied ;-)) from https://github.com/mumoshu/play2-memcached
 class CouchbaseCachePlugin(app: Application) extends CachePlugin {
 
   lazy val api = new CacheAPI {

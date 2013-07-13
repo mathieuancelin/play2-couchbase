@@ -3,6 +3,7 @@ package org.ancelin.play2.couchbase
 import play.api.{Logger, Plugin, Application}
 import com.typesafe.config.ConfigObject
 import collection.JavaConversions._
+import org.ancelin.play2.couchbase.{Couchbase, CouchbaseBucket}
 
 class CouchbasePlugin(implicit app: Application) extends Plugin {
   val logger = Logger("CouchbasePlugin")
