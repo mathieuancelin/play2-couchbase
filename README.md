@@ -711,7 +711,6 @@ then configure the plugin
 
 ```
 couchbase {
-
   ...
   fixtures {
     #documents = ...    #optional, default conf/couchbase-fixtures
@@ -722,7 +721,6 @@ couchbase {
       key = "_id" # the json member to extract key for insertion
     }
   }
-
 }
 ```
 
@@ -735,7 +733,7 @@ conf
             users.json
 ```
 
-Your json **IS** an **array** structure (even if there is only one doc inside) and might look like :
+Your json **MUST BE** an **ARRAY** structure containing your JSON documents (even if there is only one doc inside) and might look like :
 
 ```json
 
