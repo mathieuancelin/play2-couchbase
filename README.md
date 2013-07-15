@@ -5,7 +5,9 @@ Contents
 --------
 
 - [Basic Usage](#basic-usage)
-    - []()
+    - [Project configuration](#project-configuration)
+    - [Usage from a controller](#standard-usage-from-a-controller)
+    - [Usage from a model](#standard-usage-from-a-model)
 - [How to build CRUD Application](#crud-application)
 - [Use Couchbase as Play Cache](#use-couchbase-as-cache-implementation)
 - [Synchronise Design Documents](#synchonize-couchbase-design-documents)
@@ -74,7 +76,7 @@ couchbase {
   }]
 }
 
-Standard usage
+Standard usage from a controller
 ---------------------
 
 ```
@@ -133,112 +135,6 @@ object UserController extends Controller {
         }
       }
     }
-  }
-}
-
-```
-
-You can of course connect many buckets with :
-
-```
-couchbase {
-
-  ...
-
-  buckets = [{
-      host=["127.0.0.1", "192.168.0.42"]
-      port="8091"
-      base="pools"
-      bucket="bucket1"
-      pass=""
-      timeout="0"
-  }, {
-     host="127.0.0.1"
-     port="8091"
-     base="pools"
-     bucket="bucket2"
-     pass=""
-     timeout="0"
-  }, {
-     host="192.168.0.42"
-     port="8091"
-     base="pools"
-     bucket="bucket3"
-     pass=""
-     timeout="0"
-  }]
-}
-
-```
-
-then select one of them for each of your operation :
-
-```scala
-
-object UserController extends Controller with CouchbaseController {
-
-  implicit val couchbaseExecutionContext = Couchbase.couchbaseExecutor
-  implicit val userReader = Json.reads[User]
-  implicit val beerReader = Json.reads[Beer]
-
-  def getUser(key: String) = CouchbaseAction("bucket1") { implicit bucket =>
-    get[User](key).map { maybeUser =>
-      maybeUser.map(user => Ok(views.html.user(user)).getOrElse(BadRequest(s"Unable to find user with key: $key"))
-    }
-  }
-
-  def getBeer(key: String) = CouchbaseAction("bucket2") { request => implicit bucket =>
-    get[Beer](key).map { maybeBeer =>
-      maybeBeer.map(beer => Ok(views.html.beer(beer)).getOrElse(BadRequest(s"Unable to find beer with key: $key"))
-    }
-  }
-}
-
-```
-
-or from inside a model :
-
-```scala
-
-import play.api.libs.json._
-import org.ancelin.play2.couchbase.Couchbase._
-import org.ancelin.play2.couchbase.Couchbase
-import org.ancelin.play2.couchbase.CouchbaseBucket
-import play.api.Play.current
-
-case class Beer(id: String, name: String, brewery: String) {
-  def save(): Future[OperationStatus] = Beer.save(this)
-  def remove(): Future[OperationStatus] = Beer.remove(this)
-}
-
-object Beer {
-
-  implicit val beerReader = Json.reads[Beer]
-  implicit val beerWriter = Json.writes[Beer]
-  implicit val bucket = Couchbase.bucket("bucket2")
-  implicit val ec = Couchbase.couchbaseExecutor
-
-  def findById(id: String): Future[Option[Beer]] = {
-    get[Beer](id)
-  }
-
-  def findAll(): Future[List[Beer]] = {
-    find[Beer]("beer", "by_name")(new Query().setIncludeDocs(true).setStale(Stale.FALSE))
-  }
-
-  def findByName(name: String): Future[Option[Beer]] = {
-    val query = new Query().setIncludeDocs(true).setLimit(1)
-          .setRangeStart(ComplexKey.of(name))
-          .setRangeEnd(ComplexKey.of(s"$name\uefff").setStale(Stale.FALSE))
-    find[Beer]("beer", "by_name")(query).map(_.headOption)
-  }
-
-  def save(beer: Beer): Future[OperationStatus] = {
-    set[Beer](beer)
-  }
-
-  def remove(beer: Beer): Future[OperationStatus] = {
-    delete[Beer](beer)
   }
 }
 
@@ -311,7 +207,114 @@ public class Application extends Controller {
 
 ```
 
-or from model
+You can of course connect many buckets with :
+
+```
+couchbase {
+
+  ...
+
+  buckets = [{
+      host=["127.0.0.1", "192.168.0.42"]
+      port="8091"
+      base="pools"
+      bucket="bucket1"
+      pass=""
+      timeout="0"
+  }, {
+     host="127.0.0.1"
+     port="8091"
+     base="pools"
+     bucket="bucket2"
+     pass=""
+     timeout="0"
+  }, {
+     host="192.168.0.42"
+     port="8091"
+     base="pools"
+     bucket="bucket3"
+     pass=""
+     timeout="0"
+  }]
+}
+
+```
+
+then select one of them for each of your operation :
+
+```scala
+
+object UserController extends Controller with CouchbaseController {
+
+  implicit val couchbaseExecutionContext = Couchbase.couchbaseExecutor
+  implicit val userReader = Json.reads[User]
+  implicit val beerReader = Json.reads[Beer]
+
+  def getUser(key: String) = CouchbaseAction("bucket1") { implicit bucket =>
+    get[User](key).map { maybeUser =>
+      maybeUser.map(user => Ok(views.html.user(user)).getOrElse(BadRequest(s"Unable to find user with key: $key"))
+    }
+  }
+
+  def getBeer(key: String) = CouchbaseAction("bucket2") { request => implicit bucket =>
+    get[Beer](key).map { maybeBeer =>
+      maybeBeer.map(beer => Ok(views.html.beer(beer)).getOrElse(BadRequest(s"Unable to find beer with key: $key"))
+    }
+  }
+}
+
+```
+
+Standard usage from a model
+---------------------
+
+```scala
+
+import play.api.libs.json._
+import org.ancelin.play2.couchbase.Couchbase._
+import org.ancelin.play2.couchbase.Couchbase
+import org.ancelin.play2.couchbase.CouchbaseBucket
+import play.api.Play.current
+
+case class Beer(id: String, name: String, brewery: String) {
+  def save(): Future[OperationStatus] = Beer.save(this)
+  def remove(): Future[OperationStatus] = Beer.remove(this)
+}
+
+object Beer {
+
+  implicit val beerReader = Json.reads[Beer]
+  implicit val beerWriter = Json.writes[Beer]
+  implicit val bucket = Couchbase.bucket("bucket2")
+  implicit val ec = Couchbase.couchbaseExecutor
+
+  def findById(id: String): Future[Option[Beer]] = {
+    get[Beer](id)
+  }
+
+  def findAll(): Future[List[Beer]] = {
+    find[Beer]("beer", "by_name")(new Query().setIncludeDocs(true).setStale(Stale.FALSE))
+  }
+
+  def findByName(name: String): Future[Option[Beer]] = {
+    val query = new Query().setIncludeDocs(true).setLimit(1)
+          .setRangeStart(ComplexKey.of(name))
+          .setRangeEnd(ComplexKey.of(s"$name\uefff").setStale(Stale.FALSE))
+    find[Beer]("beer", "by_name")(query).map(_.headOption)
+  }
+
+  def save(beer: Beer): Future[OperationStatus] = {
+    set[Beer](beer)
+  }
+
+  def remove(beer: Beer): Future[OperationStatus] = {
+    delete[Beer](beer)
+  }
+}
+
+```
+
+or from a java model
 
 ```java
 
