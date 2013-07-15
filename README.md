@@ -12,7 +12,7 @@ Contents
 - [Use Couchbase as Play Cache](#use-couchbase-as-cache-implementation)
 - [Synchronise Design Documents](#synchonize-couchbase-design-documents)
 - [Insert data at startup](#automatically-insert-documents-at-startup)
-- [Java Future to Scala Future](#about-java-future-to-scala-future-conversion)
+- [Java Future to Scala Future issues](#about-java-future-to-scala-future-conversion)
 - [Git issues](#git)
 
 Basic Usage
