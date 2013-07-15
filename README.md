@@ -1,5 +1,23 @@
 Couchbase Plugin for Play framework 2.1
----------------------------------------
+=======================================
+
+Contents
+--------
+
+- [Basic Usage](#basic-usage)
+    - []()
+- [How to build CRUD Application](#crud-application)
+- [Use Couchbase as Play Cache](#use-couchbase-as-cache-implementation)
+- [Synchronise Design Documents](#synchonize-couchbase-design-documents)
+- [Insert data at startup](#automatically-insert-documents-at-startup)
+- [Java Future to Scala Future](#about-java-future-to-scala-future-conversion)
+- [Git issues](#git)
+
+Basic Usage
+============
+
+Project configuration
+---------------------
 
 in your `project/Build.scala` file add dependencies and resolvers like :
 
@@ -56,6 +74,8 @@ couchbase {
   }]
 }
 
+Standard usage
+---------------------
 
 ```
 
