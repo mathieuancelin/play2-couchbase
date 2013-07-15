@@ -10,8 +10,8 @@ Contents
     - [Usage from a model](#standard-usage-from-a-model)
 - [How to build CRUD Application](#crud-application)
 - [Use Couchbase as Play Cache](#use-couchbase-as-cache-implementation)
-- [Synchronise Design Documents](#synchonize-couchbase-design-documents)
-- [Insert data at startup](#automatically-insert-documents-at-startup)
+- [Synchronise Design Documents (evolutions)](#synchonize-couchbase-design-documents)
+- [Insert data at startup (fixtures)](#automatically-insert-documents-at-startup)
 - [Java Future to Scala Future issues](#about-java-future-to-scala-future-conversion)
 - [Git issues](#git)
 
