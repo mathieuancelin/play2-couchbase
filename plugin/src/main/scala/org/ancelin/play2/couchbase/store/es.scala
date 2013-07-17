@@ -5,16 +5,14 @@ import java.util.concurrent.{TimeUnit, ConcurrentHashMap}
 import org.ancelin.play2.couchbase.{Constants, Couchbase, CouchbaseBucket}
 import java.io.{ObjectOutputStream, ByteArrayOutputStream, ObjectStreamClass}
 import scala.concurrent.{Await, ExecutionContext}
-import play.api.libs.json.{Format, Json}
+import play.api.libs.json.{JsValue, Format, Json}
 import play.api.Play
 import com.couchbase.client.protocol.views.{ComplexKey, Stale, Query}
 import net.spy.memcached.transcoders.{Transcoder, SerializingTranscoder}
-import scala.parallel.Future
-import net.spy.memcached.ops.OperationStatus
 import scala.concurrent.duration.Duration
 
 case class Message(payload: Any, eventId: Long = 0L, aggregateId: Long = 0L, timestamp: Long = System.currentTimeMillis(), version: Int = 0)
-case class CouchbaseMessage(blobKey: String, eventId: Long = 0L, aggregateId: Long = 0L, timestamp: Long = System.currentTimeMillis(), version: Int = 0, datatype: String = "eventsourcing-message")
+case class CouchbaseMessage(messageKey: String, blobKey: String, blob: JsValue, eventId: Long = 0L, aggregateId: Long = 0L, timestamp: Long = System.currentTimeMillis(), version: Int = 0, datatype: String = "eventsourcing-message")
 
 object Message {
   def create(payload: Any) = Message(payload, 0L, 0L, System.currentTimeMillis(), 0)
@@ -55,7 +53,8 @@ class CouchbaseJournalActor(bucket: CouchbaseBucket, format: Format[CouchbaseMes
     case WriteInJournal(msg, to) => {
       val blobKey = s"eventsourcing-message-${msg.eventId}-${msg.aggregateId}-${msg.timestamp}-blob"
       val dataKey = s"eventsourcing-message-${msg.eventId}-${msg.aggregateId}-${msg.timestamp}-data"
-      val dataMsg = CouchbaseMessage(blobKey, msg.eventId, msg.aggregateId, msg.timestamp, msg.version)
+      val blobAsJson = Json.parse(play.libs.Json.stringify(play.libs.Json.toJson(msg.payload)))
+      val dataMsg = CouchbaseMessage(dataKey, blobKey, blobAsJson, msg.eventId, msg.aggregateId, msg.timestamp, msg.version)
       Couchbase.set(dataKey, dataMsg)(bucket, format, ec).map(_ => BlobRepo.set(bucket, blobKey, msg.payload))(ec)
       to ! WrittenInJournal(msg)
     }
