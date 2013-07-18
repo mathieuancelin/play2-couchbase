@@ -790,14 +790,14 @@ The Couchbase plugin provide a very simple way to store application events. You 
 
 case class CartCreated(customerId: Long, message: String)
 
+object CartCreated {
+  val cartCreatedFormat = Json.format[CartCreated]
+}
+
 object EventSourcingBoostrap {
 
-  implicit val ec = Couchbase.couchbaseExecutor
-  val cartCreatedFormat = Json.format[CartCreated]
   val couchbaseES = CouchbaseEventSourcing( ActorSystem("couchbase-es-1"), Couchbase.bucket("es") )
-    .registerFormatter(cartCreatedFormat)
-
-  val cartProcessor = couchbaseES.processorOf(Props(new CartProcessor with EventStored))
+    .registerFormatter(CartCreated.cartCreatedFormat)
 
   def bootstrap() = {
     couchbaseES.replayAll()
@@ -805,8 +805,9 @@ object EventSourcingBoostrap {
 }
 
 object Cart {
+  val cartProcessor = EventSourcingBoostrap.couchbaseES.processorOf(Props(new CartProcessor with EventStored))
   def createCartForUser(user: User) {
-    processor ! Message.create( CartCreated(user.id, "Useful message") )
+    cartProcessor ! Message.create( CartCreated(user.id, "Useful message") )
   }
 }
 
