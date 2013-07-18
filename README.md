@@ -793,7 +793,6 @@ case class CartCreated(customerId: Long, message: String)
 object EventSourcingBoostrap {
 
   implicit val ec = Couchbase.couchbaseExecutor
-
   val cartCreatedFormat = Json.format[CartCreated]
   val couchbaseES = CouchbaseEventSourcing( ActorSystem("couchbase-es-1"), Couchbase.bucket("es") )
     .registerFormatter(cartCreatedFormat)
@@ -806,16 +805,14 @@ object EventSourcingBoostrap {
 }
 
 object Cart {
-
   def createCartForUser(user: User) {
     processor ! Message.create( CartCreated(user.id, "Useful message") )
   }
 }
 
 class CartProcessor extends Actor {
-
+  // Application state is here !!!
   var numberOfCreatedCart = 0
-
   def receive = {
     case msg: CartCreated => {
       numberOfCreatedCart = numberOfCreatedCart + 1
@@ -830,16 +827,26 @@ val user2 = User( ... )
 val user3 = User( ... )
 
 EventSourcingBoostrap.bootstrap()
+// prints nothing if bucket is empty
 
 Cart.createCartForUser( user1 )
+// prints : [CartProcessor] live carts 1 - Last message (Useful message)
 Cart.createCartForUser( user2 )
+// prints : [CartProcessor] live carts 2 - Last message (Useful message)
 Cart.createCartForUser( user3 )
+// prints : [CartProcessor] live carts 3 - Last message (Useful message)
 
 EventSourcingBoostrap.bootstrap()
+// prints : [CartProcessor] live carts 4 - Last message (Useful message)
+// prints : [CartProcessor] live carts 5 - Last message (Useful message)
+// prints : [CartProcessor] live carts 6 - Last message (Useful message)
 
 Cart.createCartForUser( user1 )
+// prints : [CartProcessor] live carts 7 - Last message (Useful message)
 Cart.createCartForUser( user2 )
+// prints : [CartProcessor] live carts 8 - Last message (Useful message)
 Cart.createCartForUser( user3 )
+// prints : [CartProcessor] live carts 9 - Last message (Useful message)
 
 ```
 
