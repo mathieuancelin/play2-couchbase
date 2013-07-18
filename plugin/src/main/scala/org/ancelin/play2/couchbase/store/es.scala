@@ -22,13 +22,13 @@ object Message {
   def create(payload: Any, id: Long, aggregate: Long, version: Int) = Message(payload, id, aggregate, System.currentTimeMillis(), version)
 }
 
-case class WriteInJournal(message: Message, replyTo: ActorRef, journal: CouchbaseJournal)
+case class WriteInJournal(message: Message, replyTo: ActorRef, journal: CouchbaseEventSourcing)
 case class WrittenInJournal(message: Message)
 case class Replay(message: Message)
 
 trait EventStored extends Actor {
 
-  private val couchbaseJournal = CouchbaseJournal(context.system)
+  private val couchbaseJournal = CouchbaseEventSourcing(context.system)
 
   abstract override def receive = {
     case msg: Message => {
@@ -49,7 +49,7 @@ trait EventStored extends Actor {
   }
 }
 
-class CouchbaseJournalActor(bucket: CouchbaseBucket, format: Format[CouchbaseMessage], ec: ExecutionContext) extends Actor {
+private class CouchbaseJournalActor(bucket: CouchbaseBucket, format: Format[CouchbaseMessage], ec: ExecutionContext) extends Actor {
   def receive = {
     case WriteInJournal(msg, to, journal) => {
       val blobKey = s"eventsourcing-message-${msg.eventId}-${msg.aggregateId}-${msg.timestamp}-blob"
@@ -65,7 +65,7 @@ class CouchbaseJournalActor(bucket: CouchbaseBucket, format: Format[CouchbaseMes
   }
 }
 
-class CouchbaseJournal(system: ActorSystem, bucket: CouchbaseBucket, format: Format[CouchbaseMessage]) {
+class CouchbaseEventSourcing(system: ActorSystem, bucket: CouchbaseBucket, format: Format[CouchbaseMessage]) {
   implicit val ec = Couchbase.couchbaseExecutor(Play.current)
   val journal: ActorRef = system.actorOf(Props(new CouchbaseJournalActor(bucket, format, ec)))
   var actors: List[ActorRef] = List[ActorRef]()
@@ -143,9 +143,9 @@ class CouchbaseJournal(system: ActorSystem, bucket: CouchbaseBucket, format: For
   }
 }
 
-object CouchbaseJournal {
+object CouchbaseEventSourcing {
   val format = Json.format[CouchbaseMessage]
-  val journals: ConcurrentHashMap[String, CouchbaseJournal] = new ConcurrentHashMap[String, CouchbaseJournal]()
+  val journals: ConcurrentHashMap[String, CouchbaseEventSourcing] = new ConcurrentHashMap[String, CouchbaseEventSourcing]()
   def apply(system: ActorSystem, bucket: CouchbaseBucket) = {
     if (!journals.containsKey(system.name)) {
       // TODO : check if view are here. If not, insert them
@@ -175,7 +175,7 @@ object CouchbaseJournal {
       } catch {
         case e => println(e)
       }
-      journals.putIfAbsent(system.name, new CouchbaseJournal(system, bucket, format))
+      journals.putIfAbsent(system.name, new CouchbaseEventSourcing(system, bucket, format))
     }
     journals.get(system.name)
   }

@@ -12,6 +12,7 @@ Contents
 - [Use Couchbase as Play Cache](#use-couchbase-as-cache-implementation)
 - [Synchronise Design Documents (evolutions)](#synchonize-couchbase-design-documents)
 - [Insert data at startup (fixtures)](#automatically-insert-documents-at-startup)
+- [Couchbase event store](#couchbase-event-store)
 - [Java Future to Scala Future issues](#about-java-future-to-scala-future-conversion)
 - [Git issues](#git)
 
@@ -779,6 +780,68 @@ Your json **MUST BE** an **ARRAY** structure containing your JSON documents (eve
 ```
 
 **Note : Your documents will be overwritten at each startup. Removed json files won't be removed from your buckets.**
+
+Couchbase Event Store
+===================================
+
+The Couchbase plugin provide a very simple way to store application events. You can use it that way :
+
+```scala
+
+case class CartCreated(customerId: Long, message: String)
+
+object EventSourcingBoostrap {
+
+  implicit val ec = Couchbase.couchbaseExecutor
+
+  val cartCreatedFormat = Json.format[CartCreated]
+  val couchbaseES = CouchbaseEventSourcing( ActorSystem("couchbase-es-1"), Couchbase.bucket("es") )
+    .registerFormatter(cartCreatedFormat)
+
+  val cartProcessor = couchbaseES.processorOf(Props(new CartProcessor with EventStored))
+
+  def bootstrap() = {
+    couchbaseES.replayAll()
+  }
+}
+
+object Cart {
+
+  def createCartForUser(user: User) {
+    processor ! Message.create( CartCreated(user.id, "Useful message") )
+  }
+}
+
+class CartProcessor extends Actor {
+
+  var numberOfCreatedCart = 0
+
+  def receive = {
+    case msg: CartCreated => {
+      numberOfCreatedCart = numberOfCreatedCart + 1
+      println( s"[CartProcessor] live carts ${counter} - Last message (${msg.message})" )
+    }
+    case _ =>
+  }
+}
+
+val user1 = User( ... )
+val user2 = User( ... )
+val user3 = User( ... )
+
+EventSourcingBoostrap.bootstrap()
+
+Cart.createCartForUser( user1 )
+Cart.createCartForUser( user2 )
+Cart.createCartForUser( user3 )
+
+EventSourcingBoostrap.bootstrap()
+
+Cart.createCartForUser( user1 )
+Cart.createCartForUser( user2 )
+Cart.createCartForUser( user3 )
+
+```
 
 About Java Future to Scala Future conversion
 ===================================
