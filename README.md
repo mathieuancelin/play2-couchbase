@@ -609,6 +609,8 @@ PUT     /urls/:id                   @controllers.ShortURLController.update(id)
 
 ```
 
+Note : **You can also use the awesome play-autosource project (https://github.com/mandubian/play-autosource) that comes with Couchbase support**
+
 Use Couchbase as Cache implementation
 =====================================
 
