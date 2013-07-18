@@ -805,7 +805,8 @@ object EventSourcingBoostrap {
 }
 
 object Cart {
-  val cartProcessor = EventSourcingBoostrap.couchbaseES.processorOf(Props(new CartProcessor with EventStored))
+  val cartProcessor = EventSourcingBoostrap.couchbaseES
+                        .processorOf(Props(new CartProcessor with EventStored))
   def createCartForUser(user: User) {
     cartProcessor ! Message.create( CartCreated(user.id, "Useful message") )
   }
