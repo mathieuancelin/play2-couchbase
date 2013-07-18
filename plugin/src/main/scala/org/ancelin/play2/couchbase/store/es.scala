@@ -12,7 +12,7 @@ import net.spy.memcached.transcoders.{Transcoder, SerializingTranscoder}
 import scala.concurrent.duration.Duration
 
 case class Message(payload: Any, eventId: Long = 0L, aggregateId: Long = 0L, timestamp: Long = System.currentTimeMillis(), version: Int = 0)
-case class CouchbaseMessage(messageKey: String, blobKey: String, blob: JsValue, eventId: Long = 0L, aggregateId: Long = 0L, timestamp: Long = System.currentTimeMillis(), version: Int = 0, datatype: String = "eventsourcing-message")
+case class CouchbaseMessage(messageKey: String, blobKey: String, eventId: Long = 0L, aggregateId: Long = 0L, timestamp: Long = System.currentTimeMillis(), version: Int = 0, datatype: String = "eventsourcing-message", blobClass: String, blob: JsValue)
 
 object Message {
   def create(payload: Any) = Message(payload, 0L, 0L, System.currentTimeMillis(), 0)
@@ -54,9 +54,10 @@ class CouchbaseJournalActor(bucket: CouchbaseBucket, format: Format[CouchbaseMes
       val blobKey = s"eventsourcing-message-${msg.eventId}-${msg.aggregateId}-${msg.timestamp}-blob"
       val dataKey = s"eventsourcing-message-${msg.eventId}-${msg.aggregateId}-${msg.timestamp}-data"
       val blobAsJson = Json.parse(play.libs.Json.stringify(play.libs.Json.toJson(msg.payload)))
-      val dataMsg = CouchbaseMessage(dataKey, blobKey, blobAsJson, msg.eventId, msg.aggregateId, msg.timestamp, msg.version)
-      Couchbase.set(dataKey, dataMsg)(bucket, format, ec).map(_ => BlobRepo.set(bucket, blobKey, msg.payload))(ec)
-      to ! WrittenInJournal(msg)
+      val dataMsg = CouchbaseMessage(dataKey, blobKey, msg.eventId, msg.aggregateId, msg.timestamp, msg.version, "eventsourcing-message", msg.payload.getClass.getName, blobAsJson)
+      Couchbase.set(dataKey, dataMsg)(bucket, format, ec)
+        .flatMap(_ => BlobRepo.set(bucket, ec, blobKey, msg.payload))(ec)
+        .map(_ => to ! WrittenInJournal(msg))(ec)
     }
     case _ =>
   }
@@ -92,9 +93,13 @@ class CouchbaseJournal(system: ActorSystem, bucket: CouchbaseBucket, format: For
       Couchbase.find[CouchbaseMessage](view)(all)(bucket, format, ec)
     }.map { messages =>
       messages.map { message =>
-        val msg = Message(BlobRepo.get(bucket, message.blobKey), message.eventId, message.aggregateId, message.timestamp, message.version)
-        actors.foreach { actor =>
-          actor ! Replay(msg)
+        BlobRepo.get(bucket, ec, message.blobKey).map { maybeBlob =>
+          maybeBlob.map { blob =>
+            val msg = Message(blob, message.eventId, message.aggregateId, message.timestamp, message.version)
+            actors.foreach { actor =>
+              actor ! Replay(msg)
+            }
+          }
         }
       }
     }
@@ -105,9 +110,13 @@ class CouchbaseJournal(system: ActorSystem, bucket: CouchbaseBucket, format: For
       Couchbase.find[CouchbaseMessage](view)(allFrom(timestamp))(bucket, format, ec)
     }.map { messages =>
       messages.map { message =>
-        val msg = Message(BlobRepo.get(bucket, message.blobKey), message.eventId, message.aggregateId, message.timestamp, message.version)
-        actors.foreach { actor =>
-          actor ! Replay(msg)
+        BlobRepo.get(bucket, ec, message.blobKey).map { maybeBlob =>
+          maybeBlob.map { blob =>
+            val msg = Message(blob, message.eventId, message.aggregateId, message.timestamp, message.version)
+            actors.foreach { actor =>
+              actor ! Replay(msg)
+            }
+          }
         }
       }
     }
@@ -118,9 +127,13 @@ class CouchbaseJournal(system: ActorSystem, bucket: CouchbaseBucket, format: For
       Couchbase.find[CouchbaseMessage](view)(allUntil(timestamp))(bucket, format, ec)
     }.map { messages =>
       messages.map { message =>
-        val msg = Message(BlobRepo.get(bucket, message.blobKey), message.eventId, message.aggregateId, message.timestamp, message.version)
-        actors.foreach { actor =>
-          actor ! Replay(msg)
+        BlobRepo.get(bucket, ec, message.blobKey).map { maybeBlob =>
+          maybeBlob.map { blob =>
+            val msg = Message(blob, message.eventId, message.aggregateId, message.timestamp, message.version)
+            actors.foreach { actor =>
+              actor ! Replay(msg)
+            }
+          }
         }
       }
     }
@@ -131,9 +144,13 @@ class CouchbaseJournal(system: ActorSystem, bucket: CouchbaseBucket, format: For
       Couchbase.find[CouchbaseMessage](view)(allFrom(id))(bucket, format, ec)
     }.map { messages =>
       messages.map { message =>
-        val msg = Message(BlobRepo.get(bucket, message.blobKey), message.eventId, message.aggregateId, message.timestamp, message.version)
-        actors.foreach { actor =>
-          actor ! Replay(msg)
+        BlobRepo.get(bucket, ec, message.blobKey).map { maybeBlob =>
+          maybeBlob.map { blob =>
+            val msg = Message(blob, message.eventId, message.aggregateId, message.timestamp, message.version)
+            actors.foreach { actor =>
+              actor ! Replay(msg)
+            }
+          }
         }
       }
     }
@@ -144,9 +161,13 @@ class CouchbaseJournal(system: ActorSystem, bucket: CouchbaseBucket, format: For
       Couchbase.find[CouchbaseMessage](view)(allUntil(id))(bucket, format, ec)
     }.map { messages =>
       messages.map { message =>
-        val msg = Message(BlobRepo.get(bucket, message.blobKey), message.eventId, message.aggregateId, message.timestamp, message.version)
-        actors.foreach { actor =>
-          actor ! Replay(msg)
+        BlobRepo.get(bucket, ec, message.blobKey).map { maybeBlob =>
+          maybeBlob.map { blob =>
+            val msg = Message(blob, message.eventId, message.aggregateId, message.timestamp, message.version)
+            actors.foreach { actor =>
+              actor ! Replay(msg)
+            }
+          }
         }
       }
     }
@@ -215,13 +236,12 @@ private object BlobRepo {
 
   lazy val tc = MessageSerializer.asInstanceOf[Transcoder[Any]]
 
-  def get(bucket: CouchbaseBucket, key: String) = {
-    val future = bucket.couchbaseClient.asyncGet(key, tc)
-    future.get(Constants.timeout, TimeUnit.MILLISECONDS)
+  def get(bucket: CouchbaseBucket, ec: ExecutionContext, key: String) = {
+    Couchbase.get(key, tc)(bucket, ec)
   }
 
-  def set(bucket: CouchbaseBucket, key: String, value: Any) {
-    bucket.couchbaseClient.set(key, -1, value, tc)
+  def set(bucket: CouchbaseBucket, ec: ExecutionContext, key: String, value: Any) = {
+    Couchbase.set(key, value, tc)(bucket, ec)
   }
 }
 

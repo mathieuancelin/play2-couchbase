@@ -18,6 +18,7 @@ import scala.concurrent.Promise
 import play.api.libs.json.JsSuccess
 import scala.Some
 import play.api.libs.json.JsObject
+import net.spy.memcached.transcoders.Transcoder
 
 class JsonValidationException(message: String, errors: JsObject) extends RuntimeException(message + " : " + Json.stringify(errors))
 class OperationFailedException(status: OperationStatus) extends RuntimeException(status.getMessage)
@@ -141,6 +142,13 @@ trait ClientWrapper {
 
   def keyStats(key: String)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[Map[String, String]] = {
     wrapJavaFutureInPureFuture( bucket.couchbaseClient.getKeyStats(key), ec ).map(_.toMap)
+  }
+
+  def get[T](key: String, tc: Transcoder[T])(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[Option[T]] = {
+    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGet(key, tc), ec ) map {
+      case value: T => Some[T](value)
+      case _ => None
+    }
   }
 
   def get[T](key: String)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Option[T]] = {
@@ -314,6 +322,14 @@ trait ClientWrapper {
 
   def setWithKey[T](value: T, key: T => String, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     set[T](key(value), value, persistTo, replicateTo)(bucket, w, ec)
+  }
+
+  def set[T](key: String, value: T, tc: Transcoder[T])(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.set(key, Constants.expiration, value, tc), ec )
+  }
+
+  def set[T](key: String, exp: Int, value: T, tc: Transcoder[T])(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+    wrapJavaFutureInFuture( bucket.couchbaseClient.set(key, exp, value, tc), ec )
   }
 
   def set[T](key: String, value: T)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
