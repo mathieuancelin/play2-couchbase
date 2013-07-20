@@ -14,17 +14,17 @@ object Bootstrap {
   implicit val ec = Couchbase.couchbaseExecutor
 
   val couchbaseEventSourcing = CouchbaseEventSourcing( system, bucket)
+    .registerEventFormatter(Formatters.CreditCardValidatedFormatter)
+    .registerEventFormatter(Formatters.CreditCardValidationRequestedFormatter)
+    .registerEventFormatter(Formatters.OrderAcceptedFormatter)
+    .registerEventFormatter(Formatters.OrderFormatter)
+    .registerEventFormatter(Formatters.OrderSubmittedFormatter)
+    .registerSnapshotFormatter(Formatters.StateFormatter)
   val processor = couchbaseEventSourcing.processorOf(Props(new OrderProcessor with EventStored))
   val validator = system.actorOf(Props(new CreditCardValidator(processor)))
   val destination = system.actorOf(Props(new Destination))
 
   def bootstrap() = {
-    couchbaseEventSourcing.registerEventFormatter(Formatters.CreditCardValidatedFormatter)
-      .registerEventFormatter(Formatters.CreditCardValidationRequestedFormatter)
-      .registerEventFormatter(Formatters.OrderAcceptedFormatter)
-      .registerEventFormatter(Formatters.OrderFormatter)
-      .registerEventFormatter(Formatters.OrderSubmittedFormatter)
-      .registerSnapshotFormatter(Formatters.StateFormatter)
     couchbaseEventSourcing.replayAll()
   }
 

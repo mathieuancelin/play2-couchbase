@@ -6,13 +6,14 @@ import java.util.concurrent.{TimeUnit, ConcurrentHashMap}
 import org.ancelin.play2.couchbase.{Couchbase, CouchbaseBucket}
 import scala.concurrent.{Future, Await, ExecutionContext}
 import play.api.libs.json.{JsSuccess, JsValue, Format, Json}
-import play.api.Play
+import play.api.{Logger, Play}
 import com.couchbase.client.protocol.views.{ComplexKey, Stale, Query}
 import scala.concurrent.duration.Duration
 import scala.reflect.ClassTag
 import java.util.UUID
 import akka.util.Timeout
 import scala.concurrent.duration._
+import java.util.concurrent.atomic.AtomicBoolean
 
 case class Message(payload: Any, eventId: Long = 0L, aggregateId: Long = 0L, timestamp: Long = System.currentTimeMillis(), version: Int = 0)
 case class CouchbaseMessage(messageKey: String, blobKey: String, eventId: Long = 0L, aggregateId: Long = 0L, timestamp: Long = System.currentTimeMillis(), version: Int = 0, datatype: String = "eventsourcing-message", blobClass: String, blob: JsValue)
@@ -68,16 +69,19 @@ trait EventStored extends Actor {
 private class CouchbaseJournalActor(bucket: CouchbaseBucket, format: Format[CouchbaseMessage], ec: ExecutionContext) extends Actor {
   def receive = {
     case WriteInJournal(msg, to, journal) => {
-      val blobKey = s"eventsourcing-message-${msg.eventId}-${msg.aggregateId}-${msg.timestamp}-blob"
-      val dataKey = s"eventsourcing-message-${msg.eventId}-${msg.aggregateId}-${msg.timestamp}-data"
-      journal.eventFormatters.get(msg.payload.getClass.getName).map { formatter =>
-        val blobAsJson = formatter.asInstanceOf[Format[Any]].writes(msg.payload)
-        val dataMsg = CouchbaseMessage(dataKey, blobKey, msg.eventId, msg.aggregateId, msg.timestamp, msg.version, "eventsourcing-message", msg.payload.getClass.getName, blobAsJson)
-        Couchbase.set(dataKey, dataMsg)(bucket, format, ec)
-          .map(_ => to ! WrittenInJournal(msg))(ec)
-      }.getOrElse(throw new RuntimeException(s"Can't find formatter for class ${msg.payload.getClass.getName}"))
+      if (!journal.replaying.get()) {
+        val ref = sender
+        val blobKey = s"eventsourcing-message-${msg.eventId}-${msg.aggregateId}-${msg.timestamp}-blob"
+        val dataKey = s"eventsourcing-message-${msg.eventId}-${msg.aggregateId}-${msg.timestamp}-data"
+        journal.eventFormatters.get(msg.payload.getClass.getName).map { formatter =>
+          val blobAsJson = formatter.asInstanceOf[Format[Any]].writes(msg.payload)
+          val dataMsg = CouchbaseMessage(dataKey, blobKey, msg.eventId, msg.aggregateId, msg.timestamp, msg.version, "eventsourcing-message", msg.payload.getClass.getName, blobAsJson)
+          Couchbase.set(dataKey, dataMsg)(bucket, format, ec)
+            .map(_ => to.tell(WrittenInJournal(msg), ref))(ec)
+        }.getOrElse(throw new RuntimeException(s"Can't find formatter for class ${msg.payload.getClass.getName}"))
+      }
     }
-    case _ =>
+    case _ => Logger.error("Journal received unexpected message")
   }
 }
 
@@ -101,7 +105,7 @@ class CouchbaseEventSourcing(system: ActorSystem, bucket: CouchbaseBucket, forma
   def theBucket():CouchbaseBucket = bucket
   var eventFormatters: Map[String, Format[_]] = Map()
   var snapshotFormatters: Map[String, Format[_]] = Map()
-
+  val replaying = new AtomicBoolean(false)
   implicit val timeout = Timeout(5 seconds)
 
   def registerEventFormatter[T](formatter: Format[T])(implicit tag: ClassTag[T]) = {
@@ -131,9 +135,9 @@ class CouchbaseEventSourcing(system: ActorSystem, bucket: CouchbaseBucket, forma
       formatter.reads(message.blob) match {
         case s: JsSuccess[_] => {
           val msg = Message(s.get, message.eventId, message.aggregateId, message.timestamp, message.version)
-          actors.foreach { actor =>
-            actor ! Replay(msg)
-          }
+          Future.sequence(actors.map { actor =>
+            actor ? Replay(msg)
+          })
         }
         case _ => throw new RuntimeException(s"Can't read blob for class ${message.blobClass} : ${Json.stringify(message.blob)}")
       }
@@ -141,33 +145,38 @@ class CouchbaseEventSourcing(system: ActorSystem, bucket: CouchbaseBucket, forma
   }
 
   def replayAll() = {
+    replaying.set(true)
     byTimestamp.flatMap { view =>
       Couchbase.find[CouchbaseMessage](view)(all)(bucket, format, ec)
-    }.map(_.map(replayEvent))
+    }.flatMap(results => Future.sequence(results.map(replayEvent))).map(_ => replaying.set(false))
   }
 
   def replayFrom(timestamp: Long) = {
+    replaying.set(true)
     byTimestamp.flatMap { view =>
       Couchbase.find[CouchbaseMessage](view)(allFrom(timestamp))(bucket, format, ec)
-    }.map(_.map(replayEvent))
+    }.flatMap(results => Future.sequence(results.map(replayEvent))).map(_ => replaying.set(false))
   }
 
   def replayUntil(timestamp: Long) = {
+    replaying.set(true)
     byTimestamp.flatMap { view =>
       Couchbase.find[CouchbaseMessage](view)(allUntil(timestamp))(bucket, format, ec)
-    }.map(_.map(replayEvent))
+    }.flatMap(results => Future.sequence(results.map(replayEvent))).map(_ => replaying.set(false))
   }
 
   def replayFromId(id: Long) = {
+    replaying.set(true)
     byEventId.flatMap { view =>
       Couchbase.find[CouchbaseMessage](view)(allFrom(id))(bucket, format, ec)
-    }.map(_.map(replayEvent))
+    }.flatMap(results => Future.sequence(results.map(replayEvent))).map(_ => replaying.set(false))
   }
 
   def replayUntilId(id: Long) = {
+    replaying.set(true)
     byEventId.flatMap { view =>
       Couchbase.find[CouchbaseMessage](view)(allUntil(id))(bucket, format, ec)
-    }.map(_.map(replayEvent))
+    }.flatMap(results => Future.sequence(results.map(replayEvent))).map(_ => replaying.set(false))
   }
 
   def createSnapshot(): Future[String] = {

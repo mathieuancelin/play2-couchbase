@@ -24,9 +24,9 @@ object Application extends Controller {
       )
     )
     Async {
-      (Bootstrap.processor ? message) map {
-        case order: Order => println("received response %s" format order)
-      } map(_ => Ok("Done !!!"))
+      (Bootstrap.processor ? message).map { stuff =>
+          println(stuff)
+      }.map(_ => Ok("Done !!!"))
     }
   }
 }
