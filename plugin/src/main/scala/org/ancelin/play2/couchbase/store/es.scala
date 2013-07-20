@@ -11,6 +11,8 @@ import com.couchbase.client.protocol.views.{ComplexKey, Stale, Query}
 import scala.concurrent.duration.Duration
 import scala.reflect.ClassTag
 import java.util.UUID
+import akka.util.Timeout
+import scala.concurrent.duration._
 
 case class Message(payload: Any, eventId: Long = 0L, aggregateId: Long = 0L, timestamp: Long = System.currentTimeMillis(), version: Int = 0)
 case class CouchbaseMessage(messageKey: String, blobKey: String, eventId: Long = 0L, aggregateId: Long = 0L, timestamp: Long = System.currentTimeMillis(), version: Int = 0, datatype: String = "eventsourcing-message", blobClass: String, blob: JsValue)
@@ -100,6 +102,8 @@ class CouchbaseEventSourcing(system: ActorSystem, bucket: CouchbaseBucket, forma
   var eventFormatters: Map[String, Format[_]] = Map()
   var snapshotFormatters: Map[String, Format[_]] = Map()
 
+  implicit val timeout = Timeout(5 seconds)
+
   def registerEventFormatter[T](formatter: Format[T])(implicit tag: ClassTag[T]) = {
     eventFormatters = eventFormatters + (tag.runtimeClass.getName -> formatter)
     this
@@ -175,7 +179,7 @@ class CouchbaseEventSourcing(system: ActorSystem, bucket: CouchbaseBucket, forma
     }
   }
 
-  def recoverFromSnapshot(id: String) = Future[Boolean] = {
+  def recoverFromSnapshot(id: String): Future[Boolean] = {
     bySnapshot.flatMap { view =>
       Couchbase.find[CouchbaseSnapshotState](view)(snapshot(id))(bucket, snapFormat, ec).flatMap { list =>
         list.headOption.map { state =>
@@ -196,7 +200,7 @@ class CouchbaseEventSourcing(system: ActorSystem, bucket: CouchbaseBucket, forma
     }
   }
 
-  def recoverFromLastSnapshot() = Future[Boolean] = {
+  def recoverFromLastSnapshot(): Future[Boolean] = {
     bySnapshotTimestamp.flatMap { view =>
       Couchbase.find[CouchbaseSnapshotState](view)(allUntilDesc(System.currentTimeMillis()))(bucket, snapFormat, ec).flatMap { list =>
         list.headOption.map { state =>
