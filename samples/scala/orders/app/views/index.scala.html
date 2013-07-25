@@ -2,13 +2,21 @@
 
 @main("") {
 
-    <form>
-        <input type="text" name="creditCard">
-        <button id="buy">Buy Stuff</button>
+    <form class="form-horizontal">
+        <input type="text" name="creditCard" placeholder="Credit card number">
+        <button id="buy" class="btn btn-inverse">Buy Stuff</button>
+        <label class="control-label" for="creditCard" id="message"></label>
     </form>
-    <div id="message"></div>
-    <ul id="validator"></ul>
-    <ul id="validated"></ul>
+    <div class="row-fluid">
+        <div class="span6">
+            <h3>Waiting for validation</h3>
+            <ul class="unstyled" id="validator"></ul>
+        </div>
+        <div class="span6">
+            <h3>Validated</h3>
+            <ul class="unstyled" id="validated"></ul>
+        </div>
+    </div>
 
     <script type="text/javascript">
         $(document).ready(function() {
@@ -16,6 +24,7 @@
             var eventSource = new EventSource('/sse');
             eventSource.onmessage = function(event) {
                 var data = JSON.parse(event.data);
+                console.log(data);
                 if (typeof data.validated !== 'undefined') {
                     $('#validated').append('<li>Order with id: ' + data.id + ' and credit card: ' + data.creditCardNumber + ' is fully validated</li>')
                 } else if (typeof data.validator !== 'undefined') {
@@ -24,14 +33,14 @@
             };
             $('#buy').click(function(e) {
                 e.preventDefault();
-                $('#message').show();
-                $('#message').html("Waiting for validation ...");
+                //$('#message').show();
+                //$('#message').html("Waiting for validation ...   ");
                 $('input[name=creditCard]').attr('disabled', 'disabled');
                 $('#buy').attr('disabled', 'disabled');
                 $.post('/order', {creditCardNumber: $('input[name=creditCard]').val()}, function(data) {
                     $('input[name=creditCard]').removeAttr('disabled');
                     $('#buy').removeAttr('disabled');
-                    $('#message').hide();
+                    //$('#message').hide();
                 });
             });
         });

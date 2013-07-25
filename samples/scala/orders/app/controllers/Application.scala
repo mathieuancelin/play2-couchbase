@@ -16,22 +16,22 @@ import play.api.data.Forms._
 object Application extends Controller {
 
   implicit val timeout = Timeout(5 seconds)
-  
+  val toJsString = Enumeratee.map[JsObject] { jso => s"data: ${Json.stringify(jso)}\n\n"}
+  val creditCardNumberForm = Form(
+    "creditCardNumber" -> text
+  )
+
   def index = Action {
     Ok(views.html.index())
   }
 
   def sse = Action {
-    Ok.feed(Broadcaster.enumerator.through(Enumeratee.map { jso => s"data: ${Json.stringify(jso)}\n\n"})).as("text/event-stream")
+    Ok.feed(Broadcaster.enumerator.through(toJsString)).as("text/event-stream")
   }
 
-  val creditCardNumberForm = Form(
-    "creditCardNumber" -> text
-  )
-
-  def order() = Action { implicit request =>
+  def order = Action { implicit request =>
     creditCardNumberForm.bindFromRequest().fold(
-      errors => BadRequest("You have to provide a credit card number"),
+      _ => BadRequest("You have to provide a credit card number"),
       creditCardNumber => {
         val message = Message.create(
           OrderSubmitted(
