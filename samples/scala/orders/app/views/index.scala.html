@@ -2,4 +2,39 @@
 
 @main("") {
 
+    <form>
+        <input type="text" name="creditCard">
+        <button id="buy">Buy Stuff</button>
+    </form>
+    <div id="message"></div>
+    <ul id="validator"></ul>
+    <ul id="validated"></ul>
+
+    <script type="text/javascript">
+        $(document).ready(function() {
+            $('#message').hide();
+            var eventSource = new EventSource('/sse');
+            eventSource.onmessage = function(event) {
+                var data = JSON.parse(event.data);
+                if (typeof data.validated !== 'undefined') {
+                    $('#validated').append('<li>Order with id: ' + data.id + ' and credit card: ' + data.creditCardNumber + ' is fully validated</li>')
+                } else if (typeof data.validator !== 'undefined') {
+                    $('#validator').append('<li>Order with id: ' + data.id + ' and credit card: ' + data.creditCardNumber + ' is waiting for validation ...</li>')
+                }
+            };
+            $('#buy').click(function(e) {
+                e.preventDefault();
+                $('#message').show();
+                $('#message').html("Waiting for validation ...");
+                $('input[name=creditCard]').attr('disabled', 'disabled');
+                $('#buy').attr('disabled', 'disabled');
+                $.post('/order', {creditCardNumber: $('input[name=creditCard]').val()}, function(data) {
+                    $('input[name=creditCard]').removeAttr('disabled');
+                    $('#buy').removeAttr('disabled');
+                    $('#message').hide();
+                });
+            });
+        });
+    </script>
+
 }

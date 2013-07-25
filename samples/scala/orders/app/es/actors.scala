@@ -2,11 +2,34 @@ package es
 
 import akka.actor.{ActorRef, Actor}
 import models._
+import scala.concurrent.Future
+import org.ancelin.play2.couchbase.store.Message
+import play.api.libs.iteratee.Concurrent
+import play.api.libs.json.{Json, JsObject}
+import models.State
 import models.CreditCardValidated
 import models.OrderSubmitted
 import models.CreditCardValidationRequested
-import scala.concurrent.Future
-import org.ancelin.play2.couchbase.store.Message
+import models.OrderTuple
+import models.OrderAccepted
+
+object Broadcaster {
+  val (enumerator, channel) = Concurrent.broadcast[JsObject]
+  def pushValidation(ccvr: CreditCardValidationRequested) = {
+    channel.push(Json.obj(
+      "validator" -> true,
+      "id" -> ccvr.order.id,
+      "creditCardNumber" -> ccvr.order.creditCardNumber
+    ))
+  }
+  def pushValidated(oa: OrderAccepted) = {
+    channel.push(Json.obj(
+      "validated" -> true,
+      "id" -> oa.order.id,
+      "creditCardNumber" -> oa.order.creditCardNumber
+    ))
+  }
+}
 
 class OrderProcessor extends Actor {
 
@@ -23,8 +46,9 @@ class OrderProcessor extends Actor {
       state.orders.find(_.id == orderId).foreach { order =>
         val upd = order.order.copy(validated = true)
         state = state.copy(state.orders :+ OrderTuple(orderId, upd))
+        Broadcaster.pushValidated(OrderAccepted(upd))
         sender ! upd
-        Bootstrap.destination ! OrderAccepted(upd)
+        Bootstrap.ordersHandler ! OrderAccepted(upd)
       }
     }
     case _ =>
@@ -35,6 +59,7 @@ class CreditCardValidator(orderProcessor: ActorRef) extends Actor {
   import Bootstrap.ec
   def receive = {
     case ccvr: CreditCardValidationRequested => {
+      Broadcaster.pushValidation(ccvr)
       val sdr = sender
       val msg = ccvr
       Future {
@@ -47,7 +72,10 @@ class CreditCardValidator(orderProcessor: ActorRef) extends Actor {
   }
 }
 
-class Destination extends Actor {
+class OrdersHandler extends Actor {
+
+
+
   def receive = {
     case OrderAccepted(upd) => println("received event %s" format upd)
     case _ =>

@@ -22,7 +22,7 @@ object Bootstrap {
     .registerSnapshotFormatter(Formatters.StateFormatter)
   val processor = couchbaseEventSourcing.processorOf(Props(new OrderProcessor with EventStored))
   val validator = system.actorOf(Props(new CreditCardValidator(processor)))
-  val destination = system.actorOf(Props(new Destination))
+  val ordersHandler = system.actorOf(Props(new OrdersHandler))
 
   def bootstrap() = {
     couchbaseEventSourcing.replayAll()
