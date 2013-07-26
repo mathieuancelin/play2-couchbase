@@ -4,6 +4,9 @@
 
 # Home page
 GET     /                           controllers.Application.index()
+POST    /person-json                controllers.Application.createNoPluginJson()
+POST    /person-txt                 controllers.Application.createNoPluginText()
+POST    /person-plugin-json         controllers.Application.createPluginJson()
 ->      /persons                    controllers.PersonsController
 
 # Map static resources from the /public folder to the /assets URL path
