@@ -59,6 +59,7 @@ object Couchbase extends ClientWrapper {
     app.configuration.getObject("couchbase.execution-context.execution-context") match {
       case Some(_) => couchbaseActorSystem.dispatchers.lookup("couchbase.execution-context.execution-context")
       case _ => throw new PlayException("Configuration issue","You have to define a 'couchbase.execution-context.execution-context' object in the application.conf file.")
+      // TODO : provide an out of the box executor
     }
   }
 
