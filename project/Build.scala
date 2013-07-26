@@ -29,7 +29,7 @@ object ApplicationBuild extends Build {
     .settings(
       publishLocal := {},
       publish := {}
-    ).aggregate(plugin, scalaDummySample, scalaShortUrlsSample, scalaOrdersSample, javaShortUrlsSample)
+    ).aggregate(plugin, scalaDummySample, scalaShortUrlsSample, scalaOrdersSample, scalaPersonsSample, javaShortUrlsSample)
 
   lazy val plugin = Project(appName, base = file("plugin"))
     .settings(baseSettings: _*)
@@ -75,6 +75,19 @@ object ApplicationBuild extends Build {
     lazy val scalaOrdersSample = play.Project(
       "scala-es-sample",
       path = file("samples/scala/orders")
+    ).settings(
+      scalaVersion := appScalaVersion,
+      scalaBinaryVersion := appScalaBinaryVersion,
+      crossScalaVersions := appScalaCrossVersions,
+      crossVersion := CrossVersion.full,
+      parallelExecution in Test := false,
+      publishLocal := {},
+      publish := {}
+    ).dependsOn(plugin)
+
+    lazy val scalaPersonsSample = play.Project(
+      "scala-persons-sample",
+      path = file("samples/scala/persons")
     ).settings(
       scalaVersion := appScalaVersion,
       scalaBinaryVersion := appScalaBinaryVersion,

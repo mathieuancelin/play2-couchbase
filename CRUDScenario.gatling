@@ -1,0 +1,39 @@
+package couch
+
+import com.excilys.ebi.gatling.core.Predef._
+import com.excilys.ebi.gatling.http.Predef._
+import com.excilys.ebi.gatling.jdbc.Predef._
+import com.excilys.ebi.gatling.http.Headers.Names._
+import akka.util.duration._
+import bootstrap._
+
+class CRUDSimulation extends Simulation {
+
+    val idGenerator = new java.util.concurrent.atomic.AtomicInteger(0)
+
+    val headers = ("Content-Type", "application/json")
+
+    val httpConf = httpConfig
+        .baseURL("http://localhost:9000")
+        .disableFollowRedirect
+
+    val scn = scenario("Test CRUD API").repeat(1000) {
+        // CREATE persons
+        exec(
+          http("CREATE PERSON " + idGenerator.incrementAndGet()).post("/persons").body("""{"name":"John","surname":"doe","age":42}""").header(headers)
+        ).pause(0 milliseconds, 10 milliseconds)
+
+        // READ them
+
+        // UPDATE them
+
+        // READ them
+
+        // DELETE them
+
+        // CREATE lot of persons
+
+        // READ lot of persons
+    }
+    setUp(scn.users(500).ramp(20).protocolConfig(httpConf))
+}
