@@ -35,7 +35,7 @@ object Application extends Controller {
       creditCardNumber => {
         val message = Message.create(
           OrderSubmitted(
-            Order(details = "jelly beans", creditCardNumber = creditCardNumber)
+            Order(details = "jelly bean", creditCardNumber = creditCardNumber)
           )
         )
         Async {

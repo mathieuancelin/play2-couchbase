@@ -4,7 +4,7 @@ import akka.actor.{ActorSystem, Props, Actor, ActorRef}
 import akka.pattern.ask
 import java.util.concurrent.{TimeUnit, ConcurrentHashMap}
 import org.ancelin.play2.couchbase.{Couchbase, CouchbaseBucket}
-import scala.concurrent.{Future, Await, ExecutionContext}
+import scala.concurrent.{Promise, Future, Await, ExecutionContext}
 import play.api.libs.json.{JsSuccess, JsValue, Format, Json}
 import play.api.{Logger, Play}
 import com.couchbase.client.protocol.views.{View, ComplexKey, Stale, Query}
@@ -13,7 +13,7 @@ import scala.reflect.ClassTag
 import java.util.UUID
 import akka.util.Timeout
 import scala.concurrent.duration._
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.{AtomicInteger, AtomicBoolean}
 
 case class Message(payload: Any, eventId: Long = 0L, aggregateId: Long = 0L, timestamp: Long = System.currentTimeMillis(), version: Int = 0) {
   def withId(id: Long): Message = this.copy(eventId = id)
@@ -33,7 +33,7 @@ object Message {
 
 case class WriteInJournal(message: Message, replyTo: ActorRef, journal: CouchbaseEventSourcing)
 case class WrittenInJournal(message: Message)
-case class Replay(message: Message)
+case class Replay(message: Message, promise: Promise[Unit])
 case class SnapshotRequest(snapshotId: String, journal: CouchbaseEventSourcing) {
   def store(state: Any) = {
     val timestamp = System.currentTimeMillis()
@@ -54,15 +54,19 @@ trait EventStored extends Actor {
 
   abstract override def receive = {
     case msg: Message => {
+      Logger("EventStoredTrait").debug(s"Message : $msg")
       couchbaseJournal.journal.forward(WriteInJournal(msg, self, couchbaseJournal))
     }
     case WrittenInJournal(msg) => {
+      Logger("EventStoredTrait").debug(s"Written in journal : $msg")
       super.receive(msg)
       super.receive(msg.payload)
     }
-    case Replay(msg) => {
+    case Replay(msg, p) => {
+      Logger("EventStoredTrait").debug(s"Replay : $msg")
       super.receive(msg)
       super.receive(msg.payload)
+      p.success(())
     }
   }
 
@@ -74,8 +78,10 @@ trait EventStored extends Actor {
 private class CouchbaseJournalActor(bucket: CouchbaseBucket, format: Format[CouchbaseMessage], ec: ExecutionContext) extends Actor {
   def receive = {
     case WriteInJournal(msg, to, journal) => {
+      val ref = sender
+      Logger("CouchbaseJournalActor").debug(s"Write in journal : $msg with replaying : ${journal.replaying.get()}")
       if (!journal.replaying.get()) {
-        val ref = sender
+        Logger("CouchbaseJournalActor").debug(s"As we're not replaying, actually write in journal : $msg")
         val blobKey = s"eventsourcing-message-${msg.eventId}-${msg.aggregateId}-${msg.timestamp}-blob"
         val dataKey = s"eventsourcing-message-${msg.eventId}-${msg.aggregateId}-${msg.timestamp}-data"
         journal.eventFormatters.get(msg.payload.getClass.getName).map { formatter =>
@@ -83,6 +89,7 @@ private class CouchbaseJournalActor(bucket: CouchbaseBucket, format: Format[Couc
           val dataMsg = CouchbaseMessage(dataKey, blobKey, msg.eventId, msg.aggregateId, msg.timestamp, msg.version, "eventsourcing-message", msg.payload.getClass.getName, blobAsJson)
           Couchbase.set(dataKey, dataMsg)(bucket, format, ec)
             .map(_ => to.tell(WrittenInJournal(msg), ref))(ec)
+            .map(_ => Logger("CouchbaseJournalActor").debug(s"Wrote to couchbase : $msg"))(ec)
         }.getOrElse(throw new RuntimeException(s"Can't find formatter for class ${msg.payload.getClass.getName}"))
       }
     }
@@ -135,13 +142,15 @@ class CouchbaseEventSourcing(system: ActorSystem, bucket: CouchbaseBucket, forma
     actorRef
   }
 
-  private def replayEvent(message: CouchbaseMessage) = {
+  private def replayEvent(message: CouchbaseMessage): Future[Any] = {
     eventFormatters.get(message.blobClass).map { formatter =>
       formatter.reads(message.blob) match {
         case s: JsSuccess[_] => {
           val msg = Message(s.get, message.eventId, message.aggregateId, message.timestamp, message.version)
           Future.sequence(actors.map { actor =>
-            actor ? Replay(msg)
+            val p = Promise[Unit]
+            actor ! Replay(msg, p)
+            p.future
           })
         }
         case _ => throw new RuntimeException(s"Can't read blob for class ${message.blobClass} : ${Json.stringify(message.blob)}")
@@ -150,8 +159,8 @@ class CouchbaseEventSourcing(system: ActorSystem, bucket: CouchbaseBucket, forma
   }
 
   def replayAll() = {
-    replaying.set(true)
     byTimestamp.flatMap { view =>
+      replaying.set(true)
       Couchbase.find[CouchbaseMessage](view)(all)(bucket, format, ec)
     }.flatMap(results => Future.sequence(results.map(replayEvent))).map(_ => replaying.set(false))
   }

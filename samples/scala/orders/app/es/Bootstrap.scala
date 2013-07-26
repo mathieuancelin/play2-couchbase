@@ -5,7 +5,7 @@ import org.ancelin.play2.couchbase.Couchbase
 import org.ancelin.play2.couchbase.store.{EventStored, CouchbaseEventSourcing}
 import models.Formatters
 import play.api.Play.current
-import play.api.{Mode, Play}
+import play.api.{Logger, Mode, Play}
 
 object Bootstrap {
 
@@ -22,9 +22,9 @@ object Bootstrap {
     .registerEventFormatter(Formatters.OrderSubmittedFormatter)
     .registerSnapshotFormatter(Formatters.StateFormatter)
 
-  var processor = couchbaseEventSourcing.processorOf(Props(new OrderProcessor with EventStored))
-  var validator = system.actorOf(Props(new CreditCardValidator(processor)))
-  var ordersHandler = system.actorOf(Props(new OrdersHandler))
+  val processor = couchbaseEventSourcing.processorOf(Props(new OrderProcessor with EventStored))
+  val validator = system.actorOf(Props(new CreditCardValidator(processor)))
+  val ordersHandler = system.actorOf(Props(new OrdersHandler))
 
   def bootstrap() = {
     couchbaseEventSourcing.replayAll()
