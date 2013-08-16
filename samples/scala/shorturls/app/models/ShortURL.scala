@@ -99,7 +99,7 @@ object ShortURLs {
   }
 
   def save(url: ShortURL): Future[OperationStatus] = {
-    bucket.set[ShortURL]( url )
+    bucket.set[ShortURL]( url.id, url )
   }
 
   def remove(id: String): Future[OperationStatus] = {
@@ -107,6 +107,6 @@ object ShortURLs {
   }
 
   def remove(url: ShortURL): Future[OperationStatus] = {
-    bucket.delete(url)
+    bucket.delete(url.id)
   }
 }
