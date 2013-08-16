@@ -200,10 +200,6 @@ trait BucketAPI {
     Couchbase.delete(key, persistTo, replicateTo)(self, ec)
   }
 
-  def delete[T <: {def id:String}](value: T, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit ec: ExecutionContext): Future[OperationStatus] = {
-    Couchbase.delete(value.id, persistTo, replicateTo)(self, ec)
-  }
-
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Flush Operations
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
