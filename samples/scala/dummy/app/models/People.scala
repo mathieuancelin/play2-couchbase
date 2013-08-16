@@ -44,7 +44,7 @@ object Peoples {
   }
 
   def save(people: People): Future[OperationStatus] = {
-    bucket.set[People]( people.id.get, people, PersistTo.ONE )
+    bucket.set[People]( people.id.get, people )
   }
 
   def remove(id: String): Future[OperationStatus] = {
