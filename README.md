@@ -128,10 +128,9 @@ object UserController extends Controller {
 
   def getUser(key: String) = Action { 
     Async {
-      withCouchbase { bucket =>
-        bucket.get[User](key).map { maybeUser =>
-          maybeUser.map(user => Ok(views.html.user(user)).getOrElse(BadRequest(s"Unable to find user with key: $key"))
-        }
+      val bucket = Couchbase.defaultBucket
+      bucket.get[User](key).map { maybeUser =>
+        maybeUser.map(user => Ok(views.html.user(user)).getOrElse(BadRequest(s"Unable to find user with key: $key"))
       }
     }
   }
