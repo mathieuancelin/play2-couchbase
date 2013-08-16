@@ -58,8 +58,12 @@ object Couchbase extends ClientWrapper {
   def couchbaseExecutor(implicit app: Application): ExecutionContext = {
     app.configuration.getObject("couchbase.execution-context.execution-context") match {
       case Some(_) => couchbaseActorSystem.dispatchers.lookup("couchbase.execution-context.execution-context")
-      case _ => throw new PlayException("Configuration issue","You have to define a 'couchbase.execution-context.execution-context' object in the application.conf file.")
-      // TODO : provide an out of the box executor
+      case _ => {
+        if (Constants.usePlayEC)
+          play.api.libs.concurrent.Execution.Implicits.defaultContext
+        else
+          throw new PlayException("Configuration issue","You have to define a 'couchbase.execution-context.execution-context' object in the application.conf file.")
+      }
     }
   }
 
