@@ -13,8 +13,8 @@ Contents
 - [Synchronise Design Documents (evolutions)](#synchonize-couchbase-design-documents)
 - [Insert data at startup (fixtures)](#automatically-insert-documents-at-startup)
 - [Couchbase event store](#couchbase-event-store)
-- [Couchbase plugin configuration](#couchbase-plugin-configuration)
 - [Java Future to Scala Future issues](#about-java-future-to-scala-future-conversion)
+- [Couchbase configuration cheatsheet](#couchbase-configuration-cheatsheet)
 - [Git issues](#git)
 
 Basic Usage
@@ -926,7 +926,7 @@ It's also not a perfect solution, because the polling can induce some overhead f
 Let's hope Couchbase guys will introduce some kind of custom completable Java future ;-)
 
 
-Couchbase plugin configuration
+Couchbase configuration cheatsheet
 ===================================
 
 Here is the complete plugin configuration with default values
