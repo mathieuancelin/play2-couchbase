@@ -43,11 +43,11 @@ trait BucketAPI {
     Couchbase.findAsEnumerator[T](docName, viewName)(query)(self, r, ec)
   }
 
-  def pollQuery[T](doc: String, view: String, query: Query, everyMillis: Long, filter: T => Boolean = { _ => true })(implicit r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
+  def pollQuery[T](doc: String, view: String, query: Query, everyMillis: Long, filter: T => Boolean = { chunk: T => true })(implicit r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
     Couchbase.pollQuery[T](doc, view, query, everyMillis, filter)(self, r, ec)
   }
 
-  def repeatQuery[T](doc: String, view: String, query: Query, filter: T => Boolean = { _ => true }, trigger: Future[AnyRef] = Future.successful(Some))(implicit r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
+  def repeatQuery[T](doc: String, view: String, query: Query, filter: T => Boolean = { chunk: T => true }, trigger: Future[AnyRef] = Future.successful(Some))(implicit r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
     Couchbase.repeatQuery[T](doc, view, query, trigger, filter)(self, r, ec)
   }
 
@@ -80,7 +80,7 @@ trait BucketAPI {
   }
 
   def keyStats(key: String)(implicit ec: ExecutionContext): Future[Map[String, String]] = {
-    Couchbase.keyStats(key)
+    Couchbase.keyStats(key)(self, ec)
   }
 
   def get[T](key: String)(implicit r: Reads[T], ec: ExecutionContext): Future[Option[T]] = {
@@ -136,14 +136,6 @@ trait BucketAPI {
   // Set Operations
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  def set[T <: {def id:String}](value: T, exp: Int, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    Couchbase.set[T](value.id, exp, value, persistTo, replicateTo)(self, w, ec)
-  }
-
-  def set[T <: {def id:String}](value: T, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    Couchbase.set[T](value.id, value, persistTo, replicateTo)(self, w, ec)
-  }
-
   def setWithKey[T](key: T => String, exp: Int, value: T, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     Couchbase.setWithKey[T](value, key, exp, persistTo, replicateTo)(self, w, ec)
   }
@@ -164,14 +156,6 @@ trait BucketAPI {
   // Add Operations
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  def add[T <: {def id:String}](value: T, exp: Int, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    Couchbase.add[T](value.id, exp, value, persistTo, replicateTo)(self, w, ec)
-  }
-
-  def add[T <: {def id:String}](value: T, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    Couchbase.add[T](value.id, value, persistTo, replicateTo)(self, w, ec)
-  }
-
   def addWithKey[T](key: T => String, exp: Int, value: T, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     Couchbase.addWithKey[T](value, key, persistTo, replicateTo)(self, w, ec)
   }
@@ -191,14 +175,6 @@ trait BucketAPI {
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Replace Operations
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-  def replace[T <: {def id:String}](value: T, exp: Int, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    Couchbase.replace[T](value.id, exp, value, persistTo, replicateTo)(self, w, ec)
-  }
-
-  def replace[T <: {def id:String}](value: T, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    Couchbase.replace[T](value.id, value, persistTo, replicateTo)(self, w, ec)
-  }
 
   def replaceWithKey[T](key: T => String, exp: Int, value: T, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     Couchbase.replaceWithKey[T](value, key, exp, persistTo, replicateTo)(self, w, ec)
