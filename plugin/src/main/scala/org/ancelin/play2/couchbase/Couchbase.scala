@@ -26,9 +26,9 @@ class CouchbaseBucket(val client: Option[CouchbaseClient], val hosts: List[Strin
     new CouchbaseBucket(None, hosts, port, base, bucket, pass, timeout)
   }
 
-  def withCouchbase[T](block: CouchbaseBucket => T): Option[T] = {
+  /*def withCouchbase[T](block: CouchbaseBucket => T): Option[T] = {
     client.map(_ => block(this))
-  }
+  }*/
 
   def couchbaseClient: CouchbaseClient = {
     client.getOrElse(throw new PlayException(s"Error with bucket ${bucket}", s"Bucket '${bucket}' is not defined or client is not connected"))
@@ -73,8 +73,8 @@ object Couchbase extends ClientWrapper {
     new CouchbaseBucket(None, hosts, port, base, bucket, pass, timeout)
   }
 
-  def withCouchbase[T](block: CouchbaseBucket => T): T = defaultBucket.withCouchbase(block).get
-  def withCouchbase[T](bucketName: String)(block: CouchbaseBucket => T): T = bucket(bucketName).withCouchbase(block).get
+  /*def withCouchbase[T](block: CouchbaseBucket => T): T = defaultBucket.withCouchbase(block).get
+  def withCouchbase[T](bucketName: String)(block: CouchbaseBucket => T): T = bucket(bucketName).withCouchbase(block).get  */
 
 }
 

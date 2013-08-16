@@ -20,7 +20,6 @@ class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket) {
     bucket.findAsEnumerator[T](view)(query)(bucket, reader, ctx)
   }*/
 
-  import org.ancelin.play2.couchbase.CouchbaseImplicitConversion.Couchbase2ClientWrapper
   import org.ancelin.play2.couchbase.CouchbaseRWImplicits._
   import play.api.Play.current
 
@@ -210,7 +209,6 @@ abstract class CrudRouterController(implicit idBindable: PathBindable[String])
 
 abstract class CouchbaseCrudSourceController[T:Format] extends CrudRouterController {
 
-  import org.ancelin.play2.couchbase.CouchbaseImplicitConversion.Couchbase2ClientWrapper
   import play.api.Play.current
 
   val bucket: CouchbaseBucket
