@@ -88,7 +88,6 @@ You will then be able to use the couchbase API from your Play controllers. The f
 
 import play.api.mvc.{Action, Controller}
 import play.api.libs.json._
-import org.ancelin.play2.couchbase.Couchbase._
 import org.ancelin.play2.couchbase.Couchbase
 import org.ancelin.play2.couchbase.CouchbaseBucket
 import org.ancelin.play2.couchbase.CouchbaseController
@@ -116,7 +115,6 @@ this code is a shortcut for
 
 import play.api.mvc.{Action, Controller}
 import play.api.libs.json._
-import org.ancelin.play2.couchbase.Couchbase._
 import org.ancelin.play2.couchbase.Couchbase
 import org.ancelin.play2.couchbase.CouchbaseBucket
 import play.api.Play.current
@@ -272,7 +270,6 @@ Standard usage from a model
 ```scala
 
 import play.api.libs.json._
-import org.ancelin.play2.couchbase.Couchbase._
 import org.ancelin.play2.couchbase.Couchbase
 import org.ancelin.play2.couchbase.CouchbaseBucket
 import play.api.Play.current
@@ -286,30 +283,31 @@ object Beer {
 
   implicit val beerReader = Json.reads[Beer]
   implicit val beerWriter = Json.writes[Beer]
-  implicit val bucket = Couchbase.bucket("bucket2")
   implicit val ec = Couchbase.couchbaseExecutor
 
+  val bucket = Couchbase.bucket("bucket2")
+
   def findById(id: String): Future[Option[Beer]] = {
-    get[Beer](id)
+    bucket.get[Beer](id)
   }
 
   def findAll(): Future[List[Beer]] = {
-    find[Beer]("beer", "by_name")(new Query().setIncludeDocs(true).setStale(Stale.FALSE))
+    bucket.find[Beer]("beer", "by_name")(new Query().setIncludeDocs(true).setStale(Stale.FALSE))
   }
 
   def findByName(name: String): Future[Option[Beer]] = {
     val query = new Query().setIncludeDocs(true).setLimit(1)
           .setRangeStart(ComplexKey.of(name))
           .setRangeEnd(ComplexKey.of(s"$name\uefff").setStale(Stale.FALSE))
-    find[Beer]("beer", "by_name")(query).map(_.headOption)
+    bucket.find[Beer]("beer", "by_name")(query).map(_.headOption)
   }
 
   def save(beer: Beer): Future[OperationStatus] = {
-    set[Beer](beer)
+    bucket.set[Beer](beer)
   }
 
   def remove(beer: Beer): Future[OperationStatus] = {
-    delete[Beer](beer)
+    bucket.delete[Beer](beer)
   }
 }
 
