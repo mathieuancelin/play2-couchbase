@@ -13,7 +13,7 @@ import play.api.libs.concurrent.Akka
 import akka.actor.ActorSystem
 import org.ancelin.play2.couchbase.CouchbasePlugin
 
-class CouchbaseBucket(val client: Option[CouchbaseClient], val hosts: List[String], val port: String, val base: String, val bucket: String, val pass: String, val timeout: Long) {
+class CouchbaseBucket(val client: Option[CouchbaseClient], val hosts: List[String], val port: String, val base: String, val bucket: String, val pass: String, val timeout: Long) extends BucketAPI {
 
   def connect() = {
     val uris = ArrayBuffer(hosts.map { h => URI.create(s"http://$h:$port/$base")}:_*)
