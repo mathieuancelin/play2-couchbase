@@ -101,8 +101,8 @@ object UserController extends Controller with CouchbaseController {
   implicit val couchbaseExecutionContext = Couchbase.couchbaseExecutor
   implicit val userReader = Json.reads[User]
 
-  def getUser(key: String) = CouchbaseAction { implicit bucket =>
-    get[User](key).map { maybeUser =>
+  def getUser(key: String) = CouchbaseAction { bucket =>
+    bucket.get[User](key).map { maybeUser =>
       maybeUser.map(user => Ok(views.html.user(user)).getOrElse(BadRequest(s"Unable to find user with key: $key"))
     }
   }
@@ -130,8 +130,8 @@ object UserController extends Controller {
 
   def getUser(key: String) = Action { 
     Async {
-      withCouchbase { implicit bucket =>
-        get[User](key).map { maybeUser =>
+      withCouchbase { bucket =>
+        bucket.get[User](key).map { maybeUser =>
           maybeUser.map(user => Ok(views.html.user(user)).getOrElse(BadRequest(s"Unable to find user with key: $key"))
         }
       }
@@ -251,14 +251,14 @@ object UserController extends Controller with CouchbaseController {
   implicit val userReader = Json.reads[User]
   implicit val beerReader = Json.reads[Beer]
 
-  def getUser(key: String) = CouchbaseAction("bucket1") { implicit bucket =>
-    get[User](key).map { maybeUser =>
+  def getUser(key: String) = CouchbaseAction("bucket1") { bucket =>
+    bucket.get[User](key).map { maybeUser =>
       maybeUser.map(user => Ok(views.html.user(user)).getOrElse(BadRequest(s"Unable to find user with key: $key"))
     }
   }
 
-  def getBeer(key: String) = CouchbaseAction("bucket2") { request => implicit bucket =>
-    get[Beer](key).map { maybeBeer =>
+  def getBeer(key: String) = CouchbaseAction("bucket2") { request => bucket =>
+    bucket.get[Beer](key).map { maybeBeer =>
       maybeBeer.map(beer => Ok(views.html.beer(beer)).getOrElse(BadRequest(s"Unable to find beer with key: $key"))
     }
   }
