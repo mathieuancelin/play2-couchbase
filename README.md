@@ -13,6 +13,7 @@ Contents
 - [Synchronise Design Documents (evolutions)](#synchonize-couchbase-design-documents)
 - [Insert data at startup (fixtures)](#automatically-insert-documents-at-startup)
 - [Couchbase event store](#couchbase-event-store)
+- [Couchbase plugin configuration](#couchbase-plugin-configuration)
 - [Java Future to Scala Future issues](#about-java-future-to-scala-future-conversion)
 - [Git issues](#git)
 
@@ -923,6 +924,79 @@ akka {
 
 It's also not a perfect solution, because the polling can induce some overhead from a response time point of view.
 Let's hope Couchbase guys will introduce some kind of custom completable Java future ;-)
+
+
+Couchbase plugin configuration
+===================================
+
+Here is the complete plugin configuration with default values
+
+```
+
+couchbase {
+  execution-context {               # execution context configuration, optional
+    timeout=1000                    # default timeout for futures (ms), optional
+    pollfutures=true                # poll to wait on futures, optional
+    polldelay=10                    # poll delay to wait on futures (ms), optional
+    execution-context {             # actual execution context configuration if needed, optional
+      fork-join-executor {
+        parallelism-factor = 20.0
+        parallelism-max = 200
+      }
+    }
+  }
+  buckets = [{                      # available bucket. It's an array, so you can define multiple values
+    host="127.0.0.1", "127.0.0.1"   # Couchbase hosts, can be multiple comma separated values
+    port="8091"
+    base="pools"
+    bucket="$bucketname"
+    pass="$password"
+    timeout="0"
+  }, {
+    host="127.0.0.1", "127.0.0.1"
+    port="8091"
+    base="pools"
+    bucket="$bucketname1"
+    pass="$password"
+    timeout="0"
+  }]
+   failfutures=false                 # fail Scala future if OperationStatus is failed, optional
+   useplayec=false                   # the plugin can use play.api.libs.concurrent.Execution.Implicits.defaultContext as execution context, optional
+   json {                            # JSON related configuration, optional
+     validate=true                   # JSON structure validation fail
+   }
+   cache {                           # cache related configuration, optional
+     namespace=""                    # key prefix if couchbase used as cache with the cache plugin, optional
+     enabled=false                   # enable cache with couchbase, optional
+   }
+   fixtures {                        # fixtures related configuration, optional
+     disabled=false                  # disable fixtures, optional
+     documents="conf/couchbase-fixtures" # path for fixtures files, optional
+     $bucketName {
+       insert=true                   # insert fixtures, optional
+       key="_id"                     # key name for each fixture object, optional
+     }
+   }
+   evolutions {                      # evolutions related configuration, optional
+     disabled=false                  # disable evolutions, optional
+     documents="conf/couchbase"      # path for evolution files, optional
+     use.locks=true                  # use locks for evolutions, optional
+     $bucketName {
+       apply=true                    # apply evolution on start
+       synchronize=true              # synchronize with existing
+     }
+   }
+}
+
+# Akka tweak if needed
+akka {
+  scheduler {
+    tick-duration = 10ms     // here, tick delay in ms, try to change it according to your couchbase-ec.polldelay
+    ticks-per-wheel = 512
+  }
+}
+
+```
 
 Git
 ===================================
