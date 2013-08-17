@@ -11,6 +11,7 @@ import net.spy.memcached.{PersistTo, ReplicateTo}
 trait BucketAPI {
     self: CouchbaseBucket =>
 
+  /**
   def findP[T](docName:String, viewName: String)(implicit r: Reads[T], ec: ExecutionContext): PartialFunction[Query, Future[List[T]]] = {
     Couchbase.findP[T](docName, viewName)(self, r, ec)
   }
@@ -26,6 +27,7 @@ trait BucketAPI {
   def findPAsEnumerator[T](view: View)(implicit r: Reads[T], ec: ExecutionContext): PartialFunction[Query, Future[Enumerator[T]]] = {
     Couchbase.findPAsEnumerator[T](view)(self, r, ec)
   }
+  **/
 
   def find[T](docName:String, viewName: String)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
     Couchbase.find[T](docName, viewName)(query)(self, r, ec)
