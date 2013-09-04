@@ -11,24 +11,6 @@ import net.spy.memcached.{PersistTo, ReplicateTo}
 trait BucketAPI {
     self: CouchbaseBucket =>
 
-  /**
-  def findP[T](docName:String, viewName: String)(implicit r: Reads[T], ec: ExecutionContext): PartialFunction[Query, Future[List[T]]] = {
-    Couchbase.findP[T](docName, viewName)(self, r, ec)
-  }
-
-  def findP[T](view: View)(implicit r: Reads[T], ec: ExecutionContext): PartialFunction[Query, Future[List[T]]] = {
-    Couchbase.findP[T](view)(self, r, ec)
-  }
-
-  def findPAsEnumerator[T](docName:String, viewName: String)(implicit r: Reads[T], ec: ExecutionContext): PartialFunction[Query, Future[Enumerator[T]]] = {
-    Couchbase.findPAsEnumerator[T](docName, viewName)(self, r, ec)
-  }
-
-  def findPAsEnumerator[T](view: View)(implicit r: Reads[T], ec: ExecutionContext): PartialFunction[Query, Future[Enumerator[T]]] = {
-    Couchbase.findPAsEnumerator[T](view)(self, r, ec)
-  }
-  **/
-
   def find[T](docName:String, viewName: String)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
     Couchbase.find[T](docName, viewName)(query)(self, r, ec)
   }
@@ -51,6 +33,30 @@ trait BucketAPI {
 
   def repeatQuery[T](doc: String, view: String, query: Query, filter: T => Boolean = { chunk: T => true }, trigger: Future[AnyRef] = Future.successful(Some))(implicit r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
     Couchbase.repeatQuery[T](doc, view, query, trigger, filter)(self, r, ec)
+  }
+
+  def findFull[T](docName:String, viewName: String)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): Future[List[(T, String, String, String)]] = {
+    Couchbase.fullFind[T](docName, viewName)(query)(self, r, ec)
+  }
+
+  def findFull[T](view: View)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): Future[List[(T, String, String, String)]] = {
+    Couchbase.fullFind[T](view)(query)(self, r, ec)
+  }
+
+  def findFullAsEnumerator[T](view: View)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): Future[Enumerator[(T, String, String, String)]] = {
+    Couchbase.fullFindAsEnumerator[T](view)(query)(self, r, ec)
+  }
+
+  def findFullAsEnumerator[T](docName:String, viewName: String)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): Future[Enumerator[(T, String, String, String)]] = {
+    Couchbase.fullFindAsEnumerator[T](docName, viewName)(query)(self, r, ec)
+  }
+
+  def pollFullQuery[T](doc: String, view: String, query: Query, everyMillis: Long, filter: ((T, String, String, String)) => Boolean = { chunk: (T, String, String, String) => true })(implicit r: Reads[T], ec: ExecutionContext): Enumerator[(T, String, String, String)] = {
+    Couchbase.pollFullQuery[T](doc, view, query, everyMillis, filter)(self, r, ec)
+  }
+
+  def repeatFullQuery[T](doc: String, view: String, query: Query, filter: ((T, String, String, String)) => Boolean = { chunk: (T, String, String, String) => true }, trigger: Future[AnyRef] = Future.successful(Some))(implicit r: Reads[T], ec: ExecutionContext): Enumerator[(T, String, String, String)] = {
+    Couchbase.repeatFullQuery[T](doc, view, query, trigger, filter)(self, r, ec)
   }
 
   def view(docName: String, viewName: String)(implicit ec: ExecutionContext): Future[View] = {

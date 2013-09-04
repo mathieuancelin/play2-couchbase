@@ -34,6 +34,14 @@ public class CouchbaseBucket {
         return new Promise<Collection<T>>(couchbase.javaFind(view, query, clazz, client, ec));
     }
 
+    public <T> Promise<Collection<Row<T>>> fullFind(String docName, String viewName, Query query, Class<T> clazz) {
+        return new Promise<Collection<Row<T>>>(couchbase.javaFullFind(docName, viewName, query, clazz, client, ec));
+    }
+
+    public <T> Promise<Collection<Row<T>>> fullFind(View view, Query query, Class<T> clazz) {
+        return new Promise<Collection<Row<T>>>(couchbase.javaFullFind(view, query, clazz, client, ec));
+    }
+
     public Promise<View> view(String docName, String view) {
         return new Promise<View>(couchbase.javaView(docName, view, client, ec));
     }

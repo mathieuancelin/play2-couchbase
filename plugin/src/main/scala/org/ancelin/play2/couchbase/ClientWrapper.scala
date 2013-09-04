@@ -19,6 +19,7 @@ import play.api.libs.json.JsSuccess
 import scala.Some
 import play.api.libs.json.JsObject
 import net.spy.memcached.transcoders.Transcoder
+import org.ancelin.play2.java.couchbase.Row
 
 class JsonValidationException(message: String, errors: JsObject) extends RuntimeException(message + " : " + Json.stringify(errors))
 class OperationFailedException(status: OperationStatus) extends RuntimeException(status.getMessage)
@@ -26,30 +27,6 @@ class OperationFailedException(status: OperationStatus) extends RuntimeException
 // Yeah I know JavaFuture.get is really ugly, but what can I do ???
 // http://stackoverflow.com/questions/11529145/how-do-i-wrap-a-java-util-concurrent-future-in-an-akka-future
 trait ClientWrapper {
-
-  def findP[T](docName:String, viewName: String)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): PartialFunction[Query, Future[List[T]]] = {
-    PartialFunction[Query, Future[List[T]]]((query: Query) => {
-      find[T](docName, viewName)(query)(bucket, r, ec)
-    })
-  }
-
-  def findP[T](view: View)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): PartialFunction[Query, Future[List[T]]] = {
-    PartialFunction[Query, Future[List[T]]]((query: Query) => {
-      find[T](view)(query)(bucket, r, ec)
-    })
-  }
-
-  def findPAsEnumerator[T](docName:String, viewName: String)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): PartialFunction[Query, Future[Enumerator[T]]] = {
-    PartialFunction[Query, Future[Enumerator[T]]]((query: Query) => {
-      findAsEnumerator[T](docName, viewName)(query)(bucket, r, ec)
-    })
-  }
-
-  def findPAsEnumerator[T](view: View)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): PartialFunction[Query, Future[Enumerator[T]]] = {
-    PartialFunction[Query, Future[Enumerator[T]]]((query: Query) => {
-      findAsEnumerator[T](view)(query)(bucket, r, ec)
-    })
-  }
 
   def find[T](docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
     view(docName, viewName)(bucket, ec).flatMap {
@@ -111,6 +88,55 @@ trait ClientWrapper {
   def repeatQuery[T](doc: String, view: String, query: Query, filter: T => Boolean)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
     repeatQuery[T](doc, view, query, Future.successful(Some),filter)(bucket, r, ec)
   }
+
+  ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+  def fullFind[T](docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[List[(T, String, String, String)]] = {
+    view(docName, viewName)(bucket, ec).flatMap {
+      case view: View => fullFind[T](view)(query)(bucket, r, ec)
+      case _ => Future.failed(new PlayException("Couchbase view error", s"Can't find view $viewName from $docName. Please create it."))
+    }
+  }
+
+  def fullFind[T](view: View)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[List[(T, String, String, String)]] = {
+    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncQuery(view, query), ec ).map { results =>
+      results.iterator().map { result =>
+        result.getDocument match {
+          case s: String => r.reads(Json.parse(s)) match {
+            case e:JsError => if (Constants.jsonStrictValidation) throw new JsonValidationException("Invalid JSON content", JsError.toFlatJson(e.errors)) else None
+            case s:JsSuccess[T] => s.asOpt.flatMap(Some(_, result.getId, result.getKey, result.getValue))
+          }
+          case t: T => Some(t, result.getId, result.getKey, result.getValue)
+          case _ => None
+        }
+      }.toList.filter(_.isDefined).map(_.get)
+    }
+  }
+
+  def fullFindAsEnumerator[T](view: View)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Enumerator[(T, String, String, String)]] = {
+    fullFind[T](view)(query)(bucket, r, ec).map(Enumerator.enumerate(_))
+  }
+
+  def fullFindAsEnumerator[T](docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Enumerator[(T, String, String, String)]] = {
+    view(docName, viewName)(bucket, ec).flatMap {
+      case view: View => fullFindAsEnumerator[T](view)(query)(bucket, r, ec)
+      case _ => Future.failed(new PlayException("Couchbase view error", s"Can't find view $viewName from $docName. Please create it."))
+    }
+  }
+
+  def pollFullQuery[T](doc: String, view: String, query: Query, everyMillis: Long, filter: ((T, String, String, String)) => Boolean)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[(T, String, String, String)] = {
+    Enumerator.repeatM(
+      play.api.libs.concurrent.Promise.timeout(Some, everyMillis, TimeUnit.MILLISECONDS).flatMap(_ => fullFind[T](doc, view)(query)(bucket, r, ec))
+    ).through( Enumeratee.mapConcat[List[(T, String, String, String)]](identity) ).through( Enumeratee.filter[(T, String, String, String)]( filter ) )
+  }
+
+  def repeatFullQuery[T](doc: String, view: String, query: Query, trigger: Future[AnyRef], filter: ((T, String, String, String)) => Boolean)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[(T, String, String, String)] = {
+    Enumerator.repeatM(
+      trigger.flatMap { _ => fullFind[T](doc, view)(query)(bucket, r, ec) }
+    ).through( Enumeratee.mapConcat[List[(T, String, String, String)]](identity) ).through( Enumeratee.filter[(T, String, String, String)]( filter ) )
+  }
+
+  ///////////////////////////////////////////////////////////////////////////////////////////////////
 
   def view(docName: String, viewName: String)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[View] = {
     wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGetView(docName, viewName), ec )
@@ -656,6 +682,20 @@ trait ClientWrapper {
     wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncQuery(view, query), ec ).map { results =>
       asJavaCollection(results.iterator().map { result =>
         play.libs.Json.fromJson(play.libs.Json.parse(result.getDocument.asInstanceOf[String]), clazz)
+      }.toList)
+    }(ec)
+  }
+
+  def javaFullFind[T](docName:String, viewName: String, query: Query, clazz: Class[T], bucket: CouchbaseBucket, ec: ExecutionContext): Future[java.util.Collection[Row[T]]] = {
+    view(docName, viewName)(bucket, ec).flatMap { view =>
+      javaFullFind[T](view, query, clazz, bucket, ec)
+    }(ec)
+  }
+
+  def javaFullFind[T](view: View, query: Query, clazz: Class[T], bucket: CouchbaseBucket, ec: ExecutionContext): Future[java.util.Collection[Row[T]]] = {
+    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncQuery(view, query), ec ).map { results =>
+      asJavaCollection(results.iterator().map { result =>
+        new Row[T](play.libs.Json.fromJson(play.libs.Json.parse(result.getDocument.asInstanceOf[String]), clazz), result.getId, result.getKey, result.getValue )
       }.toList)
     }(ec)
   }
