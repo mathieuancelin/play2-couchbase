@@ -73,15 +73,15 @@ class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket) {
     var query = sel._2
     if (limit != 0) query = query.setLimit(limit)
     if (skip != 0) query = query.setSkip(skip)
-    Couchbase.find[JsObject](sel._1)(query)(bucket, CouchbaseRWImplicits.documentAsJsObjectReader, ctx).map{ l =>
+    Couchbase.fullFind[JsObject](sel._1)(query)(bucket, CouchbaseRWImplicits.documentAsJsObjectReader, ctx).map{ l =>
       l.map { i =>
-        val t = reader.reads(i) match {
+        val t = reader.reads(i._1) match {
           case e:JsError => throw new RuntimeException("Document does not match object")
           case s:JsSuccess[T] => s.get
         }
-        i \ ID match {
+        i._1 \ ID match {
           case actualId: JsString => (t, actualId.value)
-          case _ => (t, "")
+          case _ => (t, i._2)
         }
       }
     }
@@ -90,16 +90,16 @@ class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket) {
   def findStream(sel: (View, Query), skip: Int = 0, pageSize: Int = 0)(implicit ctx: ExecutionContext): Enumerator[Iterator[(T, String)]] = {
     var query = sel._2
     if (skip != 0) query = query.setSkip(skip)
-    val futureEnumerator = Couchbase.find[JsObject](sel._1)(query)(bucket, CouchbaseRWImplicits.documentAsJsObjectReader, ctx).map { l =>
+    val futureEnumerator = Couchbase.fullFind[JsObject](sel._1)(query)(bucket, CouchbaseRWImplicits.documentAsJsObjectReader, ctx).map { l =>
       val size = if(pageSize != 0) pageSize else l.size
       Enumerator.enumerate(l.map { i =>
-        val t = reader.reads(i) match {
+        val t = reader.reads(i._1) match {
           case e:JsError => throw new RuntimeException("Document does not match object")
           case s:JsSuccess[T] => s.get
         }
-        i \ ID match {
+        i._1 \ ID match {
           case actualId: JsString => (t, actualId.value)
-          case _ => (t, "")
+          case _ => (t, i._2)
         }
       }.grouped(size).map(_.iterator))
     }
