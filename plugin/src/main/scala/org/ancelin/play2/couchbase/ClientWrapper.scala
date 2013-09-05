@@ -91,14 +91,14 @@ trait ClientWrapper {
 
   ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-  def fullFind[T](docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[List[(T, String, String, String)]] = {
+  def search[T](docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[List[(T, String, String, String)]] = {
     view(docName, viewName)(bucket, ec).flatMap {
-      case view: View => fullFind[T](view)(query)(bucket, r, ec)
+      case view: View => search[T](view)(query)(bucket, r, ec)
       case _ => Future.failed(new PlayException("Couchbase view error", s"Can't find view $viewName from $docName. Please create it."))
     }
   }
 
-  def fullFind[T](view: View)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[List[(T, String, String, String)]] = {
+  def search[T](view: View)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[List[(T, String, String, String)]] = {
     wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncQuery(view, query), ec ).map { results =>
       results.iterator().map { result =>
         result.getDocument match {
@@ -113,26 +113,26 @@ trait ClientWrapper {
     }
   }
 
-  def fullFindAsEnumerator[T](view: View)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Enumerator[(T, String, String, String)]] = {
-    fullFind[T](view)(query)(bucket, r, ec).map(Enumerator.enumerate(_))
+  def searchAsEnumerator[T](view: View)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Enumerator[(T, String, String, String)]] = {
+    search[T](view)(query)(bucket, r, ec).map(Enumerator.enumerate(_))
   }
 
-  def fullFindAsEnumerator[T](docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Enumerator[(T, String, String, String)]] = {
+  def searchAsEnumerator[T](docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Enumerator[(T, String, String, String)]] = {
     view(docName, viewName)(bucket, ec).flatMap {
-      case view: View => fullFindAsEnumerator[T](view)(query)(bucket, r, ec)
+      case view: View => searchAsEnumerator[T](view)(query)(bucket, r, ec)
       case _ => Future.failed(new PlayException("Couchbase view error", s"Can't find view $viewName from $docName. Please create it."))
     }
   }
 
-  def pollFullQuery[T](doc: String, view: String, query: Query, everyMillis: Long, filter: ((T, String, String, String)) => Boolean)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[(T, String, String, String)] = {
+  def pollSearch[T](doc: String, view: String, query: Query, everyMillis: Long, filter: ((T, String, String, String)) => Boolean)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[(T, String, String, String)] = {
     Enumerator.repeatM(
-      play.api.libs.concurrent.Promise.timeout(Some, everyMillis, TimeUnit.MILLISECONDS).flatMap(_ => fullFind[T](doc, view)(query)(bucket, r, ec))
+      play.api.libs.concurrent.Promise.timeout(Some, everyMillis, TimeUnit.MILLISECONDS).flatMap(_ => search[T](doc, view)(query)(bucket, r, ec))
     ).through( Enumeratee.mapConcat[List[(T, String, String, String)]](identity) ).through( Enumeratee.filter[(T, String, String, String)]( filter ) )
   }
 
-  def repeatFullQuery[T](doc: String, view: String, query: Query, trigger: Future[AnyRef], filter: ((T, String, String, String)) => Boolean)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[(T, String, String, String)] = {
+  def repeatSearch[T](doc: String, view: String, query: Query, trigger: Future[AnyRef], filter: ((T, String, String, String)) => Boolean)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[(T, String, String, String)] = {
     Enumerator.repeatM(
-      trigger.flatMap { _ => fullFind[T](doc, view)(query)(bucket, r, ec) }
+      trigger.flatMap { _ => search[T](doc, view)(query)(bucket, r, ec) }
     ).through( Enumeratee.mapConcat[List[(T, String, String, String)]](identity) ).through( Enumeratee.filter[(T, String, String, String)]( filter ) )
   }
 
