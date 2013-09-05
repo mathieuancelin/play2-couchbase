@@ -7,13 +7,12 @@ import play.api.libs.iteratee.{Iteratee, Enumerator}
 import play.api.mvc._
 import org.ancelin.play2.couchbase.{CouchbaseRWImplicits, Couchbase, CouchbaseBucket}
 import java.util.UUID
-import net.spy.memcached.ops.OperationStatus
 import play.core.Router
 import scala.Some
 import play.api.libs.json.JsObject
 
 // Higly inspired (not to say copied ;)) from https://github.com/mandubian/play-autosource
-class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket) {
+class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket, idKey: String = "_id") {
 
   /*
   def findStream(view: View, query: Query): Future[Enumerator[T]] = {
@@ -25,21 +24,20 @@ class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket) {
 
   val reader: Reads[T] = implicitly[Reads[T]]
   val writer: Writes[T] = implicitly[Writes[T]]
-  var ID = "_id"
   implicit val ctx: ExecutionContext = Couchbase.couchbaseExecutor
 
   def insert(t: T): Future[String] = {
     val id: String = UUID.randomUUID().toString
     val json = writer.writes(t).as[JsObject]
-    json \ ID match {
+    json \ idKey match {
       case JsUndefined(_) => {
-        val newJson = json ++ Json.obj(ID -> JsString(id))
+        val newJson = json ++ Json.obj(idKey -> JsString(id))
         Couchbase.set(id, newJson)(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ctx).map(_ => id)(ctx)
       }
       case actualId: JsString => {
         Couchbase.set(actualId.value, json)(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ctx).map(_ => actualId.value)(ctx)
       }
-      case _ => throw new RuntimeException(s"Field with $ID already exists and not of type JsString")
+      case _ => throw new RuntimeException(s"Field with $idKey already exists and not of type JsString")
     }
   }
 
@@ -60,8 +58,8 @@ class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket) {
       opt.map { t =>
         val json = Json.toJson(t._1)(writer).as[JsObject]
         val newJson = json.deepMerge(upd)
-        Couchbase.replace((json \ ID).as[JsString].value, newJson)(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ctx).map(_ => ())
-      }.getOrElse(throw new RuntimeException(s"Cannot find ID $id"))
+        Couchbase.replace((json \ idKey).as[JsString].value, newJson)(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ctx).map(_ => ())
+      }.getOrElse(throw new RuntimeException(s"Cannot find id $id"))
     }
   }
 
@@ -79,7 +77,7 @@ class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket) {
           case e:JsError => throw new RuntimeException("Document does not match object")
           case s:JsSuccess[T] => s.get
         }
-        i._1 \ ID match {
+        i._1 \ idKey match {
           case actualId: JsString => (t, actualId.value)
           case _ => (t, i._2)
         }
@@ -97,7 +95,7 @@ class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket) {
           case e:JsError => throw new RuntimeException("Document does not match object")
           case s:JsSuccess[T] => s.get
         }
-        i._1 \ ID match {
+        i._1 \ idKey match {
           case actualId: JsString => (t, actualId.value)
           case _ => (t, i._2)
         }
@@ -213,18 +211,19 @@ abstract class CouchbaseCrudSourceController[T:Format] extends CrudRouterControl
 
   val bucket: CouchbaseBucket
 
-  val defaultDesignDocname = ""
-  val defaultViewName= ""
+  def defaultDesignDocname = ""
+  def defaultViewName = ""
+  def idKey = "_id"
 
-  lazy val res = new CouchbaseCrudSource[T](bucket)
+  lazy val res = new CouchbaseCrudSource[T](bucket, idKey)
 
   implicit val ctx = Couchbase.couchbaseExecutor
 
   val writerWithId = Writes[(T, String)] {
     case (t, id) => {
       val jsObj = res.writer.writes(t).as[JsObject]
-      (jsObj \ res.ID) match {
-        case JsUndefined(_) => jsObj ++ Json.obj(res.ID -> id)
+      (jsObj \ idKey) match {
+        case JsUndefined(_) => jsObj ++ Json.obj(idKey -> id)
         case actualId => jsObj
       }
     }
@@ -244,8 +243,8 @@ abstract class CouchbaseCrudSourceController[T:Format] extends CrudRouterControl
         case None    => NotFound(s"ID '${id}' not found")
         case Some(tid) => {
           val jsObj = Json.toJson(tid._1)(res.writer).as[JsObject]
-          (jsObj \ res.ID) match {
-            case JsUndefined(_) => Ok( jsObj ++ Json.obj(res.ID -> JsString(id)) )
+          (jsObj \ idKey) match {
+            case JsUndefined(_) => Ok( jsObj ++ Json.obj(idKey -> JsString(id)) )
             case actualId => Ok( jsObj )
           }
         }

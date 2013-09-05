@@ -520,14 +520,15 @@ DELETE  /urls/batch                                         # delete multiple ur
 
 ```
 
-it is also possible to define default design doc name and view :
+it is also possible to define default design doc name, view and id key :
 
 ```scala
 
 object ShortURLController extends CouchbaseCrudSourceController[ShortURL] {
   val bucket = Couchbase.bucket("default")
-  override val defaultViewName = "by_url"
-  override val defaultDesignDocname = "shorturls"
+  override def defaultViewName = "by_url"
+  override def defaultDesignDocname = "shorturls"
+  override def idKey = "__myAwesomeIdKey"
 }
 
 ```
