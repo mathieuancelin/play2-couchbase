@@ -20,11 +20,18 @@ public class CrudSource<T> {
 
     public final CouchbaseBucket bucket;
     public final Class<T> clazz;
-    public String ID = "_id";
+    public final String ID; // = "_id";
 
     public CrudSource(CouchbaseBucket bucket, Class<T> clazz) {
         this.bucket = bucket;
         this.clazz = clazz;
+        this.ID = "_id";
+    }
+
+    public CrudSource(CouchbaseBucket bucket, String idKey, Class<T> clazz) {
+        this.bucket = bucket;
+        this.clazz = clazz;
+        this.ID = idKey;
     }
 
     public F.Promise<F.Tuple<F.Option<T>, String>> get(final String id) {
