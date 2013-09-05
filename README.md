@@ -554,6 +554,7 @@ You can also access this feature from Java
 public class ShortURLController extends CrudSourceController<ShortURL> {
 
     private final CrudSource<ShortURL> source = new CrudSource<ShortURL>( Couchbase.bucket("default"), ShortURL.class );
+    //private final CrudSource<ShortURL> source = new CrudSource<ShortURL>( Couchbase.bucket("default"), "__myAwesomeIdKey", ShortURL.class );
 
     @Override
     public CrudSource<ShortURL> getSource() {
