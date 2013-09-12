@@ -1,7 +1,7 @@
 package org.ancelin.play2.couchbase
 
 import play.api.libs.json._
-import scala.concurrent.{Promise, Future, ExecutionContext}
+import scala.concurrent.{Future, ExecutionContext}
 import net.spy.memcached.ops.OperationStatus
 import com.couchbase.client.protocol.views._
 import collection.JavaConversions._
@@ -64,36 +64,19 @@ object __EnumeratorHolder {
 trait ClientWrapper {
 
   def find[T](docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
-    view(docName, viewName)(bucket, ec).flatMap {
-      case view: View => find[T](view)(query)(bucket, r, ec)
-      case _ => Future.failed(new PlayException("Couchbase view error", s"Can't find view $viewName from $docName. Please create it."))
-    }
+    __find[T](docName, viewName)(query)(bucket, r, ec)
   }
 
   def find[T](view: View)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
-    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncQuery(view, query), ec ).map { results =>
-      results.iterator().map { result =>
-        result.getDocument match {
-          case s: String => r.reads(Json.parse(s)) match {
-            case e:JsError => if (Constants.jsonStrictValidation) throw new JsonValidationException("Invalid JSON content", JsError.toFlatJson(e.errors)) else None
-            case s:JsSuccess[T] => s.asOpt
-          }
-          case t: T => Some(t)
-          case _ => None
-        }
-      }.toList.filter(_.isDefined).map(_.get)
-    }
+    __find[T](view)(query)(bucket, r, ec)
   }
 
   def findAsEnumerator[T](view: View)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Enumerator[T]] = {
-     find[T](view)(query)(bucket, r, ec).map(Enumerator.enumerate(_))
+     __searchValues[T](view)(query)(bucket, r, ec).enumerate
   }
 
   def findAsEnumerator[T](docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Enumerator[T]] = {
-    view(docName, viewName)(bucket, ec).flatMap {
-      case view: View => findAsEnumerator[T](view)(query)(bucket, r, ec)
-      case _ => Future.failed(new PlayException("Couchbase view error", s"Can't find view $viewName from $docName. Please create it."))
-    }
+    __searchValues[T](docName, viewName)(query)(bucket, r, ec).enumerate
   }
 
   def pollQuery[T](doc: String, view: String, query: Query, everyMillis: Long)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
@@ -127,36 +110,19 @@ trait ClientWrapper {
   ///////////////////////////////////////////////////////////////////////////////////////////////////
 
   def search[T](docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[List[(T, String, String, String)]] = {
-    view(docName, viewName)(bucket, ec).flatMap {
-      case view: View => search[T](view)(query)(bucket, r, ec)
-      case _ => Future.failed(new PlayException("Couchbase view error", s"Can't find view $viewName from $docName. Please create it."))
-    }
+    __search[T](docName, viewName)(query)(bucket, r, ec).toList(ec).map(_.map(e => (e.document, e.id, e.key, e.value)))
   }
 
   def search[T](view: View)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[List[(T, String, String, String)]] = {
-    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncQuery(view, query), ec ).map { results =>
-      results.iterator().map { result =>
-        result.getDocument match {
-          case s: String => r.reads(Json.parse(s)) match {
-            case e:JsError => if (Constants.jsonStrictValidation) throw new JsonValidationException("Invalid JSON content", JsError.toFlatJson(e.errors)) else None
-            case s:JsSuccess[T] => s.asOpt.flatMap(Some(_, result.getId, result.getKey, result.getValue))
-          }
-          case t: T => Some(t, result.getId, result.getKey, result.getValue)
-          case _ => None
-        }
-      }.toList.filter(_.isDefined).map(_.get)
-    }
+    __search[T](view)(query)(bucket, r, ec).toList(ec).map(_.map(e => (e.document, e.id, e.key, e.value)))
   }
 
   def searchAsEnumerator[T](view: View)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Enumerator[(T, String, String, String)]] = {
-    search[T](view)(query)(bucket, r, ec).map(Enumerator.enumerate(_))
+    __search[T](view)(query)(bucket, r, ec).enumerate.map(_.through(Enumeratee.map[__TypedRow[T]](e => (e.document, e.id, e.key, e.value))))
   }
 
   def searchAsEnumerator[T](docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Enumerator[(T, String, String, String)]] = {
-    view(docName, viewName)(bucket, ec).flatMap {
-      case view: View => searchAsEnumerator[T](view)(query)(bucket, r, ec)
-      case _ => Future.failed(new PlayException("Couchbase view error", s"Can't find view $viewName from $docName. Please create it."))
-    }
+    __search[T](docName, viewName)(query)(bucket, r, ec).enumerate.map(_.through(Enumeratee.map[__TypedRow[T]](e => (e.document, e.id, e.key, e.value))))
   }
 
   def pollSearch[T](doc: String, view: String, query: Query, everyMillis: Long, filter: ((T, String, String, String)) => Boolean)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[(T, String, String, String)] = {
@@ -213,72 +179,39 @@ trait ClientWrapper {
   }
 
   def get[T](key: String)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Option[T]] = {
-    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGet(key), ec ).map { f =>
-       f match {
-         case value: String => r.reads(Json.parse(value)) match {
-           case e:JsError => if (Constants.jsonStrictValidation) throw new JsonValidationException("Invalid JSON content", JsError.toFlatJson(e.errors)) else None
-           case s:JsSuccess[T] => s.asOpt
-         }
-         case _ => None
-       }
-    }
+    __fetch[T](Seq(key))(bucket, r, ec).headOption(ec).map(_.map(_._2))
   }
 
   def getBulkWithKeys[T](keys: Seq[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Map[String, T]] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.asyncGetBulk(keys), ec ).map { value =>
-      value.filter { tuple =>
-        tuple._2 match {
-          case s: String => true
-          case t: T => true
-          case _ => false
-        }
-      }.map { tuple =>
-        tuple._2 match {
-          case s: String => r.reads(Json.parse(s)) match {
-            case e:JsError => if (Constants.jsonStrictValidation) throw new JsonValidationException("Invalid JSON content", JsError.toFlatJson(e.errors)) else (tuple._1, None)
-            case s:JsSuccess[T] => (tuple._1, s.asOpt)
-          }
-          case t: T => (tuple._1, Some(t))
-          case _ => (tuple._1, None)
-        }
-      }.filter(_._2.isDefined).map( v => v._1 -> v._2.get).toMap[String, T]
-    }
+    __fetch[T](keys)(bucket, r, ec).toList(ec).map(_.toMap)
   }
 
   def getBulk[T](keys: Seq[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
-    getBulkWithKeys[T](keys)(bucket, r, ec).map(_.map(_._2).toList)
+    __fetch[T](keys)(bucket, r, ec).toList(ec).map(_.map(_._2))
   }
 
   def getBulkWithKeys[T](keys: Enumerator[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Map[String, T]] = {
-    keys.apply(Iteratee.getChunks[String]).flatMap { iteratee =>
-      iteratee.run
-    }.flatMap { values =>
-      getBulkWithKeys[T](values)(bucket, r, ec)
-    }
+    __fetch[T](keys)(bucket, r, ec).toList(ec).map(_.toMap)
   }
 
   def getBulk[T](keys: Enumerator[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
-    keys.apply(Iteratee.getChunks[String]).flatMap { iteratee =>
-      iteratee.run
-    }.flatMap { values =>
-      getBulk[T](values)(bucket, r, ec)
-    }
+    __fetch[T](keys)(bucket, r, ec).toList(ec).map(_.map(_._2))
   }
 
   def getBulkWithKeysAsEnumerator[T](keys: Enumerator[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Enumerator[(String, T)]] = {
-    getBulkWithKeys[T](keys)(bucket, r, ec).map(Enumerator.enumerate(_))
+    __fetch[T](keys)(bucket, r, ec).enumerate
   }
 
   def getBulkAsEnumerator[T](keys: Enumerator[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Enumerator[T]] = {
-    getBulk[T](keys)(bucket, r, ec).map(Enumerator.enumerate(_))
+    __fetch[T](keys)(bucket, r, ec).enumerate.map(_.through(Enumeratee.map[(String, T)](_._2)))
   }
 
   def getBulkWithKeysAsEnumerator[T](keys: Seq[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Enumerator[(String, T)]] = {
-    getBulkWithKeys[T](keys)(bucket, r, ec).map(Enumerator.enumerate(_))
+    __fetch[T](keys)(bucket, r, ec).enumerate
   }
 
   def getBulkAsEnumerator[T](keys: Seq[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Enumerator[T]] = {
-    getBulk[T](keys)(bucket, r, ec).map(Enumerator.enumerate(_))
+    __fetch[T](keys)(bucket, r, ec).enumerate.map(_.through(Enumeratee.map[(String, T)](_._2)))
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
