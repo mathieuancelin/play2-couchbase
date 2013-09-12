@@ -203,7 +203,7 @@ trait ClientWrapper {
   }
 
   def getBulkAsEnumerator[T](keys: Enumerator[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Enumerator[T]] = {
-    __fetch[T](keys)(bucket, r, ec).enumerate.map(_.through(Enumeratee.map[(String, T)](_._2)))
+    __fetchValues[T](keys)(bucket, r, ec).enumerate
   }
 
   def getBulkWithKeysAsEnumerator[T](keys: Seq[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Enumerator[(String, T)]] = {
@@ -211,7 +211,7 @@ trait ClientWrapper {
   }
 
   def getBulkAsEnumerator[T](keys: Seq[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Enumerator[T]] = {
-    __fetchValues[T](keys)(bucket, r, ec).enumerate.map(_.through(Enumeratee.map[(String, T)](_._2)))
+    __fetchValues[T](keys)(bucket, r, ec).enumerate
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
