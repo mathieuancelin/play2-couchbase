@@ -3,7 +3,7 @@ package org.ancelin.play2.couchbase
 import play.api.libs.json._
 import scala.concurrent.{Promise, Future, ExecutionContext}
 import net.spy.memcached.ops.OperationStatus
-import com.couchbase.client.protocol.views.{SpatialView, DesignDocument, Query, View}
+import com.couchbase.client.protocol.views._
 import collection.JavaConversions._
 import net.spy.memcached.{ReplicateTo, PersistTo}
 import akka.actor.ActorSystem
@@ -15,11 +15,11 @@ import play.api.Play.current
 import play.api.{PlayException, Play}
 import play.api.libs.iteratee.{Enumeratee, Iteratee, Enumerator}
 import scala.concurrent.Promise
+import net.spy.memcached.transcoders.Transcoder
+import org.ancelin.play2.java.couchbase.Row
 import play.api.libs.json.JsSuccess
 import scala.Some
 import play.api.libs.json.JsObject
-import net.spy.memcached.transcoders.Transcoder
-import org.ancelin.play2.java.couchbase.Row
 
 class JsonValidationException(message: String, errors: JsObject) extends RuntimeException(message + " : " + Json.stringify(errors))
 class OperationFailedException(status: OperationStatus) extends RuntimeException(status.getMessage)
@@ -245,6 +245,122 @@ trait ClientWrapper {
   def getBulkAsEnumerator[T](keys: Seq[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Enumerator[T]] = {
     getBulk[T](keys)(bucket, r, ec).map(Enumerator.enumerate(_))
   }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // Experimental Enumerator operations : YOU'VE BEEN WARNED
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  def __rawFetch(keysEnumerator: Enumerator[String])(implicit bucket: CouchbaseBucket, ec: ExecutionContext): __EnumeratorHolder[(String, String)] = {
+    __EnumeratorHolder(keysEnumerator.apply(Iteratee.getChunks[String]).flatMap(_.run).flatMap { keys =>
+      wrapJavaFutureInFuture( bucket.couchbaseClient.asyncGetBulk(keys), ec ).map { results =>
+        Enumerator.enumerate(results.toList)
+      }.map { enumerator =>
+        enumerator &> Enumeratee.collect[(String, AnyRef)] { case (k: String, v: String) => (k, v) }
+      }
+    })
+  }
+
+  def __fetch[T](keysEnumerator: Enumerator[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): __EnumeratorHolder[(String, T)] = {
+    __EnumeratorHolder(__rawFetch(keysEnumerator)(bucket, ec).enumerate.map { enumerator =>
+      enumerator &> Enumeratee.map[(String, String)]( t => (t._1, r.reads(Json.parse(t._2))) ) &> Enumeratee.collect[(String, JsResult[T])] {
+        case (k: String, JsSuccess(value, _)) => (k, value)
+        case (k: String, JsError(errors)) if Constants.jsonStrictValidation => throw new JsonValidationException("Invalid JSON content", JsError.toFlatJson(errors))
+      }
+    })
+  }
+
+  def __fetchValues[T](keysEnumerator: Enumerator[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): __EnumeratorHolder[T] = {
+    __EnumeratorHolder(__fetch[T](keysEnumerator)(bucket, r, ec).enumerate.map { enumerator =>
+      enumerator &> Enumeratee.map[(String, T)](_._2)
+    })
+  }
+
+  def __fetch[T](keys: Seq[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): __EnumeratorHolder[(String, T)] = {
+    __fetch[T](Enumerator.enumerate(keys))(bucket, r, ec)
+  }
+
+  def __fetchValues[T](keys: Seq[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): __EnumeratorHolder[T] = {
+    __fetchValues[T](Enumerator.enumerate(keys))(bucket, r, ec)
+  }
+
+  def __get[T](key: String)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Option[T]] = {
+    __fetchValues[T](Enumerator(key))(bucket, r, ec).headOption(ec)
+  }
+
+  def __getWithKey[T](key: String)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Option[(String, T)]] = {
+    __fetch[T](Enumerator(key))(bucket, r, ec).headOption(ec)
+  }
+
+  case class __RawRow(document: String, id: String, key: String, value: String) {
+    def toTuple = (document, id, key, value)
+  }
+
+  case class __JsRow[T](document: JsResult[T], id: String, key: String, value: String) {
+    def toTuple = (document, id, key, value)
+  }
+
+  case class __TypedRow[T](document: T, id: String, key: String, value: String) {
+    def toTuple = (document, id, key, value)
+  }
+
+  case class __EnumeratorHolder[T](enumerate: Future[Enumerator[T]]) {
+    def toList(implicit ec: ExecutionContext): Future[List[T]] = {
+      enumerate.flatMap { e =>
+        e(Iteratee.getChunks[T]).flatMap(_.run)
+      }
+    }
+    def headOption(implicit ec: ExecutionContext): Future[Option[T]] = {
+      enumerate.flatMap { e =>
+        e(Iteratee.head[T]).flatMap(_.run)
+      }
+    }
+  }
+
+  def __rawSearch(docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): __EnumeratorHolder[__RawRow] = {
+    __EnumeratorHolder(view(docName, viewName).flatMap {
+      case view: View => __rawSearch(view)(query)(bucket, ec).enumerate
+      case _ => Future.failed(new PlayException("Couchbase view error", s"Can't find view $viewName from $docName. Please create it."))
+    })
+  }
+
+  def __rawSearch(view: View)(query: Query)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): __EnumeratorHolder[__RawRow] = {
+    __EnumeratorHolder(wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncQuery(view, query), ec ).map { results =>
+      Enumerator.enumerate(results.iterator()) &> Enumeratee.map[ViewRow](r => __RawRow(r.getDocument.asInstanceOf[String], r.getId, r.getKey, r.getValue))
+    })
+  }
+
+  def __search[T](docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): __EnumeratorHolder[__TypedRow[T]] = {
+    __EnumeratorHolder(view(docName, viewName).flatMap {
+      case view: View => __search(view)(query)(bucket, r, ec).enumerate
+      case _ => Future.failed(new PlayException("Couchbase view error", s"Can't find view $viewName from $docName. Please create it."))
+    })
+  }
+
+  def __search[T](view: View)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): __EnumeratorHolder[__TypedRow[T]] = {
+    __EnumeratorHolder(__rawSearch(view)(query)(bucket, ec).enumerate.map { enumerator =>
+      enumerator &> Enumeratee.map[__RawRow](row => __JsRow[T](r.reads(Json.parse(row.document)), row.id, row.key, row.value)) &>
+      Enumeratee.collect[__JsRow[T]] {
+        case __JsRow(JsSuccess(doc, _), id, key, value) => __TypedRow[T](doc, id, key, value)
+        case __JsRow(JsError(errors), _, _, _) if Constants.jsonStrictValidation => throw new JsonValidationException("Invalid JSON content", JsError.toFlatJson(errors))
+      }
+    })
+  }
+
+  def __searchValues[T](docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): __EnumeratorHolder[T] = {
+    __EnumeratorHolder(view(docName, viewName).flatMap {
+      case view: View => __searchValues(view)(query)(bucket, r, ec).enumerate
+      case _ => Future.failed(new PlayException("Couchbase view error", s"Can't find view $viewName from $docName. Please create it."))
+    })
+  }
+
+  def __searchValues[T](view: View)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): __EnumeratorHolder[T] = {
+    __EnumeratorHolder(__search[T](view)(query)(bucket, r, ec).enumerate.map { enumerator =>
+      enumerator &> Enumeratee.map[__TypedRow[T]](_.document)
+    })
+  }
+
+  def __find[T](docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext) = __searchValues(docName, viewName)(query)(bucket, r, ec).toList(ec)
+  def __find[T](view: View)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext) = __searchValues(view)(query)(bucket, r, ec).toList(ec)
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Counter Operations
