@@ -209,8 +209,7 @@ abstract class CouchbaseCrudSourceController[T:Format] extends CrudRouterControl
 
   import play.api.Play.current
 
-  val bucket: CouchbaseBucket
-
+  def bucket: CouchbaseBucket
   def defaultDesignDocname = ""
   def defaultViewName = ""
   def idKey = "_id"
