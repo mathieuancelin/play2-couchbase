@@ -36,7 +36,7 @@ case class __TypedRow[T](document: T, id: String, key: String, value: String) {
   def toTuple = (document, id, key, value)
 }
 
-class __EnumeratorHolder[T](futureEnumerator: Future[Enumerator[T]]) {
+class __EnumeratedQuery[T](futureEnumerator: Future[Enumerator[T]]) {
   def enumerate: Future[Enumerator[T]] = futureEnumerator
   def enumerated(implicit ec: ExecutionContext): Enumerator[T] = {
     val (en, channel) = Concurrent.broadcast[T]
@@ -55,8 +55,8 @@ class __EnumeratorHolder[T](futureEnumerator: Future[Enumerator[T]]) {
   }
 }
 
-object __EnumeratorHolder {
-  def apply[T](enumerate: Future[Enumerator[T]]): __EnumeratorHolder[T] = new __EnumeratorHolder[T](enumerate)
+object __EnumeratedQuery {
+  def apply[T](enumerate: Future[Enumerator[T]]): __EnumeratedQuery[T] = new __EnumeratedQuery[T](enumerate)
 }
 
 // Yeah I know JavaFuture.get is really ugly, but what can I do ???
@@ -211,15 +211,15 @@ trait ClientWrapper {
   }
 
   def getBulkAsEnumerator[T](keys: Seq[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Enumerator[T]] = {
-    __fetch[T](keys)(bucket, r, ec).enumerate.map(_.through(Enumeratee.map[(String, T)](_._2)))
+    __fetchValues[T](keys)(bucket, r, ec).enumerate.map(_.through(Enumeratee.map[(String, T)](_._2)))
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Experimental Enumerator operations : YOU'VE BEEN WARNED
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  def __rawFetch(keysEnumerator: Enumerator[String])(implicit bucket: CouchbaseBucket, ec: ExecutionContext): __EnumeratorHolder[(String, String)] = {
-    __EnumeratorHolder(keysEnumerator.apply(Iteratee.getChunks[String]).flatMap(_.run).flatMap { keys =>
+  def __rawFetch(keysEnumerator: Enumerator[String])(implicit bucket: CouchbaseBucket, ec: ExecutionContext): __EnumeratedQuery[(String, String)] = {
+    __EnumeratedQuery(keysEnumerator.apply(Iteratee.getChunks[String]).flatMap(_.run).flatMap { keys =>
       wrapJavaFutureInFuture( bucket.couchbaseClient.asyncGetBulk(keys), ec ).map { results =>
         Enumerator.enumerate(results.toList)
       }.map { enumerator =>
@@ -228,8 +228,8 @@ trait ClientWrapper {
     })
   }
 
-  def __fetch[T](keysEnumerator: Enumerator[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): __EnumeratorHolder[(String, T)] = {
-    __EnumeratorHolder(__rawFetch(keysEnumerator)(bucket, ec).enumerate.map { enumerator =>
+  def __fetch[T](keysEnumerator: Enumerator[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): __EnumeratedQuery[(String, T)] = {
+    __EnumeratedQuery(__rawFetch(keysEnumerator)(bucket, ec).enumerate.map { enumerator =>
       enumerator &> Enumeratee.map[(String, String)]( t => (t._1, r.reads(Json.parse(t._2))) ) &> Enumeratee.collect[(String, JsResult[T])] {
         case (k: String, JsSuccess(value, _)) => (k, value)
         case (k: String, JsError(errors)) if Constants.jsonStrictValidation => throw new JsonValidationException("Invalid JSON content", JsError.toFlatJson(errors))
@@ -237,17 +237,17 @@ trait ClientWrapper {
     })
   }
 
-  def __fetchValues[T](keysEnumerator: Enumerator[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): __EnumeratorHolder[T] = {
-    __EnumeratorHolder(__fetch[T](keysEnumerator)(bucket, r, ec).enumerate.map { enumerator =>
+  def __fetchValues[T](keysEnumerator: Enumerator[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): __EnumeratedQuery[T] = {
+    __EnumeratedQuery(__fetch[T](keysEnumerator)(bucket, r, ec).enumerate.map { enumerator =>
       enumerator &> Enumeratee.map[(String, T)](_._2)
     })
   }
 
-  def __fetch[T](keys: Seq[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): __EnumeratorHolder[(String, T)] = {
+  def __fetch[T](keys: Seq[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): __EnumeratedQuery[(String, T)] = {
     __fetch[T](Enumerator.enumerate(keys))(bucket, r, ec)
   }
 
-  def __fetchValues[T](keys: Seq[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): __EnumeratorHolder[T] = {
+  def __fetchValues[T](keys: Seq[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): __EnumeratedQuery[T] = {
     __fetchValues[T](Enumerator.enumerate(keys))(bucket, r, ec)
   }
 
@@ -259,28 +259,28 @@ trait ClientWrapper {
     __fetch[T](Enumerator(key))(bucket, r, ec).headOption(ec)
   }
 
-  def __rawSearch(docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): __EnumeratorHolder[__RawRow] = {
-    __EnumeratorHolder(view(docName, viewName).flatMap {
+  def __rawSearch(docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): __EnumeratedQuery[__RawRow] = {
+    __EnumeratedQuery(view(docName, viewName).flatMap {
       case view: View => __rawSearch(view)(query)(bucket, ec).enumerate
       case _ => Future.failed(new PlayException("Couchbase view error", s"Can't find view $viewName from $docName. Please create it."))
     })
   }
 
-  def __rawSearch(view: View)(query: Query)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): __EnumeratorHolder[__RawRow] = {
-    __EnumeratorHolder(wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncQuery(view, query), ec ).map { results =>
+  def __rawSearch(view: View)(query: Query)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): __EnumeratedQuery[__RawRow] = {
+    __EnumeratedQuery(wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncQuery(view, query), ec ).map { results =>
       Enumerator.enumerate(results.iterator()) &> Enumeratee.map[ViewRow](r => __RawRow(r.getDocument.asInstanceOf[String], r.getId, r.getKey, r.getValue))
     })
   }
 
-  def __search[T](docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): __EnumeratorHolder[__TypedRow[T]] = {
-    __EnumeratorHolder(view(docName, viewName).flatMap {
+  def __search[T](docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): __EnumeratedQuery[__TypedRow[T]] = {
+    __EnumeratedQuery(view(docName, viewName).flatMap {
       case view: View => __search(view)(query)(bucket, r, ec).enumerate
       case _ => Future.failed(new PlayException("Couchbase view error", s"Can't find view $viewName from $docName. Please create it."))
     })
   }
 
-  def __search[T](view: View)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): __EnumeratorHolder[__TypedRow[T]] = {
-    __EnumeratorHolder(__rawSearch(view)(query)(bucket, ec).enumerate.map { enumerator =>
+  def __search[T](view: View)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): __EnumeratedQuery[__TypedRow[T]] = {
+    __EnumeratedQuery(__rawSearch(view)(query)(bucket, ec).enumerate.map { enumerator =>
       enumerator &> Enumeratee.map[__RawRow](row => __JsRow[T](r.reads(Json.parse(row.document)), row.id, row.key, row.value)) &>
       Enumeratee.collect[__JsRow[T]] {
         case __JsRow(JsSuccess(doc, _), id, key, value) => __TypedRow[T](doc, id, key, value)
@@ -289,15 +289,15 @@ trait ClientWrapper {
     })
   }
 
-  def __searchValues[T](docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): __EnumeratorHolder[T] = {
-    __EnumeratorHolder(view(docName, viewName).flatMap {
+  def __searchValues[T](docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): __EnumeratedQuery[T] = {
+    __EnumeratedQuery(view(docName, viewName).flatMap {
       case view: View => __searchValues(view)(query)(bucket, r, ec).enumerate
       case _ => Future.failed(new PlayException("Couchbase view error", s"Can't find view $viewName from $docName. Please create it."))
     })
   }
 
-  def __searchValues[T](view: View)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): __EnumeratorHolder[T] = {
-    __EnumeratorHolder(__search[T](view)(query)(bucket, r, ec).enumerate.map { enumerator =>
+  def __searchValues[T](view: View)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): __EnumeratedQuery[T] = {
+    __EnumeratedQuery(__search[T](view)(query)(bucket, r, ec).enumerate.map { enumerator =>
       enumerator &> Enumeratee.map[__TypedRow[T]](_.document)
     })
   }
