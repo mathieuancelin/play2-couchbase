@@ -13,7 +13,7 @@ import net.spy.memcached.internal.{BulkFuture, OperationFuture}
 import com.couchbase.client.internal.HttpFuture
 import play.api.Play.current
 import play.api.{PlayException, Play}
-import play.api.libs.iteratee.{Enumeratee, Iteratee, Enumerator}
+import play.api.libs.iteratee.{Concurrent, Enumeratee, Iteratee, Enumerator}
 import scala.concurrent.Promise
 import net.spy.memcached.transcoders.Transcoder
 import org.ancelin.play2.java.couchbase.Row
@@ -23,6 +23,41 @@ import play.api.libs.json.JsObject
 
 class JsonValidationException(message: String, errors: JsObject) extends RuntimeException(message + " : " + Json.stringify(errors))
 class OperationFailedException(status: OperationStatus) extends RuntimeException(status.getMessage)
+
+case class __RawRow(document: String, id: String, key: String, value: String) {
+  def toTuple = (document, id, key, value)
+}
+
+case class __JsRow[T](document: JsResult[T], id: String, key: String, value: String) {
+  def toTuple = (document, id, key, value)
+}
+
+case class __TypedRow[T](document: T, id: String, key: String, value: String) {
+  def toTuple = (document, id, key, value)
+}
+
+class __EnumeratorHolder[T](futureEnumerator: Future[Enumerator[T]]) {
+  def enumerate: Future[Enumerator[T]] = futureEnumerator
+  def enumerated(implicit ec: ExecutionContext): Enumerator[T] = {
+    val (en, channel) = Concurrent.broadcast[T]
+    futureEnumerator.map(e => e(Iteratee.foreach[T](channel.push(_)).mapDone(_ => channel.eofAndEnd())))
+    en
+  }
+  def toList(implicit ec: ExecutionContext): Future[List[T]] = {
+    futureEnumerator.flatMap { e =>
+      e(Iteratee.getChunks[T]).flatMap(_.run)
+    }
+  }
+  def headOption(implicit ec: ExecutionContext): Future[Option[T]] = {
+    futureEnumerator.flatMap { e =>
+      e(Iteratee.head[T]).flatMap(_.run)
+    }
+  }
+}
+
+object __EnumeratorHolder {
+  def apply[T](enumerate: Future[Enumerator[T]]): __EnumeratorHolder[T] = new __EnumeratorHolder[T](enumerate)
+}
 
 // Yeah I know JavaFuture.get is really ugly, but what can I do ???
 // http://stackoverflow.com/questions/11529145/how-do-i-wrap-a-java-util-concurrent-future-in-an-akka-future
@@ -289,31 +324,6 @@ trait ClientWrapper {
 
   def __getWithKey[T](key: String)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Option[(String, T)]] = {
     __fetch[T](Enumerator(key))(bucket, r, ec).headOption(ec)
-  }
-
-  case class __RawRow(document: String, id: String, key: String, value: String) {
-    def toTuple = (document, id, key, value)
-  }
-
-  case class __JsRow[T](document: JsResult[T], id: String, key: String, value: String) {
-    def toTuple = (document, id, key, value)
-  }
-
-  case class __TypedRow[T](document: T, id: String, key: String, value: String) {
-    def toTuple = (document, id, key, value)
-  }
-
-  case class __EnumeratorHolder[T](enumerate: Future[Enumerator[T]]) {
-    def toList(implicit ec: ExecutionContext): Future[List[T]] = {
-      enumerate.flatMap { e =>
-        e(Iteratee.getChunks[T]).flatMap(_.run)
-      }
-    }
-    def headOption(implicit ec: ExecutionContext): Future[Option[T]] = {
-      enumerate.flatMap { e =>
-        e(Iteratee.head[T]).flatMap(_.run)
-      }
-    }
   }
 
   def __rawSearch(docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): __EnumeratorHolder[__RawRow] = {
