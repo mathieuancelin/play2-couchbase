@@ -179,7 +179,7 @@ trait ClientWrapper {
   }
 
   def get[T](key: String)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Option[T]] = {
-    __fetch[T](Seq(key))(bucket, r, ec).headOption(ec).map(_.map(_._2))
+    __get[T](key)(bucket, r, ec)
   }
 
   def getBulkWithKeys[T](keys: Seq[String])(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Map[String, T]] = {
