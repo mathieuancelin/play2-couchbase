@@ -28,7 +28,7 @@ case class __RawRow(document: String, id: String, key: String, value: String) {
   def toTuple = (document, id, key, value)
 }
 
-case class __JsRow[T](document: JsResult[T], id: String, key: String, value: String) {
+private case class __JsRow[T](document: JsResult[T], id: String, key: String, value: String) {
   def toTuple = (document, id, key, value)
 }
 
