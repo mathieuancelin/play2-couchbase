@@ -53,7 +53,42 @@ class QueryEnumerator[T](futureEnumerator: Future[Enumerator[T]]) {
       e(Iteratee.head[T]).flatMap(_.run)
     }
   }
-  def map[U](mapper: T => U)(implicit ec: ExecutionContext) = new QueryEnumerator[U](futureEnumerator.map(_.map(mapper)))
+  def map[U](mapper: T => U)(implicit ec: ExecutionContext): QueryEnumerator[U] = QueryEnumerator[U](futureEnumerator.map(_.map(mapper)))
+  def collect[U](pf: PartialFunction[T,U])(implicit ec: ExecutionContext): QueryEnumerator[U] = {
+    QueryEnumerator[U](futureEnumerator.map { e =>
+      e &> Enumeratee.collect[T](pf)
+    })
+  }
+  def filter(predicate: T => Boolean)(implicit ec: ExecutionContext): QueryEnumerator[T] = {
+    QueryEnumerator[T](futureEnumerator.map { e =>
+      e &> Enumeratee.filter[T](predicate)
+    })
+  }
+  def filterNot(predicate: T => Boolean)(implicit ec: ExecutionContext): QueryEnumerator[T] = {
+    new QueryEnumerator[T](futureEnumerator.map { e =>
+      e &> Enumeratee.filterNot[T](predicate)
+    })
+  }
+  def take(n: Int)(implicit ec: ExecutionContext): QueryEnumerator[T] = {
+    QueryEnumerator[T](futureEnumerator.map { e =>
+      e &> Enumeratee.take[T](n)
+    })
+  }
+  def takeWhile(predicate: T => Boolean)(implicit ec: ExecutionContext): QueryEnumerator[T] = {
+    QueryEnumerator[T](futureEnumerator.map { e =>
+      e &> Enumeratee.takeWhile[T](predicate)
+    })
+  }
+  def drop(n: Int)(implicit ec: ExecutionContext): QueryEnumerator[T] = {
+    QueryEnumerator[T](futureEnumerator.map { e =>
+      e &> Enumeratee.drop[T](n)
+    })
+  }
+  def dropWhile(predicate: T => Boolean)(implicit ec: ExecutionContext): QueryEnumerator[T] = {
+    QueryEnumerator[T](futureEnumerator.map { e =>
+      e &> Enumeratee.dropWhile[T](predicate)
+    })
+  }
 }
 
 object QueryEnumerator {
