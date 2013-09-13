@@ -53,6 +53,7 @@ class QueryEnumerator[T](futureEnumerator: Future[Enumerator[T]]) {
       e(Iteratee.head[T]).flatMap(_.run)
     }
   }
+  def map[U](mapper: T => U) = new QueryEnumerator[U](futureEnumerator.map(_.map(mapper)))
 }
 
 object QueryEnumerator {
