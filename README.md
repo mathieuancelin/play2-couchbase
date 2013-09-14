@@ -936,9 +936,9 @@ http://www.couchbase.com/communities/n1ql
 
 The play2-couchbase plugin offers a very experimental access to N1QL based on the N1QL DP1. As it is experimental, I can not ensure that this feature will not massively change and/or will be continued.
 
-First setup your N1QL search server. Download it and expand it. Then connect it to your Couchbase server.
+First setup your N1QL query server. Download it and expand it. Then connect it to your Couchbase server.
 
-`./cbq-engine -couchbase http://<coucbhase-server-name>:8091/`
+./cbq-engine -couchbase http://<coucbhase-server-name>:8091/`
 
 Now you have to enable the N1QL plugin and configure it :
 
