@@ -938,7 +938,7 @@ The play2-couchbase plugin offers a very experimental access to N1QL based on th
 
 First setup your N1QL search server. Download it and expand it. Then connect it to your Couchbase server.
 
-./cbq-engine -couchbase http://<coucbhase-server-name>:8091/
+`./cbq-engine -couchbase http://<coucbhase-server-name>:8091/`
 
 Now you have to enable the N1QL plugin and configure it :
 
@@ -979,7 +979,8 @@ object N1QLController extends Controller {
 
   def find(age: Int) = Action {
     Async {
-      N1QL( s""" SELECT fname, age FROM tutorial WHERE age > ${age} """ ).toList[Person].map { persons =>
+      N1QL( s""" SELECT fname, age FROM tutorial WHERE age > ${age} """ )
+                                                   .toList[Person].map { persons =>
         Ok(views.html.index(s"Persons older than ${age}", persons))
       }
     }
@@ -1009,7 +1010,8 @@ object N1QLController extends Controller {
 
   def find(age: Int) = Action {
       Async {
-        N1QL( s""" SELECT fname, age FROM tutorial WHERE age > ${age} """ ).enumerate[Person].map { enumerator =>
+        N1QL( s""" SELECT fname, age FROM tutorial WHERE age > ${age} """ )
+                                        .enumerate[Person].map { enumerator =>
          Ok.stream(
            (enumerator &>
             Enumeratee.collect[Person] { case p@Person(_, age) if age < 50 => p } ><>
