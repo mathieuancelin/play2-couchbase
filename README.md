@@ -927,6 +927,101 @@ akka {
 It's also not a perfect solution, because the polling can induce some overhead from a response time point of view.
 Let's hope Couchbase guys will introduce some kind of custom completable Java future ;-)
 
+Couchbase N1QL search
+=======================
+
+N1QL is the Couchbase Query Language. The N1QL Developer Preview 1 (DP1) is a pre-beta release of the language and is available at
+
+http://www.couchbase.com/communities/n1ql
+
+The play2-couchbase plugin offers a very experimental access to N1QL based on the N1QL DP1. As it is experimental, I can not ensure that this feature will not massively change and/or will be continued.
+
+First setup your N1QL search server. Download it and expand it. Then connect it to your Couchbase server.
+
+./cbq-engine -couchbase http://<coucbhase-server-name>:8091/
+
+Now you have to enable the N1QL plugin and configure it :
+
+in `conf/play.plugins` file and add :
+`1000:org.ancelin.play2.couchbase.plugins.CouchbaseN1QLPlugin`
+
+and in you `conf/application.conf` file add :
+
+```
+
+couchbase {
+   n1ql {
+     host="127.0.0.1"
+     port=8093
+   }
+}
+
+```
+
+And now you can use it from your Play2 application
+
+```scala
+
+package controllers
+
+import play.api.mvc._
+
+import org.ancelin.play2.couchbase.plugins.CouchbaseN1QLPlugin._
+import play.api.libs.json.Json
+import play.api.libs.concurrent.Execution.Implicits._
+import play.api.libs.iteratee.{Enumerator, Enumeratee}
+
+case class Person(fname: String, age: Int)
+
+object N1QLController extends Controller {
+
+  implicit val personFormat = Json.format[Person]
+
+  def find(age: Int) = Action {
+    Async {
+      N1QL( s""" SELECT fname, age FROM tutorial WHERE age > ${age} """ ).toList[Person].map { persons =>
+        Ok(views.html.index(s"Persons older than ${age}", persons))
+      }
+    }
+  }
+}
+
+```
+
+or use it the Enumerator way
+
+```scala
+
+package controllers
+
+import play.api.mvc._
+
+import org.ancelin.play2.couchbase.plugins.CouchbaseN1QLPlugin._
+import play.api.libs.json.Json
+import play.api.libs.concurrent.Execution.Implicits._
+import play.api.libs.iteratee.{Enumerator, Enumeratee}
+
+case class Person(fname: String, age: Int)
+
+object N1QLController extends Controller {
+
+  implicit val personFormat = Json.format[Person]
+
+  def find(age: Int) = Action {
+      Async {
+        N1QL( s""" SELECT fname, age FROM tutorial WHERE age > ${age} """ ).enumerate[Person].map { enumerator =>
+         Ok.stream(
+           (enumerator &>
+            Enumeratee.collect[Person] { case p@Person(_, age) if age < 50 => p } ><>
+            Enumeratee.map[Person](personFormat.writes)) >>>
+            Enumerator.eof
+         )
+      }
+    }
+  }
+}
+
+```
 
 Couchbase configuration cheatsheet
 ===================================
@@ -987,6 +1082,10 @@ couchbase {
        apply=true                    # apply evolution on start
        synchronize=true              # synchronize with existing
      }
+   }
+   n1ql {                            # N1QL access from API, optionnal
+     host="127.0.0.1"                # Host of the N1QL search server
+     port=8093                       # Port of the N1QL search server
    }
 }
 

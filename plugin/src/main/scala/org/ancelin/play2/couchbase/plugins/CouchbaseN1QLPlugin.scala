@@ -22,23 +22,39 @@ class CouchbaseN1QLPlugin(app: Application) extends Plugin {
   }
 }
 
+/**
+ * trait EnumeratorWrapper[T] {
+ *   self: Enumerator[T] =>
+ *
+ *   def map[U](mapper: T => U)(implicit ec: ExecutionContext): Enumerator[U] =
+ *
+ *   def mapM[U](mapper: T => Future[U])(implicit ec: ExecutionContext): Enumerator[U] =
+ *
+ *   def collect[U](pf: PartialFunction[T,U])(implicit ec: ExecutionContext): Enumerator[U] =
+ *
+ *   def filter(predicate: T => Boolean)(implicit ec: ExecutionContext): Enumerator[T] =
+ *
+ *   def filterNot(predicate: T => Boolean)(implicit ec: ExecutionContext): Enumerator[T] =
+ * }
+ **/
+
 class N1QLQuery(query: String, base: WSRequestHolder) {
-  /*def on(arg: (String, String)): N1QLQuery = {
-    new N1QLQuery(query, base)
-  }*/
   def enumerateJson(implicit ec: ExecutionContext): Future[Enumerator[JsObject]] = {
     toJsArray(ec).map { arr =>
       Enumerator.enumerate(arr.value) &> Enumeratee.map[JsValue](_.as[JsObject])
     }
   }
+
   def enumerate[T](implicit r: Reads[T], ec: ExecutionContext): Future[Enumerator[T]] = {
     enumerateJson(ec).map { e =>
       e &> Enumeratee.map[JsObject](r.reads(_)) &> Enumeratee.collect[JsResult[T]] { case JsSuccess(value, _) => value }
     }
   }
+
   def asJsonEnumerator(implicit ec: ExecutionContext): Enumerator[JsObject] = {
     Concurrent.unicast[JsObject](onStart = c => enumerateJson(ec).map(_(Iteratee.foreach[JsObject](c.push).mapDone(_ => c.eofAndEnd()))))
   }
+
   def asEnumerator[T](implicit r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
     Concurrent.unicast[T](onStart = c => enumerate[T](r, ec).map(_(Iteratee.foreach[T](c.push).mapDone(_ => c.eofAndEnd()))))
   }
@@ -48,6 +64,7 @@ class N1QLQuery(query: String, base: WSRequestHolder) {
       (response.json \ "resultset").as[JsArray]
     }
   }
+
   def toList[T](implicit r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
     enumerate[T](r, ec).flatMap(_(Iteratee.getChunks[T]).flatMap(_.run))
   }
@@ -65,6 +82,6 @@ object CouchbaseN1QLPlugin {
   }
 
   def N1QL(query: String): N1QLQuery = {
-    new N1QLQuery(query, N1QLPlugin.queryBase.get)
+    new N1QLQuery(query, N1QLPlugin.queryBase.getOrElse(throw new PlayException("Cannot find N1QL connection", "Cannot find N1QL connection.")))
   }
 }
