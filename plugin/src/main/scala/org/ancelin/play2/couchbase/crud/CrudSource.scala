@@ -1,6 +1,6 @@
 package org.ancelin.play2.couchbase.crud
 
-import scala.concurrent.{Future, ExecutionContext}
+import scala.concurrent._
 import play.api.libs.json._
 import com.couchbase.client.protocol.views.{ComplexKey, Stale, Query, View}
 import play.api.libs.iteratee.{Iteratee, Enumerator}
@@ -30,7 +30,7 @@ class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket, idKey: String = "_i
     val id: String = UUID.randomUUID().toString
     val json = writer.writes(t).as[JsObject]
     json \ idKey match {
-      case JsUndefined(_) => {
+      case _:JsUndefined => {
         val newJson = json ++ Json.obj(idKey -> JsString(id))
         Couchbase.set(id, newJson)(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ctx).map(_ => id)(ctx)
       }
@@ -221,104 +221,84 @@ abstract class CouchbaseCrudSourceController[T:Format] extends CrudRouterControl
   val writerWithId = Writes[(T, String)] {
     case (t, id) => {
       val jsObj = res.writer.writes(t).as[JsObject]
-      (jsObj \ idKey) match {
-        case JsUndefined(_) => jsObj ++ Json.obj(idKey -> id)
+      jsObj \ idKey match {
+        case _:JsUndefined => jsObj ++ Json.obj(idKey -> id)
         case actualId => jsObj
       }
     }
   }
 
-  def insert: EssentialAction = Action(parse.json) { request =>
-    Json.fromJson[T](request.body)(res.reader).map{ t =>
-      Async{
-        res.insert(t).map{ id => Ok(Json.obj("id" -> id)) }
-      }
-    }.recoverTotal{ e => BadRequest(JsError.toFlatJson(e)) }
+  def insert: EssentialAction = Action.async(parse.json) { request =>
+    Json.fromJson(request.body)(res.reader).map{ t =>
+      res.insert(t).map{ id => Ok(Json.obj("id" -> id)) }
+    }.recoverTotal{ e => future{BadRequest(JsError.toFlatJson(e))} }
   }
 
-  def get(id: String): EssentialAction = Action {
-    Async{
-      res.get(id).map{
-        case None    => NotFound(s"ID '${id}' not found")
-        case Some(tid) => {
-          val jsObj = Json.toJson(tid._1)(res.writer).as[JsObject]
-          (jsObj \ idKey) match {
-            case JsUndefined(_) => Ok( jsObj ++ Json.obj(idKey -> JsString(id)) )
-            case actualId => Ok( jsObj )
-          }
+  def get(id: String): EssentialAction = Action.async {
+    res.get(id).map{
+      case None    => NotFound(s"ID '$id' not found")
+      case Some(tid) => {
+        val jsObj = Json.toJson(tid._1)(res.writer).as[JsObject]
+        jsObj \ idKey match {
+          case _:JsUndefined => Ok( jsObj ++ Json.obj(idKey -> JsString(id)) )
+          case actualId => Ok( jsObj )
         }
       }
     }
   }
 
-  def delete(id: String): EssentialAction = Action {
-    Async{
-      res.delete(id).map{ le => Ok(Json.obj("id" -> id)) }
-    }
+  def delete(id: String): EssentialAction = Action.async {
+    res.delete(id).map{ le => Ok(Json.obj("id" -> id)) }
   }
 
-  def update(id: String): EssentialAction = Action(parse.json) { request =>
-    Json.fromJson[T](request.body)(res.reader).map{ t =>
-      Async{
-        res.update(id, t).map{ _ => Ok(Json.obj("id" -> id)) }
-      }
-    }.recoverTotal{ e => BadRequest(JsError.toFlatJson(e)) }
+  def update(id: String): EssentialAction = Action.async(parse.json) { request =>
+    Json.fromJson(request.body)(res.reader).map{ t =>
+      res.update(id, t).map{ _ => Ok(Json.obj("id" -> id)) }
+    }.recoverTotal{ e => future{BadRequest(JsError.toFlatJson(e))} }
   }
 
-  def find: EssentialAction = Action { request =>
+  def find: EssentialAction = Action.async { request =>
     val (queryObject, query) = QueryObject.extractQuery(request, defaultDesignDocname, defaultViewName)
-    Async {
-      res.view(queryObject.docName, queryObject.view).flatMap { view =>
-        res.find((view, query))
-      }.map( s => Ok(Json.toJson(s)(Writes.seq(writerWithId))))
-    }
+    res.view(queryObject.docName, queryObject.view).flatMap { view =>
+      res.find((view, query))
+    }.map( s => Ok(Json.toJson(s)(Writes.seq(writerWithId))))
   }
 
-  def findStream: EssentialAction = Action { request =>
+  def findStream: EssentialAction = Action.async { request =>
     val (queryObject, query) = QueryObject.extractQuery(request, defaultDesignDocname, defaultViewName)
-    Async {
-      res.view(queryObject.docName, queryObject.view).map { view =>
-        res.findStream((view, query), 0, 0)
-      }.map { s => Ok.stream(
-        s.map( it => Json.toJson(it.toSeq)(Writes.seq(writerWithId)) ).andThen(Enumerator.eof) )
-      }
+    res.view(queryObject.docName, queryObject.view).map { view =>
+      res.findStream((view, query), 0, 0)
+    }.map { s => Ok.chunked(
+      s.map( it => Json.toJson(it.toSeq)(Writes.seq(writerWithId)) ).andThen(Enumerator.eof) )
     }
   }
 
-  def updatePartial(id: String): EssentialAction = Action(parse.json) { request =>
+  def updatePartial(id: String): EssentialAction = Action.async(parse.json) { request =>
     Json.fromJson[JsObject](request.body)(CouchbaseRWImplicits.documentAsJsObjectReader).map{ upd =>
-      Async{
-        res.updatePartial(id, upd).map{ _ => Ok(Json.obj("id" -> id)) }
-      }
-    }.recoverTotal{ e => BadRequest(JsError.toFlatJson(e)) }
+      res.updatePartial(id, upd).map{ _ => Ok(Json.obj("id" -> id)) }
+    }.recoverTotal{ e => future{BadRequest(JsError.toFlatJson(e))} }
   }
 
-  def batchInsert: EssentialAction = Action(parse.json) { request =>
+  def batchInsert: EssentialAction = Action.async(parse.json) { request =>
     Json.fromJson[Seq[T]](request.body)(Reads.seq(res.reader)).map{ elems =>
-      Async{
-        res.batchInsert(Enumerator(elems:_*)).map{ nb => Ok(Json.obj("nb" -> nb)) }
-      }
-    }.recoverTotal{ e => BadRequest(JsError.toFlatJson(e)) }
+      res.batchInsert(Enumerator(elems:_*)).map{ nb => Ok(Json.obj("nb" -> nb)) }
+    }.recoverTotal{ e => future{BadRequest(JsError.toFlatJson(e))} }
   }
 
-  def batchDelete: EssentialAction = Action { request =>
+  def batchDelete: EssentialAction = Action.async { request =>
     val (queryObject, query) = QueryObject.extractQuery(request, defaultDesignDocname, defaultViewName)
-    Async {
-      res.view(queryObject.docName, queryObject.view).flatMap { view =>
-        res.batchDelete((view, query)).map{ _ => Ok("deleted") }
-      }
+    res.view(queryObject.docName, queryObject.view).flatMap { view =>
+      res.batchDelete((view, query)).map{ _ => Ok("deleted") }
     }
   }
 
-  def batchUpdate: EssentialAction = Action(parse.json) { request =>
+  def batchUpdate: EssentialAction = Action.async(parse.json) { request =>
     val (queryObject, query) = QueryObject.extractQuery(request, defaultDesignDocname, defaultViewName)
     Json.fromJson[JsObject](request.body)(CouchbaseRWImplicits.documentAsJsObjectReader).map{ upd =>
-      Async{
-        res.view(queryObject.docName, queryObject.view).flatMap { view =>
-          res.batchUpdate((view, query), upd).map{ _ => Ok("updated") }
-        }
+      res.view(queryObject.docName, queryObject.view).flatMap { view =>
+        res.batchUpdate((view, query), upd).map{ _ => Ok("updated") }
       }
-    }.recoverTotal{ e => BadRequest(JsError.toFlatJson(e)) }
+    }.recoverTotal{ e => future{BadRequest(JsError.toFlatJson(e))} }
   }
 }
 

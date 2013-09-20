@@ -107,7 +107,7 @@ class CouchbaseEvolutionsPlugin(app: Application) extends Plugin {
               app.mode match {
                 case Mode.Test => perform(documents, synchronise)
                 case Mode.Dev if applyEvolutions => perform(documents, synchronise)
-                case Mode.Prod if applyEvolutions => perform(documents, synchronise, false)
+                case Mode.Prod if applyEvolutions => perform(documents, synchronise, dev = false)
                 case Mode.Prod => {
                   Logger("play").warn(s"Your production bucket $name needs couchbase design documents evolution!\n\n")
                   Logger("play").warn(s"Run with -Dcouchbase.evolutions.$name.apply=true if you want to run them automatically (be careful)")

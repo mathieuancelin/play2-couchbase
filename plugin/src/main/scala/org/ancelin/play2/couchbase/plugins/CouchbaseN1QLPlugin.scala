@@ -18,7 +18,7 @@ class CouchbaseN1QLPlugin(app: Application) extends Plugin {
   override def onStart {
     val host = Play.configuration.getString("couchbase.n1ql.host").getOrElse(throw new PlayException("Cannot find N1QL host", "Cannot find N1QL host in couchbase.n1ql conf."))
     val port = Play.configuration.getString("couchbase.n1ql.port").getOrElse(throw new PlayException("Cannot find N1QL port", "Cannot find N1QL port in couchbase.n1ql conf."))
-    queryBase = Some(WS.url(s"http://${host}:${port}/query"))
+    queryBase = Some(WS.url(s"http://$host:$port/query"))
   }
 }
 
@@ -52,11 +52,11 @@ class N1QLQuery(query: String, base: WSRequestHolder) {
   }
 
   def asJsonEnumerator(implicit ec: ExecutionContext): Enumerator[JsObject] = {
-    Concurrent.unicast[JsObject](onStart = c => enumerateJson(ec).map(_(Iteratee.foreach[JsObject](c.push).mapDone(_ => c.eofAndEnd()))))
+    Concurrent.unicast[JsObject](onStart = c => enumerateJson(ec).map(_(Iteratee.foreach[JsObject](c.push).map(_ => c.eofAndEnd()))))
   }
 
   def asEnumerator[T](implicit r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
-    Concurrent.unicast[T](onStart = c => enumerate[T](r, ec).map(_(Iteratee.foreach[T](c.push).mapDone(_ => c.eofAndEnd()))))
+    Concurrent.unicast[T](onStart = c => enumerate[T](r, ec).map(_(Iteratee.foreach[T](c.push).map(_ => c.eofAndEnd()))))
   }
 
   def toJsArray(implicit ec: ExecutionContext): Future[JsArray] = {

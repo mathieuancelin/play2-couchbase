@@ -1,7 +1,7 @@
 package org.ancelin.play2.couchbase
 
 import play.api.libs.json._
-import scala.concurrent.{Promise, Future, ExecutionContext}
+import scala.concurrent.{Future, ExecutionContext}
 import net.spy.memcached.ops.OperationStatus
 import com.couchbase.client.protocol.views._
 import collection.JavaConversions._
@@ -40,7 +40,7 @@ class __EnumeratorHolder[T](futureEnumerator: Future[Enumerator[T]]) {
   def enumerate: Future[Enumerator[T]] = futureEnumerator
   def enumerated(implicit ec: ExecutionContext): Enumerator[T] = {
     val (en, channel) = Concurrent.broadcast[T]
-    futureEnumerator.map(e => e(Iteratee.foreach[T](channel.push(_)).mapDone(_ => channel.eofAndEnd())))
+    futureEnumerator.map(e => e(Iteratee.foreach[T](channel.push).map(_ => channel.eofAndEnd())))
     en
   }
   def toList(implicit ec: ExecutionContext): Future[List[T]] = {
@@ -181,7 +181,7 @@ trait ClientWrapper {
     wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGetSpatialView(docName, viewName), ec )
   }
 
-  def designDocument(docName: String)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[DesignDocument[_]] = {
+  def designDocument(docName: String)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[DesignDocument] = {
     wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGetDesignDocument(docName), ec )
   }
 
@@ -193,7 +193,7 @@ trait ClientWrapper {
     wrapJavaFutureInFuture( bucket.couchbaseClient.asyncCreateDesignDoc(name, value), ec )
   }
 
-  def createDesignDoc(value: DesignDocument[_])(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+  def createDesignDoc(value: DesignDocument)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
     wrapJavaFutureInFuture( bucket.couchbaseClient.asyncCreateDesignDoc(value), ec )
   }
 

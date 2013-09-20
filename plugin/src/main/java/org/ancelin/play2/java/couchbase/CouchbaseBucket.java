@@ -27,63 +27,63 @@ public class CouchbaseBucket {
     }
 
     public <T> Promise<Collection<T>> find(String docName, String viewName, Query query, Class<T> clazz) {
-        return new Promise<Collection<T>>(couchbase.javaFind(docName, viewName, query, clazz, client, ec));
+        return Promise.wrap(couchbase.javaFind(docName, viewName, query, clazz, client, ec));
     }
 
     public <T> Promise<Collection<T>> find(View view, Query query, Class<T> clazz) {
-        return new Promise<Collection<T>>(couchbase.javaFind(view, query, clazz, client, ec));
+        return Promise.wrap(couchbase.javaFind(view, query, clazz, client, ec));
     }
 
     public <T> Promise<Collection<Row<T>>> search(String docName, String viewName, Query query, Class<T> clazz) {
-        return new Promise<Collection<Row<T>>>(couchbase.javaFullFind(docName, viewName, query, clazz, client, ec));
+        return Promise.wrap(couchbase.javaFullFind(docName, viewName, query, clazz, client, ec));
     }
 
     public <T> Promise<Collection<Row<T>>> search(View view, Query query, Class<T> clazz) {
-        return new Promise<Collection<Row<T>>>(couchbase.javaFullFind(view, query, clazz, client, ec));
+        return Promise.wrap(couchbase.javaFullFind(view, query, clazz, client, ec));
     }
 
     public Promise<View> view(String docName, String view) {
-        return new Promise<View>(couchbase.javaView(docName, view, client, ec));
+        return Promise.wrap(couchbase.javaView(docName, view, client, ec));
     }
 
     public <T> Promise<T> get(String key, Class<T> clazz) {
-        return new Promise<T>(couchbase.javaGet(key, clazz, client, ec));
+        return Promise.wrap(couchbase.javaGet(key, clazz, client, ec));
     }
 
     public <T> Promise<F.Option<T>> getOpt(String key, Class<T> clazz) {
-        return new Promise<F.Option<T>>(couchbase.javaOptGet(key, clazz, client, ec));
+        return Promise.wrap(couchbase.javaOptGet(key, clazz, client, ec));
     }
 
     public Promise<OperationStatus> incr(String key, Integer of) {
-        return new Promise<OperationStatus>(couchbase.incr(key, of, client, ec));
+        return Promise.wrap(couchbase.incr(key, of, client, ec));
     }
 
     public Promise<OperationStatus> incr(String key, Long of) {
-        return new Promise<OperationStatus>(couchbase.incr(key, of, client, ec));
+        return Promise.wrap(couchbase.incr(key, of, client, ec));
     }
 
     public Promise<OperationStatus> decr(String key, Integer of) {
-        return new Promise<OperationStatus>(couchbase.decr(key, of, client, ec));
+        return Promise.wrap(couchbase.decr(key, of, client, ec));
     }
 
     public Promise<OperationStatus> decr(String key, Long of) {
-        return new Promise<OperationStatus>(couchbase.decr(key, of, client, ec));
+        return Promise.wrap(couchbase.decr(key, of, client, ec));
     }
 
     public Promise<Integer> incrAndGet(String key, Integer of) {
-        return new Promise<Integer>(couchbase.asJavaInt(couchbase.incrAndGet(key, of, client, ec), ec));
+        return Promise.wrap(couchbase.asJavaInt(couchbase.incrAndGet(key, of, client, ec), ec));
     }
 
     public Promise<Long> incrAndGet(String key, Long of) {
-        return new Promise<Long>(couchbase.asJavaLong(couchbase.incrAndGet(key, of, client, ec), ec));
+        return Promise.wrap(couchbase.asJavaLong(couchbase.incrAndGet(key, of, client, ec), ec));
     }
 
     public Promise<Integer> decrAndGet(String key, Integer of) {
-        return new Promise<Integer>(couchbase.asJavaInt(couchbase.decrAndGet(key, of, client, ec), ec));
+        return Promise.wrap(couchbase.asJavaInt(couchbase.decrAndGet(key, of, client, ec), ec));
     }
 
     public Promise<Long> decrAndGet(String key, Long of) {
-        return new Promise<Long>(couchbase.asJavaLong(couchbase.decrAndGet(key, of, client, ec), ec));
+        return Promise.wrap(couchbase.asJavaLong(couchbase.decrAndGet(key, of, client, ec), ec));
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -91,35 +91,35 @@ public class CouchbaseBucket {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public <T> Promise<OperationStatus> set(String key, T value) {
-        return new Promise<OperationStatus>(couchbase.javaSet(key, -1, Json.stringify(Json.toJson(value)), PersistTo.ZERO, ReplicateTo.ZERO, client, ec));
+        return Promise.wrap(couchbase.javaSet(key, -1, Json.stringify(Json.toJson(value)), PersistTo.ZERO, ReplicateTo.ZERO, client, ec));
     }
 
     public <T> Promise<OperationStatus> set(String key, int exp, T value) {
-        return new Promise<OperationStatus>(couchbase.javaSet(key, exp, Json.stringify(Json.toJson(value)), PersistTo.ZERO, ReplicateTo.ZERO, client, ec));
+        return Promise.wrap(couchbase.javaSet(key, exp, Json.stringify(Json.toJson(value)), PersistTo.ZERO, ReplicateTo.ZERO, client, ec));
     }
 
     public <T> Promise<OperationStatus> set(String key, int exp, T value, ReplicateTo replicateTo) {
-        return new Promise<OperationStatus>(couchbase.javaSet(key, exp, Json.stringify(Json.toJson(value)), PersistTo.ZERO, replicateTo, client, ec));
+        return Promise.wrap(couchbase.javaSet(key, exp, Json.stringify(Json.toJson(value)), PersistTo.ZERO, replicateTo, client, ec));
     }
 
     public <T> Promise<OperationStatus> set(String key, T value, ReplicateTo replicateTo) {
-        return new Promise<OperationStatus>(couchbase.javaSet(key, -1, Json.stringify(Json.toJson(value)), PersistTo.ZERO, replicateTo, client, ec));
+        return Promise.wrap(couchbase.javaSet(key, -1, Json.stringify(Json.toJson(value)), PersistTo.ZERO, replicateTo, client, ec));
     }
 
     public <T> Promise<OperationStatus> set(String key, int exp, T value, PersistTo persistTo) {
-        return new Promise<OperationStatus>(couchbase.javaSet(key, exp, Json.stringify(Json.toJson(value)), persistTo, ReplicateTo.ZERO, client, ec));
+        return Promise.wrap(couchbase.javaSet(key, exp, Json.stringify(Json.toJson(value)), persistTo, ReplicateTo.ZERO, client, ec));
     }
 
     public <T> Promise<OperationStatus> set(String key, T value, PersistTo persistTo) {
-        return new Promise<OperationStatus>(couchbase.javaSet(key, -1, Json.stringify(Json.toJson(value)), persistTo, ReplicateTo.ZERO, client, ec));
+        return Promise.wrap(couchbase.javaSet(key, -1, Json.stringify(Json.toJson(value)), persistTo, ReplicateTo.ZERO, client, ec));
     }
 
     public <T> Promise<OperationStatus> set(String key, int exp, T value, PersistTo persistTo, ReplicateTo replicateTo) {
-        return new Promise<OperationStatus>(couchbase.javaSet(key, exp, Json.stringify(Json.toJson(value)), persistTo, replicateTo, client, ec));
+        return Promise.wrap(couchbase.javaSet(key, exp, Json.stringify(Json.toJson(value)), persistTo, replicateTo, client, ec));
     }
 
     public <T> Promise<OperationStatus> set(String key, T value, PersistTo persistTo, ReplicateTo replicateTo) {
-        return new Promise<OperationStatus>(couchbase.javaSet(key, -1, Json.stringify(Json.toJson(value)), persistTo, replicateTo, client, ec));
+        return Promise.wrap(couchbase.javaSet(key, -1, Json.stringify(Json.toJson(value)), persistTo, replicateTo, client, ec));
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -127,35 +127,35 @@ public class CouchbaseBucket {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public <T> Promise<OperationStatus> add(String key, T value) {
-        return new Promise<OperationStatus>(couchbase.javaAdd(key, -1, Json.stringify(Json.toJson(value)), PersistTo.ZERO, ReplicateTo.ZERO, client, ec));
+        return Promise.wrap(couchbase.javaAdd(key, -1, Json.stringify(Json.toJson(value)), PersistTo.ZERO, ReplicateTo.ZERO, client, ec));
     }
 
     public <T> Promise<OperationStatus> add(String key, int exp, T value) {
-        return new Promise<OperationStatus>(couchbase.javaAdd(key, exp, Json.stringify(Json.toJson(value)), PersistTo.ZERO, ReplicateTo.ZERO, client, ec));
+        return Promise.wrap(couchbase.javaAdd(key, exp, Json.stringify(Json.toJson(value)), PersistTo.ZERO, ReplicateTo.ZERO, client, ec));
     }
 
     public <T> Promise<OperationStatus> add(String key, int exp, T value, ReplicateTo replicateTo) {
-        return new Promise<OperationStatus>(couchbase.javaAdd(key, exp, Json.stringify(Json.toJson(value)), PersistTo.ZERO, replicateTo, client, ec));
+        return Promise.wrap(couchbase.javaAdd(key, exp, Json.stringify(Json.toJson(value)), PersistTo.ZERO, replicateTo, client, ec));
     }
 
     public <T> Promise<OperationStatus> add(String key, T value, ReplicateTo replicateTo) {
-        return new Promise<OperationStatus>(couchbase.javaAdd(key, -1, Json.stringify(Json.toJson(value)), PersistTo.ZERO, replicateTo, client, ec));
+        return Promise.wrap(couchbase.javaAdd(key, -1, Json.stringify(Json.toJson(value)), PersistTo.ZERO, replicateTo, client, ec));
     }
 
     public <T> Promise<OperationStatus> add(String key, int exp, T value, PersistTo persistTo) {
-        return new Promise<OperationStatus>(couchbase.javaAdd(key, exp, Json.stringify(Json.toJson(value)), persistTo, ReplicateTo.ZERO, client, ec));
+        return Promise.wrap(couchbase.javaAdd(key, exp, Json.stringify(Json.toJson(value)), persistTo, ReplicateTo.ZERO, client, ec));
     }
 
     public <T> Promise<OperationStatus> add(String key, T value, PersistTo persistTo) {
-        return new Promise<OperationStatus>(couchbase.javaAdd(key, -1, Json.stringify(Json.toJson(value)), persistTo, ReplicateTo.ZERO, client, ec));
+        return Promise.wrap(couchbase.javaAdd(key, -1, Json.stringify(Json.toJson(value)), persistTo, ReplicateTo.ZERO, client, ec));
     }
 
     public <T> Promise<OperationStatus> add(String key, int exp, T value, PersistTo persistTo, ReplicateTo replicateTo) {
-        return new Promise<OperationStatus>(couchbase.javaAdd(key, exp, Json.stringify(Json.toJson(value)), persistTo, replicateTo, client, ec));
+        return Promise.wrap(couchbase.javaAdd(key, exp, Json.stringify(Json.toJson(value)), persistTo, replicateTo, client, ec));
     }
 
     public <T> Promise<OperationStatus> add(String key, T value, PersistTo persistTo, ReplicateTo replicateTo) {
-        return new Promise<OperationStatus>(couchbase.javaAdd(key, -1, Json.stringify(Json.toJson(value)), persistTo, replicateTo, client, ec));
+        return Promise.wrap(couchbase.javaAdd(key, -1, Json.stringify(Json.toJson(value)), persistTo, replicateTo, client, ec));
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -163,35 +163,35 @@ public class CouchbaseBucket {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public <T> Promise<OperationStatus> replace(String key, int exp, T value) {
-        return new Promise<OperationStatus>(couchbase.javaReplace(key, exp, Json.stringify(Json.toJson(value)), PersistTo.ZERO, ReplicateTo.ZERO, client, ec));
+        return Promise.wrap(couchbase.javaReplace(key, exp, Json.stringify(Json.toJson(value)), PersistTo.ZERO, ReplicateTo.ZERO, client, ec));
     }
 
     public <T> Promise<OperationStatus> replace(String key, int exp, T value, ReplicateTo replicateTo) {
-        return new Promise<OperationStatus>(couchbase.javaReplace(key, exp, Json.stringify(Json.toJson(value)), PersistTo.ZERO, replicateTo, client, ec));
+        return Promise.wrap(couchbase.javaReplace(key, exp, Json.stringify(Json.toJson(value)), PersistTo.ZERO, replicateTo, client, ec));
     }
 
     public <T> Promise<OperationStatus> replace(String key, T value, ReplicateTo replicateTo) {
-        return new Promise<OperationStatus>(couchbase.javaReplace(key, -1, Json.stringify(Json.toJson(value)), PersistTo.ZERO, replicateTo, client, ec));
+        return Promise.wrap(couchbase.javaReplace(key, -1, Json.stringify(Json.toJson(value)), PersistTo.ZERO, replicateTo, client, ec));
     }
 
     public <T> Promise<OperationStatus> replace(String key, int exp, T value, PersistTo persistTo) {
-        return new Promise<OperationStatus>(couchbase.javaReplace(key, exp, Json.stringify(Json.toJson(value)), persistTo, ReplicateTo.ZERO, client, ec));
+        return Promise.wrap(couchbase.javaReplace(key, exp, Json.stringify(Json.toJson(value)), persistTo, ReplicateTo.ZERO, client, ec));
     }
 
     public <T> Promise<OperationStatus> replace(String key, T value, PersistTo persistTo) {
-        return new Promise<OperationStatus>(couchbase.javaReplace(key, -1, Json.stringify(Json.toJson(value)), persistTo, ReplicateTo.ZERO, client, ec));
+        return Promise.wrap(couchbase.javaReplace(key, -1, Json.stringify(Json.toJson(value)), persistTo, ReplicateTo.ZERO, client, ec));
     }
 
     public <T> Promise<OperationStatus> replace(String key, int exp, T value, PersistTo persistTo, ReplicateTo replicateTo) {
-        return new Promise<OperationStatus>(couchbase.javaReplace(key, exp, Json.stringify(Json.toJson(value)), persistTo, replicateTo, client, ec));
+        return Promise.wrap(couchbase.javaReplace(key, exp, Json.stringify(Json.toJson(value)), persistTo, replicateTo, client, ec));
     }
 
     public <T> Promise<OperationStatus> replace(String key, T value, PersistTo persistTo, ReplicateTo replicateTo) {
-        return new Promise<OperationStatus>(couchbase.javaReplace(key, -1, Json.stringify(Json.toJson(value)), persistTo, replicateTo, client, ec));
+        return Promise.wrap(couchbase.javaReplace(key, -1, Json.stringify(Json.toJson(value)), persistTo, replicateTo, client, ec));
     }
 
     public <T> Promise<OperationStatus> replace(String key, T value) {
-        return new Promise<OperationStatus>(couchbase.javaReplace(key, -1, Json.stringify(Json.toJson(value)), PersistTo.ZERO, ReplicateTo.ZERO, client, ec));
+        return Promise.wrap(couchbase.javaReplace(key, -1, Json.stringify(Json.toJson(value)), PersistTo.ZERO, ReplicateTo.ZERO, client, ec));
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -199,19 +199,19 @@ public class CouchbaseBucket {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public Promise<OperationStatus> delete(String key){
-        return new Promise<OperationStatus>(couchbase.delete(key, client, ec));
+        return Promise.wrap(couchbase.delete(key, client, ec));
     }
 
     public Promise<OperationStatus> delete(String key, ReplicateTo replicateTo){
-        return new Promise<OperationStatus>(couchbase.delete(key, replicateTo, client, ec));
+        return Promise.wrap(couchbase.delete(key, replicateTo, client, ec));
     }
 
     public Promise<OperationStatus> delete(String key, PersistTo persistTo){
-        return new Promise<OperationStatus>(couchbase.delete(key, persistTo, client, ec));
+        return Promise.wrap(couchbase.delete(key, persistTo, client, ec));
     }
 
     public Promise<OperationStatus> delete(String key, PersistTo persistTo, ReplicateTo replicateTo){
-        return new Promise<OperationStatus>(couchbase.delete(key, persistTo, replicateTo, client, ec));
+        return Promise.wrap(couchbase.delete(key, persistTo, replicateTo, client, ec));
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -219,10 +219,10 @@ public class CouchbaseBucket {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public Promise<OperationStatus> flush(int delay) {
-        return new Promise<OperationStatus>(couchbase.flush(delay, client, ec));
+        return Promise.wrap(couchbase.flush(delay, client, ec));
     }
 
     public Promise<OperationStatus> flush() {
-       return new Promise<OperationStatus>(couchbase.flush(client, ec));
+       return Promise.wrap(couchbase.flush(client, ec));
     }
 }

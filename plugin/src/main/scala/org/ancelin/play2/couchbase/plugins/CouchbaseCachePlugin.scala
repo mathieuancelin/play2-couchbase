@@ -1,7 +1,7 @@
 package org.ancelin.play2.couchbase.plugins
 
 import play.api.cache.{CacheAPI, CachePlugin}
-import play.api.{PlayException, Logger, Plugin, Application}
+import play.api.{PlayException, Application}
 import java.util.concurrent.TimeUnit
 import net.spy.memcached.transcoders.{Transcoder, SerializingTranscoder}
 import java.io.{ObjectOutputStream, ByteArrayOutputStream, ObjectStreamClass}
@@ -17,7 +17,7 @@ class CouchbaseCachePlugin(app: Application) extends CachePlugin {
       override protected def deserialize(data: Array[Byte]): java.lang.Object = {
         new java.io.ObjectInputStream(new java.io.ByteArrayInputStream(data)) {
           override protected def resolveClass(desc: ObjectStreamClass) = {
-            Class.forName(desc.getName(), false, play.api.Play.current.classloader)
+            Class.forName(desc.getName, false, play.api.Play.current.classloader)
           }
         }.readObject()
       }
@@ -25,7 +25,7 @@ class CouchbaseCachePlugin(app: Application) extends CachePlugin {
       override protected def serialize(obj: java.lang.Object) = {
         val bos: ByteArrayOutputStream = new ByteArrayOutputStream()
         new ObjectOutputStream(bos).writeObject(obj)
-        bos.toByteArray()
+        bos.toByteArray
       }
     }
 

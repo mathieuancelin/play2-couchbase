@@ -20,7 +20,7 @@ class CouchbaseFixturesPlugin(app: Application) extends Plugin {
   def insertDocuments(id: String, documents: Iterator[Seq[JsObject]], bucket: CouchbaseBucket) = {
     documents.map { seq =>
       seq.map { doc =>
-        (doc \ id) match {
+        doc \ id match {
           case actualId: JsString => Couchbase.set(actualId.value, doc)(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ec)
           case _ => throw new PlayException("Error while inserting fixture", s"Member named $id not found in object")
         }

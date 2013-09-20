@@ -7,13 +7,13 @@ import org.ancelin.play2.couchbase.{Couchbase, CouchbaseBucket}
 import scala.concurrent.{Promise, Future, Await, ExecutionContext}
 import play.api.libs.json.{JsSuccess, JsValue, Format, Json}
 import play.api.{Logger, Play}
-import com.couchbase.client.protocol.views.{View, ComplexKey, Stale, Query}
-import scala.concurrent.duration.Duration
+import com.couchbase.client.protocol.views.{ComplexKey, Stale, Query}
 import scala.reflect.ClassTag
 import java.util.UUID
 import akka.util.Timeout
 import scala.concurrent.duration._
-import java.util.concurrent.atomic.{AtomicInteger, AtomicBoolean}
+import java.util.concurrent.atomic.AtomicBoolean
+import scala.util.control.NonFatal
 
 case class Message(payload: Any, eventId: Long = 0L, aggregateId: Long = 0L, timestamp: Long = System.currentTimeMillis(), version: Int = 0) {
   def withId(id: Long): Message = this.copy(eventId = id)
@@ -41,7 +41,7 @@ case class SnapshotRequest(snapshotId: String, journal: CouchbaseEventSourcing) 
     val key = s"eventsourcing-snapshot-state-$uuid-$timestamp"
     journal.snapshotFormatters.get(state.getClass.getName).map { formatter =>
       val blobAsJson = formatter.asInstanceOf[Format[Any]].writes(state)
-      val snap = CouchbaseSnapshotState(key, snapshotId, timestamp, "eventsourcing-snapshot-state", state.getClass.getName, blobAsJson);
+      val snap = CouchbaseSnapshotState(key, snapshotId, timestamp, "eventsourcing-snapshot-state", state.getClass.getName, blobAsJson)
       Couchbase.set(key, snap)(journal.theBucket(), CouchbaseEventSourcing.formatSnap, journal.ec)
     }.getOrElse(throw new RuntimeException(s"Can't find formatter for class ${state.getClass.getName}"))
   }
@@ -101,11 +101,11 @@ class CouchbaseEventSourcing(system: ActorSystem, bucket: CouchbaseBucket, forma
   implicit val ec = Couchbase.couchbaseExecutor(Play.current)
   val journal: ActorRef = system.actorOf(Props(new CouchbaseJournalActor(bucket, format, ec)))
   var actors: List[ActorRef] = List[ActorRef]()
-  private val byDataType = Couchbase.view("event-sourcing", "datatype")(bucket, ec)
+//  private val byDataType = Couchbase.view("event-sourcing", "datatype")(bucket, ec)
   private val byTimestamp = Couchbase.view("event-sourcing", "by_timestamp")(bucket, ec)
   private val byEventId = Couchbase.view("event-sourcing", "by_eventid")(bucket, ec)
-  private val byAggregateId = Couchbase.view("event-sourcing", "by_aggregateid")(bucket, ec)
-  private val byVersion = Couchbase.view("event-sourcing", "by_version")(bucket, ec)
+//  private val byAggregateId = Couchbase.view("event-sourcing", "by_aggregateid")(bucket, ec)
+//  private val byVersion = Couchbase.view("event-sourcing", "by_version")(bucket, ec)
   private val bySnapshot = Couchbase.view("event-sourcing", "states_by_snapshot")(bucket, ec)
   private val bySnapshotTimestamp = Couchbase.view("event-sourcing", "states_by_timestamp")(bucket, ec)
 
@@ -148,7 +148,7 @@ class CouchbaseEventSourcing(system: ActorSystem, bucket: CouchbaseBucket, forma
         case s: JsSuccess[_] => {
           val msg = Message(s.get, message.eventId, message.aggregateId, message.timestamp, message.version)
           Future.sequence(actors.map { actor =>
-            val p = Promise[Unit]
+            val p = Promise[Unit]()
             actor ! Replay(msg, p)
             p.future
           })
@@ -282,7 +282,7 @@ object CouchbaseEventSourcing {
       try {
         Await.result(Couchbase.createDesignDoc("event-sourcing", eventSourcingDesignDoc)(bucket, ec), Duration(2, TimeUnit.SECONDS))
       } catch {
-        case e => println(e)
+        case NonFatal(e) => println(e)
       }
       journals.putIfAbsent(system.name, new CouchbaseEventSourcing(system, bucket, format, formatSnap))
     }
