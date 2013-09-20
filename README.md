@@ -1,4 +1,4 @@
-Couchbase Plugin for Play framework 2.1
+Couchbase Plugin for Play framework 2.2
 =======================================
 
 Contents
