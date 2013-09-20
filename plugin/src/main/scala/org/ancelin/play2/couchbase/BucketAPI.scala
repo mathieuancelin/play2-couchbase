@@ -89,7 +89,7 @@ trait BucketAPI {
     Couchbase.spatialView(docName, viewName)(self, ec)
   }
 
-  def designDocument(docName: String)(implicit ec: ExecutionContext): Future[DesignDocument[_]] = {
+  def designDocument(docName: String)(implicit ec: ExecutionContext): Future[DesignDocument] = {
     Couchbase.designDocument(docName)(self, ec)
   }
 
@@ -101,7 +101,7 @@ trait BucketAPI {
     Couchbase.createDesignDoc(name, value)(self, ec)
   }
 
-  def createDesignDoc(value: DesignDocument[_])(implicit ec: ExecutionContext): Future[OperationStatus] = {
+  def createDesignDoc(value: DesignDocument)(implicit ec: ExecutionContext): Future[OperationStatus] = {
     Couchbase.createDesignDoc(value)(self, ec)
   }
 
