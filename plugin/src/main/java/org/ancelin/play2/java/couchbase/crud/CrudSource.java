@@ -4,9 +4,9 @@ import com.couchbase.client.protocol.views.Query;
 import com.couchbase.client.protocol.views.View;
 import net.spy.memcached.ops.OperationStatus;
 import org.ancelin.play2.java.couchbase.CouchbaseBucket;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.map.ObjectReader;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import play.libs.F;
 import play.libs.Json;
 
