@@ -240,16 +240,16 @@ trait ClientWrapper {
 
   // TODO : check for perfs issues here
   def get[T](key: String)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Option[T]] = {
-    fetchValues[T](Enumerator(key))(bucket, r, ec).headOption(ec)
-//    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGet(key), ec ).map { f =>
-//       f match {
-//         case value: String => r.reads(Json.parse(value)) match {
-//           case e:JsError => if (Constants.jsonStrictValidation) throw new JsonValidationException("Invalid JSON content", JsError.toFlatJson(e.errors)) else None
-//           case s:JsSuccess[T] => s.asOpt
-//         }
-//         case _ => None
-//       }
-//    }
+//    fetchValues[T](Enumerator(key))(bucket, r, ec).headOption(ec)
+    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGet(key), ec ).map { f =>
+       f match {
+         case value: String => r.reads(Json.parse(value)) match {
+           case e:JsError => if (Constants.jsonStrictValidation) throw new JsonValidationException("Invalid JSON content", JsError.toFlatJson(e.errors)) else None
+           case s:JsSuccess[T] => s.asOpt
+         }
+         case _ => None
+       }
+    }
   }
 
   def getWithKey[T](key: String)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Future[Option[(String, T)]] = {
