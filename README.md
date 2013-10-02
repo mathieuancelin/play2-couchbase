@@ -16,6 +16,7 @@ Contents
 - [Java Future to Scala Future issues](#about-java-future-to-scala-future-conversion)
 - [Couchbase configuration cheatsheet](#couchbase-configuration-cheatsheet)
 - [Git issues](#git)
+- [Using Play Framework 2.1](#using-play21)
 
 Basic Usage
 ============
@@ -1101,3 +1102,32 @@ Git
 If you want to clone this git repo, as we embed snapshot libs (maybe we will move it later), it can be useful to use
 
 `git clone --depth xxx git://github.com/mathieuancelin/play2-couchbase.git`
+
+
+Using Play 2.1
+===================================
+
+You can use play-couchbase inside a Play 2.1 application, just use the following project description
+
+```scala
+
+import sbt._
+import Keys._
+import play.Project._
+
+object ApplicationBuild extends Build {
+
+  val appName         = "shorturls"
+  val appVersion      = "1.0-SNAPSHOT"
+
+  val appDependencies = Seq(
+    jdbc, anorm,
+    "org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.4"
+  )
+
+  val main = play.Project(appName, appVersion, appDependencies).settings(
+    resolvers += "ancelin" at "https://raw.github.com/mathieuancelin/play2-couchbase/master/repository/releases",
+    resolvers += "Spy Repository" at "http://files.couchbase.com/maven2"
+  )
+}
+```
