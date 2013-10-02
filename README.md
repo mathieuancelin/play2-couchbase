@@ -16,7 +16,7 @@ Contents
 - [Java Future to Scala Future issues](#about-java-future-to-scala-future-conversion)
 - [Couchbase configuration cheatsheet](#couchbase-configuration-cheatsheet)
 - [Git issues](#git)
-- [Using Play Framework 2.1](#using-play21)
+- [Using Play Framework 2.1](#using-play-21)
 
 Basic Usage
 ============
