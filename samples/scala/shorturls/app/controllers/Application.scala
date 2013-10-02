@@ -10,11 +10,9 @@ object Application extends Controller {
     Ok(views.html.index())
   }
 
-  def goTo(id: String) = Action {
-    Async {
-      ShortURLs.findById(id).map { maybe =>
-        maybe.map( url => Redirect(url.originalUrl) ).getOrElse(NotFound)
-      }
+  def goTo(id: String) = Action.async {
+    ShortURLs.findById(id).map { maybe =>
+      maybe.map( url => Redirect(url.originalUrl) ).getOrElse(NotFound)
     }
   }
 }

@@ -18,51 +18,45 @@ object Application extends Controller {
     Ok(views.html.index())
   }
 
-  def createNoPluginJson = Action(parse.json) { request =>
-    Async {
-      Future {
-        val start = System.currentTimeMillis()
-        bucket.couchbaseClient.set(UUID.randomUUID().toString, Json.stringify(request.body)).get()
-        counter.incrementAndGet()
-        adder.addAndGet(System.currentTimeMillis() - start)
-        if ( adder.get() % 500 == 0 ) {
-          println(s"average ${adder.get() / counter.get()} ms.")
-        }
-        Ok("")
+  def createNoPluginJson = Action.async(parse.json) { request =>
+    Future {
+      val start = System.currentTimeMillis()
+      bucket.couchbaseClient.set(UUID.randomUUID().toString, Json.stringify(request.body)).get()
+      counter.incrementAndGet()
+      adder.addAndGet(System.currentTimeMillis() - start)
+      if ( adder.get() % 500 == 0 ) {
+        println(s"average ${adder.get() / counter.get()} ms.")
       }
+      Ok("")
     }
   }
 
-  def createNoPluginText = Action(parse.text) { request =>
-    Async {
-      Future {
-        val start = System.currentTimeMillis()
-        bucket.couchbaseClient.set(UUID.randomUUID().toString, request.body).get()
-        counter.incrementAndGet()
-        adder.addAndGet(System.currentTimeMillis() - start)
-        if ( adder.get() % 500 == 0 ) {
-          println(s"average ${adder.get() / counter.get()} ms.")
-        }
-        Ok("")
+  def createNoPluginText = Action.async(parse.text) { request =>
+    Future {
+      val start = System.currentTimeMillis()
+      bucket.couchbaseClient.set(UUID.randomUUID().toString, request.body).get()
+      counter.incrementAndGet()
+      adder.addAndGet(System.currentTimeMillis() - start)
+      if ( adder.get() % 500 == 0 ) {
+        println(s"average ${adder.get() / counter.get()} ms.")
       }
+      Ok("")
     }
   }
 
   val counter = new AtomicLong(0L)
   val adder = new AtomicLong(0L)
 
-  def createPluginJson = Action(parse.json) { request =>
-    Async {
-      val start = System.currentTimeMillis()
-      Couchbase.set(UUID.randomUUID().toString, request.body.as[JsObject])(bucket, jsObjectToDocumentWriter, ec).map {
-        _ =>
-          counter.incrementAndGet()
-          adder.addAndGet(System.currentTimeMillis() - start)
-          if ( adder.get() % 500 == 0 ) {
-            println(s"average ${adder.get() / counter.get()} ms.")
-          }
-          Ok("")
-      }
+  def createPluginJson = Action.async(parse.json) { request =>
+    val start = System.currentTimeMillis()
+    Couchbase.set(UUID.randomUUID().toString, request.body.as[JsObject])(bucket, jsObjectToDocumentWriter, ec).map {
+      _ =>
+        counter.incrementAndGet()
+        adder.addAndGet(System.currentTimeMillis() - start)
+        if ( adder.get() % 500 == 0 ) {
+          println(s"average ${adder.get() / counter.get()} ms.")
+        }
+        Ok("")
     }
   }
 }

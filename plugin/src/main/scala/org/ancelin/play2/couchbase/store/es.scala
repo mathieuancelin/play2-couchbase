@@ -14,6 +14,7 @@ import java.util.UUID
 import akka.util.Timeout
 import scala.concurrent.duration._
 import java.util.concurrent.atomic.{AtomicInteger, AtomicBoolean}
+import scala.util.control.NonFatal
 
 case class Message(payload: Any, eventId: Long = 0L, aggregateId: Long = 0L, timestamp: Long = System.currentTimeMillis(), version: Int = 0) {
   def withId(id: Long): Message = this.copy(eventId = id)
@@ -282,7 +283,7 @@ object CouchbaseEventSourcing {
       try {
         Await.result(Couchbase.createDesignDoc("event-sourcing", eventSourcingDesignDoc)(bucket, ec), Duration(2, TimeUnit.SECONDS))
       } catch {
-        case e => println(e)
+        case NonFatal(e) => println(e)
       }
       journals.putIfAbsent(system.name, new CouchbaseEventSourcing(system, bucket, format, formatSnap))
     }

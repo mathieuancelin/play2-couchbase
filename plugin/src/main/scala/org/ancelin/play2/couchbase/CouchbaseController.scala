@@ -11,39 +11,31 @@ trait CouchbaseController { self: Controller =>
   def defaultClient = defaultBucket.client
   def buckets = Couchbase.buckets
 
-  def CouchbaseAction(block: CouchbaseBucket => Future[Result]):EssentialAction = {
-    Action {
-      Async {
-        implicit val client = Couchbase.defaultBucket(current)
-        block(client)
-      }
+  def CouchbaseAction(block: CouchbaseBucket => Future[SimpleResult]): EssentialAction = {
+    Action.async {
+      implicit val client = Couchbase.defaultBucket(current)
+      block(client)
     }
   }
 
-  def CouchbaseAction(bucket :String)(block: CouchbaseBucket => Future[Result]):EssentialAction = {
-    Action {
-      Async {
-        implicit val client = Couchbase.bucket(bucket)(current)
-        block(client)
-      }
+  def CouchbaseAction(bucket :String)(block: CouchbaseBucket => Future[SimpleResult]):EssentialAction = {
+    Action.async {
+      implicit val client = Couchbase.bucket(bucket)(current)
+      block(client)
     }
   }
 
-  def CouchbaseReqAction(block: play.api.mvc.Request[AnyContent] => CouchbaseBucket => Future[Result]):EssentialAction = {
-    Action { request =>
-      Async {
-        implicit val client = Couchbase.defaultBucket(current)
-        block(request)(client)
-      }
+  def CouchbaseReqAction(block: Request[AnyContent] => CouchbaseBucket => Future[SimpleResult]):EssentialAction = {
+    Action.async { request =>
+      implicit val client = Couchbase.defaultBucket(current)
+      block(request)(client)
     }
   }
 
-  def CouchbaseReqAction(bucket :String)(block: play.api.mvc.Request[AnyContent] => CouchbaseBucket => Future[Result]):EssentialAction = {
-    Action { request =>
-      Async {
-        implicit val client = Couchbase.bucket(bucket)(current)
-        block(request)(client)
-      }
+  def CouchbaseReqAction(bucket :String)(block: Request[AnyContent] => CouchbaseBucket => Future[SimpleResult]):EssentialAction = {
+    Action.async { request =>
+      implicit val client = Couchbase.bucket(bucket)(current)
+      block(request)(client)
     }
   }
 }

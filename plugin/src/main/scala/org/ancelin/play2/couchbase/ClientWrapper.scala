@@ -40,9 +40,9 @@ class QueryEnumerator[T](futureEnumerator: Future[Enumerator[T]]) {
   def enumerate: Future[Enumerator[T]] = futureEnumerator
   def enumerated(implicit ec: ExecutionContext): Enumerator[T] = {
     //val (en, channel) = Concurrent.broadcast[T]
-    //futureEnumerator.map(e => e(Iteratee.foreach[T](channel.push).mapDone(_ => channel.eofAndEnd())))
+    //futureEnumerator.map(e => e(Iteratee.foreach[T](channel.push).map(_ => channel.eofAndEnd())))
     //en
-    Concurrent.unicast[T](onStart = c => futureEnumerator.map(_(Iteratee.foreach[T](c.push).mapDone(_ => c.eofAndEnd()))))
+    Concurrent.unicast[T](onStart = c => futureEnumerator.map(_(Iteratee.foreach[T](c.push).map(_ => c.eofAndEnd()))))
   }
   def toList(implicit ec: ExecutionContext): Future[List[T]] =
     futureEnumerator.flatMap(_(Iteratee.getChunks[T]).flatMap(_.run))
@@ -174,7 +174,7 @@ trait ClientWrapper {
     wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGetSpatialView(docName, viewName), ec )
   }
 
-  def designDocument(docName: String)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[DesignDocument[_]] = {
+  def designDocument(docName: String)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[DesignDocument] = {
     wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGetDesignDocument(docName), ec )
   }
 
@@ -186,7 +186,7 @@ trait ClientWrapper {
     wrapJavaFutureInFuture( bucket.couchbaseClient.asyncCreateDesignDoc(name, value), ec )
   }
 
-  def createDesignDoc(value: DesignDocument[_])(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+  def createDesignDoc(value: DesignDocument)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
     wrapJavaFutureInFuture( bucket.couchbaseClient.asyncCreateDesignDoc(value), ec )
   }
 

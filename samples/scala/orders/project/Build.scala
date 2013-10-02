@@ -11,7 +11,7 @@ object ApplicationBuild extends Build {
     // Add your project dependencies here,
     jdbc,
     anorm,
-    "org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.1-SNAPSHOT"
+    "org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.5-SNAPSHOT"
   )
 
 

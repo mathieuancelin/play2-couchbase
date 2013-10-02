@@ -31,45 +31,37 @@ object PeopleController extends Controller with CouchbaseController {
     Json.obj( "peoples" -> list )
   }
 
-  def index() = Action {
-     Async{
-       Peoples.findAll().map(peoples => Ok(views.html.all(peoples)))
-     }
+  def index() = Action.async {
+     Peoples.findAll().map(peoples => Ok(views.html.all(peoples)))
   }
 
   def peoples() = Action {
     Ok.feed( peopleEnumerator &> jsonTransformer &> EventSource() ).as( "text/event-stream" )
   }
 
-  def show(id: String) = Action {
-    Async {
-      Peoples.findById(id).map { maybePeople =>
-          maybePeople.map( people => Ok( Peoples.peopleWriter.writes(people) ) ).getOrElse( NotFound )
-       }
+  def show(id: String) = Action.async {
+    Peoples.findById(id).map { maybePeople =>
+        maybePeople.map( people => Ok( Peoples.peopleWriter.writes(people) ) ).getOrElse( NotFound )
     }
   }
 
-  def create() = Action { implicit request =>
-    Async {
-      Peoples.peopleForm.bindFromRequest.fold(
-        errors => Future(BadRequest("Not good !!!!")),
-        people => {
-          val peopleWithID = people.copy(id = Some(UUID.randomUUID().toString))
-          Peoples.save(peopleWithID).map { status =>
-            updateClients()
-            Ok( Json.obj( "success" -> status.isSuccess,"message" -> status.getMessage, "people" -> Peoples.peopleWriter.writes(peopleWithID) ) )
-          }
+  def create() = Action.async { implicit request =>
+    Peoples.peopleForm.bindFromRequest.fold(
+      errors => Future(BadRequest("Not good !!!!")),
+      people => {
+        val peopleWithID = people.copy(id = Some(UUID.randomUUID().toString))
+        Peoples.save(peopleWithID).map { status =>
+          updateClients()
+          Ok( Json.obj( "success" -> status.isSuccess,"message" -> status.getMessage, "people" -> Peoples.peopleWriter.writes(peopleWithID) ) )
         }
-      )
-    }
+      }
+    )
   }
 
-  def delete(id: String) = Action {
-    Async {
-      Peoples.remove(id).map { status =>
-        updateClients()
-        Ok( Json.obj( "success" -> status.isSuccess,"message" -> status.getMessage) )
-      }
+  def delete(id: String) = Action.async {
+    Peoples.remove(id).map { status =>
+      updateClients()
+      Ok( Json.obj( "success" -> status.isSuccess,"message" -> status.getMessage) )
     }
   }
 }

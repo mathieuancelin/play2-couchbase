@@ -12,6 +12,7 @@ import play.api.libs.iteratee.{Enumeratee, Concurrent}
 import play.api.libs.json.{Json, JsObject}
 import play.api.data._
 import play.api.data.Forms._
+import scala.concurrent.Future
 
 object Application extends Controller {
 
@@ -29,18 +30,16 @@ object Application extends Controller {
     Ok.feed(Broadcaster.enumerator.through(toJsString)).as("text/event-stream")
   }
 
-  def order = Action { implicit request =>
+  def order = Action.async { implicit request =>
     creditCardNumberForm.bindFromRequest().fold(
-      _ => BadRequest("You have to provide a credit card number"),
+      _ => Future(BadRequest("You have to provide a credit card number")),
       creditCardNumber => {
         val message = Message.create(
           OrderSubmitted(
             Order(details = "jelly bean", creditCardNumber = creditCardNumber)
           )
         )
-        Async {
-          (Bootstrap.processor ? message).map(_ => Ok("Done !!!"))
-        }
+        (Bootstrap.processor ? message).map(_ => Ok("Done !!!"))
       }
     )
   }

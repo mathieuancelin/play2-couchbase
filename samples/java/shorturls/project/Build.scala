@@ -12,7 +12,7 @@ object ApplicationBuild extends Build {
     javaCore,
     javaJdbc,
     javaEbean,
-    "org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.1-SNAPSHOT"
+    "org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.5-SNAPSHOT"
   )
 
   val main = play.Project(appName, appVersion, appDependencies).settings(

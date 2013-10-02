@@ -1,4 +1,4 @@
-Couchbase Plugin for Play framework 2.1
+Couchbase Plugin for Play framework 2.2
 =======================================
 
 Contents
@@ -38,7 +38,7 @@ object ApplicationBuild extends Build {
 
   val appDependencies = Seq(
     jdbc, anorm,
-    "org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.1-SNAPSHOT"
+    "org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.5-SNAPSHOT"
   )
 
   val main = play.Project(appName, appVersion, appDependencies).settings(
@@ -83,7 +83,7 @@ couchbase {
 Standard usage from a controller
 ---------------------
 
-You will then be able to use the couchbase API from your Play controllers. The following code is asynchronous and uses Play's `Async { ... }`API under the hood. As you will need an execution context for all those async calls, you can use `Couchbase.couchbaseExecutor` based on your `application.conf` file. You can of course use Play default Execution Context (through `import play.api.libs.concurrent.Execution.Implicits._`) or your own.
+You will then be able to use the couchbase API from your Play controllers. The following code is asynchronous and uses Play's `Action.async { ... }`API under the hood. As you will need an execution context for all those async calls, you can use `Couchbase.couchbaseExecutor` based on your `application.conf` file. You can of course use Play default Execution Context (through `import play.api.libs.concurrent.Execution.Implicits._`) or your own.
 
 ```scala
 
@@ -127,12 +127,10 @@ object UserController extends Controller {
   implicit val couchbaseExecutionContext = Couchbase.couchbaseExecutor
   implicit val userReader = Json.reads[User]
 
-  def getUser(key: String) = Action { 
-    Async {
-      val bucket = Couchbase.defaultBucket
-      bucket.get[User](key).map { maybeUser =>
-        maybeUser.map(user => Ok(views.html.user(user)).getOrElse(BadRequest(s"Unable to find user with key: $key"))
-      }
+  def getUser(key: String) = Action.async {
+    val bucket = Couchbase.defaultBucket
+    bucket.get[User](key).map { maybeUser =>
+      maybeUser.map(user => Ok(views.html.user(user)).getOrElse(BadRequest(s"Unable to find user with key: $key"))
     }
   }
 }
@@ -977,12 +975,10 @@ object N1QLController extends Controller {
 
   implicit val personFormat = Json.format[Person]
 
-  def find(age: Int) = Action {
-    Async {
-      N1QL( s""" SELECT fname, age FROM tutorial WHERE age > ${age} """ )
+  def find(age: Int) = Action.async {
+    N1QL( s""" SELECT fname, age FROM tutorial WHERE age > ${age} """ )
                                                    .toList[Person].map { persons =>
-        Ok(views.html.index(s"Persons older than ${age}", persons))
-      }
+      Ok(views.html.index(s"Persons older than ${age}", persons))
     }
   }
 }
@@ -1008,17 +1004,15 @@ object N1QLController extends Controller {
 
   implicit val personFormat = Json.format[Person]
 
-  def find(age: Int) = Action {
-      Async {
-        N1QL( s""" SELECT fname, age FROM tutorial WHERE age > ${age} """ )
-                                        .enumerate[Person].map { enumerator =>
-         Ok.stream(
-           (enumerator &>
-            Enumeratee.collect[Person] { case p@Person(_, age) if age < 50 => p } ><>
-            Enumeratee.map[Person](personFormat.writes)) >>>
-            Enumerator.eof
-         )
-      }
+  def find(age: Int) = Action.async {
+    N1QL( s""" SELECT fname, age FROM tutorial WHERE age > ${age} """ )
+                                    .enumerate[Person].map { enumerator =>
+     Ok.stream(
+       (enumerator &>
+        Enumeratee.collect[Person] { case p@Person(_, age) if age < 50 => p } ><>
+        Enumeratee.map[Person](personFormat.writes)) >>>
+        Enumerator.eof
+     )
     }
   }
 }
