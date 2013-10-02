@@ -50,7 +50,7 @@ class QueryEnumerator[T](futureEnumerator: Future[Enumerator[T]]) {
   def headOption(implicit ec: ExecutionContext): Future[Option[T]] =
     futureEnumerator.flatMap(_(Iteratee.head[T]).flatMap(_.run))
 
-  def map[U](mapper: T => U)(implicit ec: ExecutionContext): QueryEnumerator[U] =
+  /*def map[U](mapper: T => U)(implicit ec: ExecutionContext): QueryEnumerator[U] =
     QueryEnumerator[U](futureEnumerator.map(_.map(mapper)))
 
   def mapM[U](mapper: T => Future[U])(implicit ec: ExecutionContext): QueryEnumerator[U] =
@@ -75,7 +75,7 @@ class QueryEnumerator[T](futureEnumerator: Future[Enumerator[T]]) {
     QueryEnumerator[T](futureEnumerator.map(_ &> Enumeratee.drop[T](n)))
 
   def dropWhile(predicate: T => Boolean)(implicit ec: ExecutionContext): QueryEnumerator[T] =
-    QueryEnumerator[T](futureEnumerator.map(_ &> Enumeratee.dropWhile[T](predicate)))
+    QueryEnumerator[T](futureEnumerator.map(_ &> Enumeratee.dropWhile[T](predicate))) */
 }
 
 object QueryEnumerator {
