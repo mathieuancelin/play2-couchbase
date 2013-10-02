@@ -18,6 +18,12 @@ Contents
 - [Git issues](#git)
 - [Using Play Framework 2.1](#using-play-21)
 
+Current version
+============
+
+* current version for Play 2.2 is 0.5-SNAPSHOT on "https://raw.github.com/mathieuancelin/play2-couchbase/master/repository/snapshots"
+* current version for Play 2.1 is 0.4 on "https://raw.github.com/mathieuancelin/play2-couchbase/master/repository/releases"
+
 Basic Usage
 ============
 
