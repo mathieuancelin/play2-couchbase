@@ -21,8 +21,10 @@ Contents
 Current version
 ============
 
-* current version for Play 2.2 is 0.5-SNAPSHOT on "https://raw.github.com/mathieuancelin/play2-couchbase/master/repository/snapshots"
-* current version for Play 2.1 is 0.4 on "https://raw.github.com/mathieuancelin/play2-couchbase/master/repository/releases"
+* current version for Play 2.2 is 0.5-SNAPSHOT
+  * https://raw.github.com/mathieuancelin/play2-couchbase/master/repository/snapshots
+* current version for Play 2.1 is 0.4
+  * https://raw.github.com/mathieuancelin/play2-couchbase/master/repository/releases
 
 Basic Usage
 ============
