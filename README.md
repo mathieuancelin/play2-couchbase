@@ -49,6 +49,28 @@ object ApplicationBuild extends Build {
 }
 ```
 
+or if you use the simple build.sbt file :
+
+```scala
+
+name := "shorturls"
+
+version := "1.0-SNAPSHOT"
+
+libraryDependencies ++= Seq(
+  jdbc,
+  anorm,
+  cache,
+  "org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.5-SNAPSHOT"
+)
+
+resolvers += "ancelin" at "https://raw.github.com/mathieuancelin/play2-couchbase/master/repository/snapshots"
+
+resolvers += "Spy Repository" at "http://files.couchbase.com/maven2"
+
+play.Project.playScalaSettings
+```
+
 then create a `conf/play.plugins` file and add :
 
 `400:org.ancelin.play2.couchbase.CouchbasePlugin`
@@ -284,7 +306,7 @@ object Beer {
   implicit val beerWriter = Json.writes[Beer]
   implicit val ec = Couchbase.couchbaseExecutor
 
-  val bucket = Couchbase.bucket("bucket2")
+  def bucket = Couchbase.bucket("bucket2")
 
   def findById(id: String): Future[Option[Beer]] = {
     bucket.get[Beer](id)
@@ -489,7 +511,7 @@ import org.ancelin.play2.couchbase.Couchbase
 import play.api.Play.current
 
 object ShortURLController extends CouchbaseCrudSourceController[ShortURL] {
-  val bucket = Couchbase.bucket("default")
+  def bucket = Couchbase.bucket("default")
 }
 
 ```
@@ -524,7 +546,7 @@ it is also possible to define default design doc name, view and id key :
 ```scala
 
 object ShortURLController extends CouchbaseCrudSourceController[ShortURL] {
-  val bucket = Couchbase.bucket("default")
+  def bucket = Couchbase.bucket("default")
   override def defaultViewName = "by_url"
   override def defaultDesignDocname = "shorturls"
   override def idKey = "__myAwesomeIdKey"
@@ -795,7 +817,7 @@ object CartCreated {
 
 object EventSourcingBoostrap {
 
-  val couchbaseES = CouchbaseEventSourcing( ActorSystem("couchbase-es-1"), Couchbase.bucket("es") )
+  lazy val couchbaseES = CouchbaseEventSourcing( ActorSystem("couchbase-es-1"), Couchbase.bucket("es") )
     .registerFormatter(CartCreated.cartCreatedFormat)
 
   def bootstrap() = {

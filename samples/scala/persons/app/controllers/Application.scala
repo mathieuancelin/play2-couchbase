@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 object Application extends Controller {
 
-  val bucket = Couchbase.bucket("persons")(Play.current)
+  def bucket = Couchbase.bucket("persons")(Play.current)
   implicit val ec = Couchbase.couchbaseExecutor(Play.current)
 
   def index = Action {

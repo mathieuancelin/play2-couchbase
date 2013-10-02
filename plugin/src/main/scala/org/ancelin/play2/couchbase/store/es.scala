@@ -283,7 +283,7 @@ object CouchbaseEventSourcing {
       try {
         Await.result(Couchbase.createDesignDoc("event-sourcing", eventSourcingDesignDoc)(bucket, ec), Duration(2, TimeUnit.SECONDS))
       } catch {
-        case NonFatal(e) => println(e)
+        case NonFatal(e) => Logger.error("Error while syncing ES design docs !!!!", e)
       }
       journals.putIfAbsent(system.name, new CouchbaseEventSourcing(system, bucket, format, formatSnap))
     }

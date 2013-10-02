@@ -7,7 +7,7 @@ import org.ancelin.play2.couchbase.Couchbase
 import play.api.Play.current
 
 object PersonsController extends CouchbaseCrudSourceController[Person] {
-  val bucket = Couchbase.bucket("persons")
+  def bucket = Couchbase.bucket("persons")
   override def defaultViewName = "by_person"
   override def defaultDesignDocname = "persons"
 }

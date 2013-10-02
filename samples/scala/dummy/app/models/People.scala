@@ -18,7 +18,7 @@ object Peoples {
   implicit val peopleWriter = Json.writes[People]
   implicit val ec = Couchbase.couchbaseExecutor
 
-  val bucket = Couchbase.bucket("people")
+  def bucket = Couchbase.bucket("people")
 
   val peopleForm: Form[People] = Form(
     mapping(

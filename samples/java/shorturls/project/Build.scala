@@ -12,6 +12,7 @@ object ApplicationBuild extends Build {
     javaCore,
     javaJdbc,
     javaEbean,
+    cache,
     "org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.5-SNAPSHOT"
   )
 
