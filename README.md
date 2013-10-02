@@ -24,7 +24,30 @@ Basic Usage
 Project configuration
 ---------------------
 
-in your `project/Build.scala` file add dependencies and resolvers like :
+in your `build.sbt` file add dependencies and resolvers like :
+
+```scala
+
+name := "shorturls"
+
+version := "1.0-SNAPSHOT"
+
+libraryDependencies ++= Seq(
+  jdbc,
+  anorm,
+  cache,
+  "org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.5-SNAPSHOT"
+)
+
+resolvers += "ancelin" at "https://raw.github.com/mathieuancelin/play2-couchbase/master/repository/snapshots"
+
+resolvers += "Spy Repository" at "http://files.couchbase.com/maven2"
+
+play.Project.playScalaSettings
+```
+
+or if you use the good old `project\Build.scala` file :
+
 
 ```scala
 
@@ -47,28 +70,6 @@ object ApplicationBuild extends Build {
     resolvers += "Spy Repository" at "http://files.couchbase.com/maven2"
   )
 }
-```
-
-or if you use the simple build.sbt file :
-
-```scala
-
-name := "shorturls"
-
-version := "1.0-SNAPSHOT"
-
-libraryDependencies ++= Seq(
-  jdbc,
-  anorm,
-  cache,
-  "org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.5-SNAPSHOT"
-)
-
-resolvers += "ancelin" at "https://raw.github.com/mathieuancelin/play2-couchbase/master/repository/snapshots"
-
-resolvers += "Spy Repository" at "http://files.couchbase.com/maven2"
-
-play.Project.playScalaSettings
 ```
 
 then create a `conf/play.plugins` file and add :
