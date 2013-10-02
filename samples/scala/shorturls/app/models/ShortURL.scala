@@ -72,7 +72,7 @@ object ShortURLs {
   }
 
   def findAllAsEnumerator(): Future[Enumerator[ShortURL]] = {
-    bucket.findAsEnumerator[ShortURL]("shorturls", "by_url")( new Query().setIncludeDocs(true).setStale(Stale.FALSE) )
+    bucket.searchValues[ShortURL]("shorturls", "by_url")( new Query().setIncludeDocs(true).setStale(Stale.FALSE) ).enumerate
   }
 
   def pollAll(): Enumerator[ShortURL] = {

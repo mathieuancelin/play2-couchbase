@@ -19,14 +19,6 @@ trait BucketAPI {
     Couchbase.find[T](view)(query)(self, r, ec)
   }
 
-  def findAsEnumerator[T](view: View)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): Future[Enumerator[T]] = {
-    Couchbase.findAsEnumerator[T](view)(query)(self, r, ec)
-  }
-
-  def findAsEnumerator[T](docName:String, viewName: String)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): Future[Enumerator[T]] = {
-    Couchbase.findAsEnumerator[T](docName, viewName)(query)(self, r, ec)
-  }
-
   def pollQuery[T](doc: String, view: String, query: Query, everyMillis: Long, filter: T => Boolean = { chunk: T => true })(implicit r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
     Couchbase.pollQuery[T](doc, view, query, everyMillis, filter)(self, r, ec)
   }
@@ -35,49 +27,18 @@ trait BucketAPI {
     Couchbase.repeatQuery[T](doc, view, query, trigger, filter)(self, r, ec)
   }
 
-  def search[T](docName:String, viewName: String)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): Future[List[(T, String, String, String)]] = {
-    Couchbase.search[T](docName, viewName)(query)(self, r, ec)
-  }
-
-  def search[T](view: View)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): Future[List[(T, String, String, String)]] = {
-    Couchbase.search[T](view)(query)(self, r, ec)
-  }
-
-  def findFullAsEnumerator[T](view: View)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): Future[Enumerator[(T, String, String, String)]] = {
-    Couchbase.searchAsEnumerator[T](view)(query)(self, r, ec)
-  }
-
-  def findFullAsEnumerator[T](docName:String, viewName: String)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): Future[Enumerator[(T, String, String, String)]] = {
-    Couchbase.searchAsEnumerator[T](docName, viewName)(query)(self, r, ec)
-  }
-
-  def pollFullQuery[T](doc: String, view: String, query: Query, everyMillis: Long, filter: ((T, String, String, String)) => Boolean = { chunk: (T, String, String, String) => true })(implicit r: Reads[T], ec: ExecutionContext): Enumerator[(T, String, String, String)] = {
-    Couchbase.pollSearch[T](doc, view, query, everyMillis, filter)(self, r, ec)
-  }
-
-  def repeatFullQuery[T](doc: String, view: String, query: Query, filter: ((T, String, String, String)) => Boolean = { chunk: (T, String, String, String) => true }, trigger: Future[AnyRef] = Future.successful(Some))(implicit r: Reads[T], ec: ExecutionContext): Enumerator[(T, String, String, String)] = {
-    Couchbase.repeatSearch[T](doc, view, query, trigger, filter)(self, r, ec)
-  }
-
-  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  // Experimental Enumerator operations : YOU'VE BEEN WARNED
-  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-  def __rawFetch(keysEnumerator: Enumerator[String])(implicit ec: ExecutionContext): __EnumeratorHolder[(String, String)] = Couchbase.__rawFetch(keysEnumerator)(this, ec)
-  def __fetch[T](keysEnumerator: Enumerator[String])(implicit r: Reads[T], ec: ExecutionContext): __EnumeratorHolder[(String, T)] = Couchbase.__fetch[T](keysEnumerator)(this, r, ec)
-  def __fetchValues[T](keysEnumerator: Enumerator[String])(implicit r: Reads[T], ec: ExecutionContext): __EnumeratorHolder[T] = Couchbase.__fetchValues[T](keysEnumerator)(this, r, ec)
-  def __fetch[T](keys: Seq[String])(implicit r: Reads[T], ec: ExecutionContext): __EnumeratorHolder[(String, T)] = Couchbase.__fetch[T](keys)(this, r, ec)
-  def __fetchValues[T](keys: Seq[String])(implicit r: Reads[T], ec: ExecutionContext): __EnumeratorHolder[T] = Couchbase.__fetchValues[T](keys)(this, r, ec)
-  def __get[T](key: String)(implicit r: Reads[T], ec: ExecutionContext): Future[Option[T]] = Couchbase.__get[T](key)(this, r, ec)
-  def __getWithKey[T](key: String)(implicit r: Reads[T], ec: ExecutionContext): Future[Option[(String, T)]] = Couchbase.__getWithKey[T](key)(this, r, ec)
-  def __rawSearch(docName:String, viewName: String)(query: Query)(implicit ec: ExecutionContext): __EnumeratorHolder[__RawRow] = Couchbase.__rawSearch(docName, viewName)(query)(this, ec)
-  def __rawSearch(view: View)(query: Query)(implicit ec: ExecutionContext): __EnumeratorHolder[__RawRow] = Couchbase.__rawSearch(view)(query)(this, ec)
-  def __search[T](docName:String, viewName: String)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): __EnumeratorHolder[__TypedRow[T]] = Couchbase.__search[T](docName, viewName)(query)(this, r, ec)
-  def __search[T](view: View)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): __EnumeratorHolder[__TypedRow[T]] = Couchbase.__search[T](view)(query)(this, r, ec)
-  def __searchValues[T](docName:String, viewName: String)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): __EnumeratorHolder[T] = Couchbase.__searchValues[T](docName, viewName)(query)(this, r, ec)
-  def __searchValues[T](view: View)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): __EnumeratorHolder[T] = Couchbase.__searchValues[T](view)(query)(this, r, ec)
-  def __find[T](docName:String, viewName: String)(query: Query)(implicit r: Reads[T], ec: ExecutionContext) = Couchbase.__find[T](docName, viewName)(query)(this, r, ec)
-  def __find[T](view: View)(query: Query)(implicit r: Reads[T], ec: ExecutionContext) = Couchbase.__find[T](view)(query)(this, r, ec)
+  def rawFetch(keysEnumerator: Enumerator[String])(implicit ec: ExecutionContext): QueryEnumerator[(String, String)] = Couchbase.rawFetch(keysEnumerator)(this, ec)
+  def fetch[T](keysEnumerator: Enumerator[String])(implicit r: Reads[T], ec: ExecutionContext): QueryEnumerator[(String, T)] = Couchbase.fetch[T](keysEnumerator)(this, r, ec)
+  def fetchValues[T](keysEnumerator: Enumerator[String])(implicit r: Reads[T], ec: ExecutionContext): QueryEnumerator[T] = Couchbase.fetchValues[T](keysEnumerator)(this, r, ec)
+  def fetch[T](keys: Seq[String])(implicit r: Reads[T], ec: ExecutionContext): QueryEnumerator[(String, T)] = Couchbase.fetch[T](keys)(this, r, ec)
+  def fetchValues[T](keys: Seq[String])(implicit r: Reads[T], ec: ExecutionContext): QueryEnumerator[T] = Couchbase.fetchValues[T](keys)(this, r, ec)
+  def getWithKey[T](key: String)(implicit r: Reads[T], ec: ExecutionContext): Future[Option[(String, T)]] = Couchbase.getWithKey[T](key)(this, r, ec)
+  def rawSearch(docName:String, viewName: String)(query: Query)(implicit ec: ExecutionContext): QueryEnumerator[RawRow] = Couchbase.rawSearch(docName, viewName)(query)(this, ec)
+  def rawSearch(view: View)(query: Query)(implicit ec: ExecutionContext): QueryEnumerator[RawRow] = Couchbase.rawSearch(view)(query)(this, ec)
+  def search[T](docName:String, viewName: String)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): QueryEnumerator[TypedRow[T]] = Couchbase.search[T](docName, viewName)(query)(this, r, ec)
+  def search[T](view: View)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): QueryEnumerator[TypedRow[T]] = Couchbase.search[T](view)(query)(this, r, ec)
+  def searchValues[T](docName:String, viewName: String)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): QueryEnumerator[T] = Couchbase.searchValues[T](docName, viewName)(query)(this, r, ec)
+  def searchValues[T](view: View)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): QueryEnumerator[T] = Couchbase.searchValues[T](view)(query)(this, r, ec)
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -115,38 +76,6 @@ trait BucketAPI {
 
   def get[T](key: String)(implicit r: Reads[T], ec: ExecutionContext): Future[Option[T]] = {
     Couchbase.get[T](key)(self, r, ec)
-  }
-
-  def getBulk[T](keys: Seq[String])(implicit r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
-    Couchbase.getBulk[T](keys)(self, r, ec)
-  }
-
-  def getBulk[T](keys: Enumerator[String])(implicit r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
-    Couchbase.getBulk[T](keys)(self, r, ec)
-  }
-
-  def getBulkWithKeys[T](keys: Enumerator[String])(implicit r: Reads[T], ec: ExecutionContext): Future[Map[String, T]] = {
-    Couchbase.getBulkWithKeys[T](keys)(self, r, ec)
-  }
-
-  def getBulkWithKeys[T](keys: Seq[String])(implicit r: Reads[T], ec: ExecutionContext): Future[Map[String, T]] = {
-    Couchbase.getBulkWithKeys[T](keys)(self, r, ec)
-  }
-
-  def getBulkAsEnumerator[T](keys: Enumerator[String])(implicit r: Reads[T], ec: ExecutionContext): Future[Enumerator[T]] = {
-    Couchbase.getBulkAsEnumerator[T](keys)(self, r, ec)
-  }
-
-  def getBulkAsEnumerator[T](keys: Seq[String])(implicit r: Reads[T], ec: ExecutionContext): Future[Enumerator[T]] = {
-    Couchbase.getBulkAsEnumerator[T](keys)(self, r, ec)
-  }
-
-  def getBulkWithKeysAsEnumerator[T](keys: Seq[String])(implicit r: Reads[T], ec: ExecutionContext): Future[Enumerator[(String, T)]] = {
-    Couchbase.getBulkWithKeysAsEnumerator[T](keys)(self, r, ec)
-  }
-
-  def getBulkWithKeysAsEnumerator[T](keys: Enumerator[String])(implicit r: Reads[T], ec: ExecutionContext): Future[Enumerator[(String, T)]] = {
-    Couchbase.getBulkWithKeysAsEnumerator[T](keys)(self, r, ec)
   }
 
   def incr(key: String, by: Int)(implicit ec: ExecutionContext): Future[OperationStatus] = Couchbase.incr(key, by)(self, ec)

@@ -71,15 +71,15 @@ class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket, idKey: String = "_i
     var query = sel._2
     if (limit != 0) query = query.setLimit(limit)
     if (skip != 0) query = query.setSkip(skip)
-    Couchbase.search[JsObject](sel._1)(query)(bucket, CouchbaseRWImplicits.documentAsJsObjectReader, ctx).map{ l =>
+    Couchbase.search[JsObject](sel._1)(query)(bucket, CouchbaseRWImplicits.documentAsJsObjectReader, ctx).toList(ctx).map { l =>
       l.map { i =>
-        val t = reader.reads(i._1) match {
+        val t = reader.reads(i.document) match {
           case e:JsError => throw new RuntimeException("Document does not match object")
           case s:JsSuccess[T] => s.get
         }
-        i._1 \ idKey match {
+        i.document \ idKey match {
           case actualId: JsString => (t, actualId.value)
-          case _ => (t, i._2)
+          case _ => (t, i.id)
         }
       }
     }
@@ -88,16 +88,16 @@ class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket, idKey: String = "_i
   def findStream(sel: (View, Query), skip: Int = 0, pageSize: Int = 0)(implicit ctx: ExecutionContext): Enumerator[Iterator[(T, String)]] = {
     var query = sel._2
     if (skip != 0) query = query.setSkip(skip)
-    val futureEnumerator = Couchbase.search[JsObject](sel._1)(query)(bucket, CouchbaseRWImplicits.documentAsJsObjectReader, ctx).map { l =>
+    val futureEnumerator = Couchbase.search[JsObject](sel._1)(query)(bucket, CouchbaseRWImplicits.documentAsJsObjectReader, ctx).toList(ctx).map { l =>
       val size = if(pageSize != 0) pageSize else l.size
       Enumerator.enumerate(l.map { i =>
-        val t = reader.reads(i._1) match {
+        val t = reader.reads(i.document) match {
           case e:JsError => throw new RuntimeException("Document does not match object")
           case s:JsSuccess[T] => s.get
         }
-        i._1 \ idKey match {
+        i.document \ idKey match {
           case actualId: JsString => (t, actualId.value)
-          case _ => (t, i._2)
+          case _ => (t, i.id)
         }
       }.grouped(size).map(_.iterator))
     }
@@ -105,19 +105,19 @@ class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket, idKey: String = "_i
   }
 
   def batchDelete(sel: (View, Query)): Future[Unit] = {
-    Couchbase.search[JsObject](sel._1)(sel._2)(bucket, CouchbaseRWImplicits.documentAsJsObjectReader, ctx).map { list =>
+    Couchbase.search[JsObject](sel._1)(sel._2)(bucket, CouchbaseRWImplicits.documentAsJsObjectReader, ctx).toList(ctx).map { list =>
       list.map { t =>
-        delete(t._2)
+        delete(t.id)
       }
     }
   }
 
   def batchUpdate(sel: (View, Query), upd: JsObject): Future[Unit] = {
-    Couchbase.search[T](sel._1)(sel._2)(bucket, reader, ctx).map { list =>
+    Couchbase.search[T](sel._1)(sel._2)(bucket, reader, ctx).toList(ctx).map { list =>
       list.map { t =>
-        val json = Json.toJson(t._1)(writer).as[JsObject]
+        val json = Json.toJson(t.document)(writer).as[JsObject]
         val newJson = json.deepMerge(upd)
-        Couchbase.replace(t._2, newJson)(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ctx).map(_ => ())
+        Couchbase.replace(t.id, newJson)(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ctx).map(_ => ())
       }
     }
   }
