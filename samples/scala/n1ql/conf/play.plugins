@@ -1,0 +1,2 @@
+400:org.ancelin.play2.couchbase.CouchbasePlugin
+1000:org.ancelin.play2.couchbase.plugins.CouchbaseN1QLPlugin
