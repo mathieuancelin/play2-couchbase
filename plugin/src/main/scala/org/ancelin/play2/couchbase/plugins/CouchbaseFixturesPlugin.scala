@@ -17,7 +17,7 @@ class CouchbaseFixturesPlugin(app: Application) extends Plugin {
   implicit val ec = Couchbase.couchbaseExecutor(app)
   override lazy val enabled = !evolutionConf.getBoolean("disabled").exists(_ == true)
 
-  def insertDocuments(id: String, documents: Iterator[Seq[JsObject]], bucket: CouchbaseBucket) = {
+  def insertDocuments(id: String, documents: List[Seq[JsObject]], bucket: CouchbaseBucket) = {
     documents.map { seq =>
       seq.map { doc =>
         (doc \ id) match {
@@ -35,7 +35,7 @@ class CouchbaseFixturesPlugin(app: Application) extends Plugin {
         val applyFixtures = bucketConf.getBoolean("insert").exists(_ == true)
         val id = bucketConf.getString("key").getOrElse("_id")
         Play.getExistingFile(s"$docs/$name")(app).map { folder =>
-          val documents = new Directory(folder).files.map { path =>
+          val documents = new Directory(folder).files.toList.map { path =>
             Json.parse(Resource.fromInputStream(path.toFile.inputStream()).string(Codec.UTF8))
           } filter {
             case array: JsArray => true
