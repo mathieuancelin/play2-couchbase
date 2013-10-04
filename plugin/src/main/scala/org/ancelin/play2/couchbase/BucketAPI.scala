@@ -78,6 +78,13 @@ trait BucketAPI {
     Couchbase.get[T](key)(self, r, ec)
   }
 
+  def getBlob(key: String)(implicit ec: ExecutionContext): Future[Option[String]] = {
+    Couchbase.javaGet(key, self, ec).map {
+      case s: String => Some(s)
+      case _ => None
+    }
+  }
+
   def incr(key: String, by: Int)(implicit ec: ExecutionContext): Future[OperationStatus] = Couchbase.incr(key, by)(self, ec)
   def incr(key: String, by: Long)(implicit ec: ExecutionContext): Future[OperationStatus] = Couchbase.incr(key, by)(self, ec)
   def decr(key: String, by: Int)(implicit ec: ExecutionContext): Future[OperationStatus] = Couchbase.decr(key, by)(self, ec)
@@ -86,6 +93,10 @@ trait BucketAPI {
   def incrAndGet(key: String, by: Long)(implicit ec: ExecutionContext): Future[Long] = Couchbase.incrAndGet(key, by)(self, ec)
   def decrAndGet(key: String, by: Int)(implicit ec: ExecutionContext): Future[Int] = Couchbase.decrAndGet(key, by)(self, ec)
   def decrAndGet(key: String, by: Long)(implicit ec: ExecutionContext): Future[Long] = Couchbase.decrAndGet(key, by)(self, ec)
+
+  def setBlob(key: String, value: String, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit ec: ExecutionContext): Future[OperationStatus] = {
+    Couchbase.javaSet(key, exp, value, persistTo, replicateTo, self, ec)
+  }
 
   def set[T](key: String, value: T, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     Couchbase.set[T](key, exp, value, persistTo, replicateTo)(self, w, ec)
@@ -99,6 +110,10 @@ trait BucketAPI {
     Couchbase.set[T](value.id, exp, value, persistTo, replicateTo)(self, w, ec)
   }
 
+  def addBlob(key: String, value: String, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit ec: ExecutionContext): Future[OperationStatus] = {
+    Couchbase.javaAdd(key, exp, value, persistTo, replicateTo, self, ec)
+  }
+
   def add[T](key: String, value: T, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     Couchbase.add[T](key, exp, value, persistTo, replicateTo)(self, w, ec)
   }
@@ -109,6 +124,10 @@ trait BucketAPI {
 
   def addWithId[T <: {def id: String}](value: T, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     Couchbase.add[T](value.id, exp, value, persistTo, replicateTo)(self, w, ec)
+  }
+
+  def replaceBlob(key: String, value: String, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit ec: ExecutionContext): Future[OperationStatus] = {
+    Couchbase.javaReplace(key, exp, value, persistTo, replicateTo, self, ec)
   }
 
   def replace[T](key: String, value: T, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {

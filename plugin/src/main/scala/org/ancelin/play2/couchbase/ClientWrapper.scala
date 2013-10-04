@@ -663,6 +663,12 @@ trait ClientWrapper {
     wrapJavaFutureInFuture( bucket.couchbaseClient.set(key, exp, value, persistTo, replicateTo), ec )
   }
 
+  def javaGet(key: String, bucket: CouchbaseBucket, ec: ExecutionContext): Future[String] = {
+    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGet(key), ec ).map {
+      case s: String => s
+    }(ec)
+  }
+
   def javaGet[T](key: String, clazz: Class[T], bucket: CouchbaseBucket, ec: ExecutionContext): Future[T] = {
     wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGet(key), ec ).map { f =>
       f match {
