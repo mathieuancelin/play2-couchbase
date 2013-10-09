@@ -1,6 +1,6 @@
 package org.ancelin.play2.couchbase
 
-import com.couchbase.client.CouchbaseClient
+import com.couchbase.client.{CouchbaseConnectionFactoryBuilder, CouchbaseClient}
 import java.net.URI
 import java.util.concurrent.TimeUnit
 import play.api.{Play, PlayException, Application}
@@ -11,17 +11,21 @@ import scala.Some
 import scala.concurrent.ExecutionContext
 import akka.actor.ActorSystem
 
-class CouchbaseBucket(val client: Option[CouchbaseClient], val hosts: List[String], val port: String, val base: String, val bucket: String, val pass: String, val timeout: Long) extends BucketAPI {
+class CouchbaseBucket(val client: Option[CouchbaseClient], val hosts: List[String], val port: String, val base: String, val bucket: String, val user: String, val pass: String, val timeout: Long) extends BucketAPI {
 
   def connect() = {
     val uris = ArrayBuffer(hosts.map { h => URI.create(s"http://$h:$port/$base")}:_*)
+    //val cfb = new CouchbaseConnectionFactoryBuilder()
+    //cfb.setOpTimeout(10000)
+    //val cf = cfb.buildCouchbaseConnection(uris, bucket, user, pass);
+    //val client = new CouchbaseClient(cf);
     val client = new CouchbaseClient(uris, bucket, pass)
-    new CouchbaseBucket(Some(client), hosts, port, base, bucket, pass, timeout)
+    new CouchbaseBucket(Some(client), hosts, port, base, bucket, user, pass, timeout)
   }
 
   def disconnect() = {
     client.map(_.shutdown(timeout, TimeUnit.SECONDS))
-    new CouchbaseBucket(None, hosts, port, base, bucket, pass, timeout)
+    new CouchbaseBucket(None, hosts, port, base, bucket, user, pass, timeout)
   }
 
   /*def withCouchbase[T](block: CouchbaseBucket => T): Option[T] = {
@@ -72,7 +76,7 @@ object Couchbase extends ClientWrapper {
              bucket:  String = Play.configuration.getString("couchbase.bucket.bucket").getOrElse("default"),
              pass:    String = Play.configuration.getString("couchbase.bucket.pass").getOrElse(""),
              timeout: Long   = Play.configuration.getLong("couchbase.bucket.timeout").getOrElse(0)): CouchbaseBucket = {
-    new CouchbaseBucket(None, hosts, port, base, bucket, pass, timeout)
+    new CouchbaseBucket(None, hosts, port, base, bucket, "", pass, timeout)
   }
 
   /*def withCouchbase[T](block: CouchbaseBucket => T): T = defaultBucket.withCouchbase(block).get
