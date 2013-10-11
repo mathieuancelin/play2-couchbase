@@ -92,7 +92,8 @@ trait ClientWrapper {
 
   def search[T](view: View)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): QueryEnumerator[TypedRow[T]] = {
     QueryEnumerator(rawSearch(view)(query)(bucket, ec).enumerate.map { enumerator =>
-      enumerator &> Enumeratee.map[RawRow](row => JsRow[T](r.reads(Json.parse(row.document)), row.id, row.key, row.value)) &>
+      enumerator &>
+        Enumeratee.map[RawRow](row => JsRow[T](r.reads(Json.parse(row.document)), row.id, row.key, row.value)) &>
         Enumeratee.collect[JsRow[T]] {
           case JsRow(JsSuccess(doc, _), id, key, value) => TypedRow[T](doc, id, key, value)
           case JsRow(JsError(errors), _, _, _) if Constants.jsonStrictValidation => throw new JsonValidationException("Invalid JSON content", JsError.toFlatJson(errors))
