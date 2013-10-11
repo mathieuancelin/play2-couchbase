@@ -11,6 +11,12 @@ public class Row<T> {
         this.key = key;
         this.value = value;
     }
+    public Row(String id, String key, String value) {
+        this.document = null;
+        this.id = id;
+        this.key = key;
+        this.value = value;
+    }
 
     @Override
     public String toString() {
@@ -20,6 +26,10 @@ public class Row<T> {
                 ", key='" + key + '\'' +
                 ", value='" + value + '\'' +
                 '}';
+    }
+
+    public boolean isDocumentSet() {
+        return this.document == null;
     }
 
     @Override

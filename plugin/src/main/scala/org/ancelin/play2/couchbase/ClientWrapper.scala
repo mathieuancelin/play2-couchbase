@@ -38,44 +38,14 @@ case class TypedRow[T](document: T, id: String, key: String, value: String) {
 
 class QueryEnumerator[T](futureEnumerator: Future[Enumerator[T]]) {
   def enumerate: Future[Enumerator[T]] = futureEnumerator
-  def enumerated(implicit ec: ExecutionContext): Enumerator[T] = {
-    //val (en, channel) = Concurrent.broadcast[T]
-    //futureEnumerator.map(e => e(Iteratee.foreach[T](channel.push).map(_ => channel.eofAndEnd())))
-    //en
+  def enumerated(implicit ec: ExecutionContext): Enumerator[T] =
     Concurrent.unicast[T](onStart = c => futureEnumerator.map(_(Iteratee.foreach[T](c.push).map(_ => c.eofAndEnd()))))
-  }
+
   def toList(implicit ec: ExecutionContext): Future[List[T]] =
     futureEnumerator.flatMap(_(Iteratee.getChunks[T]).flatMap(_.run))
 
   def headOption(implicit ec: ExecutionContext): Future[Option[T]] =
     futureEnumerator.flatMap(_(Iteratee.head[T]).flatMap(_.run))
-
-  /*def map[U](mapper: T => U)(implicit ec: ExecutionContext): QueryEnumerator[U] =
-    QueryEnumerator[U](futureEnumerator.map(_.map(mapper)))
-
-  def mapM[U](mapper: T => Future[U])(implicit ec: ExecutionContext): QueryEnumerator[U] =
-    QueryEnumerator[U](futureEnumerator.map(_ &> Enumeratee.mapM[T](mapper)))
-
-  def collect[U](pf: PartialFunction[T,U])(implicit ec: ExecutionContext): QueryEnumerator[U] =
-    QueryEnumerator[U](futureEnumerator.map(_ &> Enumeratee.collect[T](pf)))
-
-  def filter(predicate: T => Boolean)(implicit ec: ExecutionContext): QueryEnumerator[T] =
-    QueryEnumerator[T](futureEnumerator.map(_ &> Enumeratee.filter[T](predicate)))
-
-  def filterNot(predicate: T => Boolean)(implicit ec: ExecutionContext): QueryEnumerator[T] =
-    QueryEnumerator[T](futureEnumerator.map(_ &> Enumeratee.filterNot[T](predicate)))
-
-  def take(n: Int)(implicit ec: ExecutionContext): QueryEnumerator[T] =
-    QueryEnumerator[T](futureEnumerator.map(_ &> Enumeratee.take[T](n)))
-
-  def takeWhile(predicate: T => Boolean)(implicit ec: ExecutionContext): QueryEnumerator[T] =
-    QueryEnumerator[T](futureEnumerator.map(_ &> Enumeratee.takeWhile[T](predicate)))
-
-  def drop(n: Int)(implicit ec: ExecutionContext): QueryEnumerator[T] =
-    QueryEnumerator[T](futureEnumerator.map(_ &> Enumeratee.drop[T](n)))
-
-  def dropWhile(predicate: T => Boolean)(implicit ec: ExecutionContext): QueryEnumerator[T] =
-    QueryEnumerator[T](futureEnumerator.map(_ &> Enumeratee.dropWhile[T](predicate))) */
 }
 
 object QueryEnumerator {
@@ -100,7 +70,16 @@ trait ClientWrapper {
 
   def rawSearch(view: View)(query: Query)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): QueryEnumerator[RawRow] = {
     QueryEnumerator(wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncQuery(view, query), ec ).map { results =>
-      Enumerator.enumerate(results.iterator()) &> Enumeratee.map[ViewRow](r => RawRow(r.getDocument.asInstanceOf[String], r.getId, r.getKey, r.getValue))
+      Enumerator.enumerate(results.iterator()) &> Enumeratee.map[ViewRow] {
+        case r: ViewRowWithDocs if query.willIncludeDocs() => RawRow(r.getDocument.asInstanceOf[String], r.getId, r.getKey, r.getValue)
+        case r: ViewRowWithDocs if !query.willIncludeDocs() => RawRow("", r.getId, r.getKey, r.getValue)
+        case r: ViewRowNoDocs => RawRow("", r.getId, r.getKey, r.getValue)
+        case r: ViewRowReduced if query.willIncludeDocs() => RawRow(r.getDocument, r.getId, r.getKey, r.getValue)
+        case r: ViewRowReduced if !query.willIncludeDocs() => RawRow("", r.getId, r.getKey, r.getValue)
+        case r: SpatialViewRowNoDocs => RawRow("", r.getId, r.getKey, r.getValue)
+        case r: SpatialViewRowWithDocs if query.willIncludeDocs() => RawRow(r.getDocument.asInstanceOf[String], r.getId, r.getKey, r.getValue)
+        case r: SpatialViewRowWithDocs if !query.willIncludeDocs() => RawRow("", r.getId, r.getKey, r.getValue)
+      }
     })
   }
 
@@ -696,8 +675,11 @@ trait ClientWrapper {
 
   def javaFind[T](view: View, query: Query, clazz: Class[T], bucket: CouchbaseBucket, ec: ExecutionContext): Future[java.util.Collection[T]] = {
     wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncQuery(view, query), ec ).map { results =>
-      asJavaCollection(results.iterator().map { result =>
-        play.libs.Json.fromJson(play.libs.Json.parse(result.getDocument.asInstanceOf[String]), clazz)
+      asJavaCollection(results.iterator().collect {
+        case r: ViewRowWithDocs if query.willIncludeDocs() => play.libs.Json.fromJson(play.libs.Json.parse(r.getDocument.asInstanceOf[String]), clazz)
+        case r: ViewRowReduced if query.willIncludeDocs() => play.libs.Json.fromJson(play.libs.Json.parse(r.getDocument), clazz)
+        case r: SpatialViewRowWithDocs if query.willIncludeDocs() => play.libs.Json.fromJson(play.libs.Json.parse(r.getDocument.asInstanceOf[String]), clazz)
+        //play.libs.Json.fromJson(play.libs.Json.parse(r.getDocument.asInstanceOf[String]), clazz)
       }.toList)
     }(ec)
   }
@@ -710,8 +692,16 @@ trait ClientWrapper {
 
   def javaFullFind[T](view: View, query: Query, clazz: Class[T], bucket: CouchbaseBucket, ec: ExecutionContext): Future[java.util.Collection[Row[T]]] = {
     wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncQuery(view, query), ec ).map { results =>
-      asJavaCollection(results.iterator().map { result =>
-        new Row[T](play.libs.Json.fromJson(play.libs.Json.parse(result.getDocument.asInstanceOf[String]), clazz), result.getId, result.getKey, result.getValue )
+      asJavaCollection(results.iterator().map {
+        case r: ViewRowWithDocs if query.willIncludeDocs() => new Row[T](play.libs.Json.fromJson(play.libs.Json.parse(r.getDocument.asInstanceOf[String]), clazz), r.getId, r.getKey, r.getValue )
+        case r: ViewRowWithDocs if !query.willIncludeDocs() => new Row[T](r.getId, r.getKey, r.getValue )
+        case r: ViewRowNoDocs => new Row[T](r.getId, r.getKey, r.getValue )
+        case r: ViewRowReduced if query.willIncludeDocs() => new Row[T](play.libs.Json.fromJson(play.libs.Json.parse(r.getDocument), clazz), r.getId, r.getKey, r.getValue )
+        case r: ViewRowReduced if !query.willIncludeDocs() => new Row[T](r.getId, r.getKey, r.getValue )
+        case r: SpatialViewRowNoDocs => new Row[T](r.getId, r.getKey, r.getValue )
+        case r: SpatialViewRowWithDocs if query.willIncludeDocs() => new Row[T](play.libs.Json.fromJson(play.libs.Json.parse(r.getDocument.asInstanceOf[String]), clazz), r.getId, r.getKey, r.getValue )
+        case r: SpatialViewRowWithDocs if !query.willIncludeDocs() => new Row[T](r.getId, r.getKey, r.getValue )
+        //new Row[T](play.libs.Json.fromJson(play.libs.Json.parse(r.getDocument.asInstanceOf[String]), clazz), r.getId, r.getKey, r.getValue )
       }.toList)
     }(ec)
   }
