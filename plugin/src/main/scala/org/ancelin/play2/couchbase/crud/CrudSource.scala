@@ -79,7 +79,7 @@ class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket, idKey: String = "_i
         }
         i.document \ idKey match {
           case actualId: JsString => (t, actualId.value)
-          case _ => (t, i.id)
+          case _ => (t, i.id.get)
         }
       }
     }
@@ -97,7 +97,7 @@ class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket, idKey: String = "_i
         }
         i.document \ idKey match {
           case actualId: JsString => (t, actualId.value)
-          case _ => (t, i.id)
+          case _ => (t, i.id.get)
         }
       }.grouped(size).map(_.iterator))
     }
@@ -107,7 +107,7 @@ class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket, idKey: String = "_i
   def batchDelete(sel: (View, Query)): Future[Unit] = {
     Couchbase.search[JsObject](sel._1)(sel._2)(bucket, CouchbaseRWImplicits.documentAsJsObjectReader, ctx).toList(ctx).map { list =>
       list.map { t =>
-        delete(t.id)
+        delete(t.id.get)
       }
     }
   }
@@ -117,7 +117,7 @@ class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket, idKey: String = "_i
       list.map { t =>
         val json = Json.toJson(t.document)(writer).as[JsObject]
         val newJson = json.deepMerge(upd)
-        Couchbase.replace(t.id, newJson)(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ctx).map(_ => ())
+        Couchbase.replace(t.id.get, newJson)(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ctx).map(_ => ())
       }
     }
   }

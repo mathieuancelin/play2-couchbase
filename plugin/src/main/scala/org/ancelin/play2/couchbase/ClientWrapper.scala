@@ -24,15 +24,15 @@ import play.api.libs.json.JsObject
 class JsonValidationException(message: String, errors: JsObject) extends RuntimeException(message + " : " + Json.stringify(errors))
 class OperationFailedException(status: OperationStatus) extends RuntimeException(status.getMessage)
 
-case class RawRow(document: String, id: String, key: String, value: String) {
+case class RawRow(document: Option[String], id: Option[String], key: String, value: String) {
   def toTuple = (document, id, key, value)
 }
 
-private case class JsRow[T](document: JsResult[T], id: String, key: String, value: String) {
+private case class JsRow[T](document: JsResult[T], id: Option[String], key: String, value: String) {
   def toTuple = (document, id, key, value)
 }
 
-case class TypedRow[T](document: T, id: String, key: String, value: String) {
+case class TypedRow[T](document: T, id: Option[String], key: String, value: String) {
   def toTuple = (document, id, key, value)
 }
 
@@ -71,14 +71,13 @@ trait ClientWrapper {
   def rawSearch(view: View)(query: Query)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): QueryEnumerator[RawRow] = {
     QueryEnumerator(wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncQuery(view, query), ec ).map { results =>
       Enumerator.enumerate(results.iterator()) &> Enumeratee.map[ViewRow] {
-        case r: ViewRowWithDocs if query.willIncludeDocs() => RawRow(r.getDocument.asInstanceOf[String], r.getId, r.getKey, r.getValue)
-        case r: ViewRowWithDocs if !query.willIncludeDocs() => RawRow("", r.getId, r.getKey, r.getValue)
-        case r: ViewRowNoDocs => RawRow("", r.getId, r.getKey, r.getValue)
-        case r: ViewRowReduced if query.willIncludeDocs() => RawRow(r.getDocument, "", r.getKey, r.getValue)
-        case r: ViewRowReduced if !query.willIncludeDocs() => RawRow("", "", r.getKey, r.getValue)
-        case r: SpatialViewRowNoDocs => RawRow("", r.getId, r.getKey, r.getValue)
-        case r: SpatialViewRowWithDocs if query.willIncludeDocs() => RawRow(r.getDocument.asInstanceOf[String], r.getId, r.getKey, r.getValue)
-        case r: SpatialViewRowWithDocs if !query.willIncludeDocs() => RawRow("", r.getId, r.getKey, r.getValue)
+        case r: ViewRowWithDocs if query.willIncludeDocs() => RawRow(Some(r.getDocument.asInstanceOf[String]), Some(r.getId), r.getKey, r.getValue)
+        case r: ViewRowWithDocs if !query.willIncludeDocs() => RawRow(None, Some(r.getId), r.getKey, r.getValue)
+        case r: ViewRowNoDocs => RawRow(None, Some(r.getId), r.getKey, r.getValue)
+        case r: ViewRowReduced => RawRow(None, None, r.getKey, r.getValue)
+        case r: SpatialViewRowNoDocs => RawRow(None, Some(r.getId), r.getKey, r.getValue)
+        case r: SpatialViewRowWithDocs if query.willIncludeDocs() => RawRow(Some(r.getDocument.asInstanceOf[String]), Some(r.getId), r.getKey, r.getValue)
+        case r: SpatialViewRowWithDocs if !query.willIncludeDocs() => RawRow(None, Some(r.getId), r.getKey, r.getValue)
       }
     })
   }
@@ -93,7 +92,13 @@ trait ClientWrapper {
   def search[T](view: View)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): QueryEnumerator[TypedRow[T]] = {
     QueryEnumerator(rawSearch(view)(query)(bucket, ec).enumerate.map { enumerator =>
       enumerator &>
-        Enumeratee.map[RawRow](row => JsRow[T](r.reads(Json.parse(row.document)), row.id, row.key, row.value)) &>
+        Enumeratee.map[RawRow] { row =>
+          row.document.map { doc =>
+            JsRow[T](r.reads(Json.parse(doc)), row.id, row.key, row.value)
+          }.getOrElse(
+            JsRow[T](JsError(), row.id, row.key, row.value)
+          )
+        } &>
         Enumeratee.collect[JsRow[T]] {
           case JsRow(JsSuccess(doc, _), id, key, value) => TypedRow[T](doc, id, key, value)
           case JsRow(JsError(errors), _, _, _) if Constants.jsonStrictValidation => throw new JsonValidationException("Invalid JSON content", JsError.toFlatJson(errors))
