@@ -643,8 +643,9 @@ trait ClientWrapper {
   }
 
   def javaGet(key: String, bucket: CouchbaseBucket, ec: ExecutionContext): Future[String] = {
-    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGet(key), ec ).map {
-      case s: String => s
+    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGet(key), ec ).flatMap {
+      case s: String => Future.successful(s)
+      case _ => Future.failed(new NullPointerException)
     }(ec)
   }
 
