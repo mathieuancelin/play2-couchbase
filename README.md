@@ -41,8 +41,6 @@ name := "shorturls"
 version := "1.0-SNAPSHOT"
 
 libraryDependencies ++= Seq(
-  jdbc,
-  anorm,
   cache,
   "org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.5-SNAPSHOT"
 )
@@ -69,7 +67,7 @@ object ApplicationBuild extends Build {
   val appVersion      = "1.0-SNAPSHOT"
 
   val appDependencies = Seq(
-    jdbc, anorm,
+    cache,
     "org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.5-SNAPSHOT"
   )
 
