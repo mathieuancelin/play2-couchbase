@@ -36,7 +36,9 @@ object ApplicationBuild extends Build {
       scalaOrdersSample, 
       scalaPersonsSample, 
       scalaN1QLSample, 
-      javaShortUrlsSample
+      javaShortUrlsSample,
+      javaStarter,
+      scalaStarter
     )
 
   lazy val plugin = Project(appName, base = file("plugin"))
@@ -132,6 +134,33 @@ object ApplicationBuild extends Build {
       publishLocal := {},
       publish := {},
       libraryDependencies += "com.typesafe.play" %% "play-java" % "2.2.0" % "provided"
+    ).dependsOn(plugin)
+
+    lazy val javaStarter = play.Project(
+      "java-started",
+      path = file("starter/couchbase-java-starter")
+    ).settings(
+      scalaVersion := appScalaVersion,
+      scalaBinaryVersion := appScalaBinaryVersion,
+      crossScalaVersions := appScalaCrossVersions,
+      crossVersion := CrossVersion.full,
+      parallelExecution in Test := false,
+      publishLocal := {},
+      publish := {},
+      libraryDependencies += "com.typesafe.play" %% "play-java" % "2.2.0" % "provided"
+    ).dependsOn(plugin)
+
+    lazy val scalaStarter = play.Project(
+      "scalaStarter",
+      path = file("starter/couchbase-scala-starter")
+    ).settings(
+      scalaVersion := appScalaVersion,
+      scalaBinaryVersion := appScalaBinaryVersion,
+      crossScalaVersions := appScalaCrossVersions,
+      crossVersion := CrossVersion.full,
+      parallelExecution in Test := false,
+      publishLocal := {},
+      publish := {}
     ).dependsOn(plugin)
 
 }
