@@ -1,5 +1,6 @@
 package controllers;
 
+import models.User;
 import org.ancelin.play2.java.couchbase.Couchbase;
 import org.ancelin.play2.java.couchbase.CouchbaseBucket;
 import play.*;
@@ -16,11 +17,6 @@ public class Application extends Controller {
     }
 
     public static CouchbaseBucket bucket = Couchbase.bucket("default");
-
-    public static class User {
-        public String id;
-        public String name;
-    }
 
     public static F.Promise<Result> getUser(final String key) {
         return bucket.get(key, User.class).map(new F.Function<User, Result>() {
