@@ -708,7 +708,7 @@ couchbase {
 
   ...
   evolutions {
-    #documents = ...    #optional, default conf/couchbase
+    #documents = ...    #optional, default conf/views
     #disabled = ...     #optional, default false
     #use.locks = ...    #optional, default true
 
@@ -725,7 +725,7 @@ The plugin will search your design documents in folders named as your buckets in
 
 ```
 conf
-    couchbase
+    views
         default
             tweets.json
             users.json
@@ -777,7 +777,7 @@ then configure the plugin
 couchbase {
   ...
   fixtures {
-    #documents = ...    #optional, default conf/couchbase-fixtures
+    #documents = ...    #optional, default conf/fixtures
     #disabled = ...     #optional, default false
 
     default { #default is the name of your bucket
@@ -792,7 +792,7 @@ The plugin will search data in folders named as your buckets in the `couchbase.f
 
 ```
 conf
-    couchbase-fixtures
+    fixtures
         default
             users.json
 ```
@@ -1104,7 +1104,7 @@ couchbase {
    }
    fixtures {                        # fixtures related configuration, optional
      disabled=false                  # disable fixtures, optional
-     documents="conf/couchbase-fixtures" # path for fixtures files, optional
+     documents="conf/fixtures"       # path for fixtures files, optional
      $bucketName {
        insert=true                   # insert fixtures, optional
        key="_id"                     # key name for each fixture object, optional
@@ -1112,7 +1112,7 @@ couchbase {
    }
    evolutions {                      # evolutions related configuration, optional
      disabled=false                  # disable evolutions, optional
-     documents="conf/couchbase"      # path for evolution files, optional
+     documents="conf/views"          # path for evolution files, optional
      use.locks=true                  # use locks for evolutions, optional
      $bucketName {
        apply=true                    # apply evolution on start

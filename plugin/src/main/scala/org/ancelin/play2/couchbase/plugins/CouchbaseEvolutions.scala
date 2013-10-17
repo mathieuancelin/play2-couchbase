@@ -77,7 +77,7 @@ class CouchbaseEvolutionsPlugin(app: Application) extends Plugin {
   lazy val conf = app.configuration.getConfig("couchbase").getOrElse(Configuration.empty)
   lazy val evolutionConf = conf.getConfig("evolutions").getOrElse(Configuration.empty)
 
-  lazy val docs = evolutionConf.getString("documents").getOrElse("conf/couchbase")
+  lazy val docs = evolutionConf.getString("documents").getOrElse("conf/views")
 
   implicit val ec = Couchbase.couchbaseExecutor(app)
 

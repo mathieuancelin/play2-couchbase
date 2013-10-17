@@ -13,7 +13,7 @@ class CouchbaseFixturesPlugin(app: Application) extends Plugin {
 
   lazy val conf = app.configuration.getConfig("couchbase").getOrElse(Configuration.empty)
   lazy val evolutionConf = conf.getConfig("fixtures").getOrElse(Configuration.empty)
-  lazy val docs = evolutionConf.getString("documents").getOrElse("conf/couchbase-fixtures")
+  lazy val docs = evolutionConf.getString("documents").getOrElse("conf/fixtures")
   implicit val ec = Couchbase.couchbaseExecutor(app)
   override lazy val enabled = !evolutionConf.getBoolean("disabled").exists(_ == true)
 
