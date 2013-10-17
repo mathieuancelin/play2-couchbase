@@ -26,6 +26,16 @@ Current version
 * current version for Play framework 2.1 is 0.4
   * https://raw.github.com/mathieuancelin/play2-couchbase/master/repository/releases
 
+Starter Kits
+=============
+
+You can quickly bootstrap a project with the Java and Scala starter kits :
+
+* https://github.com/mathieuancelin/play2-couchbase/raw/master/repository/bin/couchbase-scala-starter.zip
+* https://github.com/mathieuancelin/play2-couchbase/raw/master/repository/bin/couchbase-java-starter.zip 
+
+Just download the zip file, unzip it and you're ready to go.
+
 Basic Usage
 ============
 
