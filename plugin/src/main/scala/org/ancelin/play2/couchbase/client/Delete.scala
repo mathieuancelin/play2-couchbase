@@ -6,41 +6,16 @@ import net.spy.memcached.ops.OperationStatus
 import org.ancelin.play2.couchbase.client.CouchbaseFutures._
 import net.spy.memcached.{PersistTo, ReplicateTo}
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Delete Operations
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 trait Delete {
 
-  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  // Delete Operations
-  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-  def delete(key: String)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    waitForOperationStatus( bucket.couchbaseClient.delete(key), ec )
-  }
-
-  def delete(key: String, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    waitForOperationStatus( bucket.couchbaseClient.delete(key, replicateTo), ec )
-  }
-
-  def delete(key: String, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    waitForOperationStatus( bucket.couchbaseClient.delete(key, persistTo), ec )
-  }
-
-  def delete(key: String, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+  def delete(key: String, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
     waitForOperationStatus( bucket.couchbaseClient.delete(key, persistTo, replicateTo), ec )
   }
 
-  def delete[T <: {def id:String}](value: T)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    waitForOperationStatus( bucket.couchbaseClient.delete(value.id), ec )
-  }
-
-  def delete[T <: {def id:String}](value: T, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    waitForOperationStatus( bucket.couchbaseClient.delete(value.id, replicateTo), ec )
-  }
-
-  def delete[T <: {def id:String}](value: T, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    waitForOperationStatus( bucket.couchbaseClient.delete(value.id, persistTo), ec )
-  }
-
-  def delete[T <: {def id:String}](value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+  def delete[T <: {def id:String}](value: T, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
     waitForOperationStatus( bucket.couchbaseClient.delete(value.id, persistTo, replicateTo), ec )
   }
 }
