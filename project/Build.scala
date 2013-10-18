@@ -137,8 +137,8 @@ object ApplicationBuild extends Build {
     ).dependsOn(plugin)
 
     lazy val javaStarter = play.Project(
-      "java-started",
-      path = file("starter/couchbase-java-starter")
+      "javaStarter",
+      path = file("starters/couchbase-java-starter")
     ).settings(
       scalaVersion := appScalaVersion,
       scalaBinaryVersion := appScalaBinaryVersion,
@@ -152,7 +152,7 @@ object ApplicationBuild extends Build {
 
     lazy val scalaStarter = play.Project(
       "scalaStarter",
-      path = file("starter/couchbase-scala-starter")
+      path = file("starters/couchbase-scala-starter")
     ).settings(
       scalaVersion := appScalaVersion,
       scalaBinaryVersion := appScalaBinaryVersion,
