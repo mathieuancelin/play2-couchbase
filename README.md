@@ -1018,9 +1018,12 @@ couchbase {
     timeout="0"
   }]
    failfutures=false                 # fail Scala future if OperationStatus is failed, optional
-   useplayec=false                   # the plugin can use play.api.libs.concurrent.Execution.Implicits.defaultContext as execution context, optional
+   useplayec=true                    # the plugin can use play.api.libs.concurrent.Execution.Implicits.defaultContext as execution context, optional
    json {                            # JSON related configuration, optional
      validate=true                   # JSON structure validation fail
+   }
+   driver {                          # couchbase driver related config
+     useec=true                      # use couchbase-executioncontext as ExecutorService for couchbase driver, optional
    }
    cache {                           # cache related configuration, optional
      namespace=""                    # key prefix if couchbase used as cache with the cache plugin, optional

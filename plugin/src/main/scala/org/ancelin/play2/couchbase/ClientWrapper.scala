@@ -827,7 +827,7 @@ trait ClientWrapper {
 object Constants {
   val expiration: Int = -1
   val jsonStrictValidation = Play.configuration.getBoolean("couchbase.json.validate").getOrElse(true)
-  val usePlayEC = Play.configuration.getBoolean("couchbase.useplayec").getOrElse(false)
+  val usePlayEC = Play.configuration.getBoolean("couchbase.useplayec").getOrElse(true)
   val failWithOpStatus = Play.configuration.getBoolean("couchbase.failfutures").getOrElse(false)
   val timeout: Long = Play.configuration.getLong("couchbase.execution-context.timeout").getOrElse(1000L)
   implicit val defaultPersistTo: PersistTo = PersistTo.ZERO
