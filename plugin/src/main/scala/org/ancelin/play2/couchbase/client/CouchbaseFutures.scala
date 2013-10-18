@@ -11,7 +11,7 @@ object CouchbaseFutures {
     val promise = Promise[java.util.Map[String, AnyRef]]()
     future.addListener(new BulkGetCompletionListener() {
       def onComplete(f: BulkGetFuture[_]) = {
-        if (f.isDone || f.isCancelled) {
+        if (f.isDone || f.isCancelled || f.isTimeout) {
           if (Constants.failWithOpStatus && (!f.getStatus.isSuccess)) {
             promise.failure(new OperationFailedException(f.getStatus))
           } else {
