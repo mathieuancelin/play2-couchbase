@@ -110,6 +110,7 @@ couchbase {
     port="8091"
     base="pools"
     bucket="bucketname"
+    user=""
     pass=""
     timeout="0"
   }]
@@ -253,6 +254,7 @@ couchbase {
       port="8091"
       base="pools"
       bucket="bucket1"
+      user=""
       pass=""
       timeout="0"
   }, {
@@ -260,6 +262,7 @@ couchbase {
      port="8091"
      base="pools"
      bucket="bucket2"
+     user=""
      pass=""
      timeout="0"
   }, {
@@ -267,6 +270,7 @@ couchbase {
      port="8091"
      base="pools"
      bucket="bucket3"
+     user=""
      pass=""
      timeout="0"
   }]

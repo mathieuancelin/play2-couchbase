@@ -25,9 +25,10 @@ class CouchbasePlugin(implicit app: Application) extends Plugin {
     }
     val port = config.get("port").unwrapped().asInstanceOf[String]
     val base = config.get("base").unwrapped().asInstanceOf[String]
+    val user = config.get("user").unwrapped().asInstanceOf[String]
     val pass = config.get("pass").unwrapped().asInstanceOf[String]
     val timeout = config.get("timeout").unwrapped().asInstanceOf[String].toLong
-    val couchbase: CouchbaseBucket = Couchbase(hosts.toList, port, base, bucket, pass, timeout)
+    val couchbase: CouchbaseBucket = Couchbase(hosts.toList, port, base, bucket, user, pass, timeout)
     logger.info(s"Connection to bucket $bucket ...")
     buckets = buckets + (bucket -> couchbase.connect())
   }

@@ -19,7 +19,7 @@ class CouchbaseBucket(val client: Option[CouchbaseClient], val hosts: List[Strin
     //cfb.setOpTimeout(10000)
     //val cf = cfb.buildCouchbaseConnection(uris, bucket, user, pass);
     //val client = new CouchbaseClient(cf);
-    val client = new CouchbaseClient(uris, bucket, pass)
+    val client = new CouchbaseClient(uris, bucket, user, pass)
     new CouchbaseBucket(Some(client), hosts, port, base, bucket, user, pass, timeout)
   }
 
@@ -74,9 +74,10 @@ object Couchbase extends ClientWrapper {
              port:    String = Play.configuration.getString("couchbase.bucket.port").getOrElse("8091"),
              base:    String = Play.configuration.getString("couchbase.bucket.base").getOrElse("pools"),
              bucket:  String = Play.configuration.getString("couchbase.bucket.bucket").getOrElse("default"),
+             user:    String = Play.configuration.getString("couchbase.bucket.user").getOrElse(""),
              pass:    String = Play.configuration.getString("couchbase.bucket.pass").getOrElse(""),
              timeout: Long   = Play.configuration.getLong("couchbase.bucket.timeout").getOrElse(0)): CouchbaseBucket = {
-    new CouchbaseBucket(None, hosts, port, base, bucket, "", pass, timeout)
+    new CouchbaseBucket(None, hosts, port, base, bucket, user, pass, timeout)
   }
 
   /*def withCouchbase[T](block: CouchbaseBucket => T): T = defaultBucket.withCouchbase(block).get
