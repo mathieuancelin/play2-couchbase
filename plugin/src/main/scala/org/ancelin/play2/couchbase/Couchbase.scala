@@ -11,6 +11,7 @@ import scala.Some
 import scala.concurrent.{ExecutionContextExecutorService, ExecutionContext}
 import akka.actor.ActorSystem
 import java.util.Collections
+import org.ancelin.play2.couchbase.client._
 
 class CouchbaseBucket(val client: Option[CouchbaseClient], val hosts: List[String], val port: String, val base: String, val bucket: String, val user: String, val pass: String, val timeout: Long) extends BucketAPI {
 
@@ -22,7 +23,6 @@ class CouchbaseBucket(val client: Option[CouchbaseClient], val hosts: List[Strin
     }
     val cf = cfb.buildCouchbaseConnection(uris, bucket, user, pass);
     val client = new CouchbaseClient(cf);
-    //val client = new CouchbaseClient(uris, bucket, user, pass)
     new CouchbaseBucket(Some(client), hosts, port, base, bucket, user, pass, timeout)
   }
 
@@ -31,16 +31,12 @@ class CouchbaseBucket(val client: Option[CouchbaseClient], val hosts: List[Strin
     new CouchbaseBucket(None, hosts, port, base, bucket, user, pass, timeout)
   }
 
-  /*def withCouchbase[T](block: CouchbaseBucket => T): Option[T] = {
-    client.map(_ => block(this))
-  }*/
-
   def couchbaseClient: CouchbaseClient = {
     client.getOrElse(throw new PlayException(s"Error with bucket ${bucket}", s"Bucket '${bucket}' is not defined or client is not connected"))
   }
 }
 
-object Couchbase extends ClientWrapper {
+object Couchbase extends Read with Write with Delete with Counters with Queries with JavaApi {
 
   private val initMessage = "The CouchbasePlugin has not been initialized! Please edit your conf/play.plugins file and add the following line: '400:package org.ancelin.play2.couchbase.CouchbasePlugin' (400 is an arbitrary priority and may be changed to match your needs)."
   private val connectMessage = "The CouchbasePlugin doesn't seems to be connected to a Couchbase server. Maybe an error occured!"
@@ -58,7 +54,6 @@ object Couchbase extends ClientWrapper {
     case Some(plugin) => plugin.buckets
     case _ => throw new PlayException("CouchbasePlugin Error", initMessage)
   }
-
 
   def couchbaseExecutor(implicit app: Application): ExecutionContext = {
     app.configuration.getObject("couchbase.execution-context.execution-context") match {

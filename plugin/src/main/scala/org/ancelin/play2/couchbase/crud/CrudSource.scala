@@ -14,11 +14,6 @@ import play.api.libs.json.JsObject
 // Higly inspired (not to say copied ;)) from https://github.com/mandubian/play-autosource
 class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket, idKey: String = "_id") {
 
-  /*
-  def findStream(view: View, query: Query): Future[Enumerator[T]] = {
-    bucket.findAsEnumerator[T](view)(query)(bucket, reader, ctx)
-  }*/
-
   import org.ancelin.play2.couchbase.CouchbaseRWImplicits._
   import play.api.Play.current
 

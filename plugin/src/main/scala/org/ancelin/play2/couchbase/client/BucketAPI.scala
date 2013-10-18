@@ -1,4 +1,4 @@
-package org.ancelin.play2.couchbase
+package org.ancelin.play2.couchbase.client
 
 import play.api.libs.json._
 import scala.concurrent.{Future, ExecutionContext}
@@ -7,6 +7,8 @@ import play.api.libs.iteratee.Enumerator
 import net.spy.memcached.ops.OperationStatus
 import play.api.libs.json.JsObject
 import net.spy.memcached.{PersistTo, ReplicateTo}
+import org.ancelin.play2.couchbase.client.{Constants, TypedRow, RawRow, QueryEnumerator}
+import org.ancelin.play2.couchbase.{Couchbase, CouchbaseBucket}
 
 trait BucketAPI {
     self: CouchbaseBucket =>

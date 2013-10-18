@@ -3,7 +3,6 @@ package org.ancelin.play2.couchbase
 import scala.concurrent.Future
 import play.api.mvc._
 import play.api.Play.current
-import com.couchbase.client.CouchbaseClient
 
 trait CouchbaseController { self: Controller =>
 

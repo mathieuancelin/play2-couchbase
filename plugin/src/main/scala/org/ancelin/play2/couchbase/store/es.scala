@@ -7,13 +7,12 @@ import org.ancelin.play2.couchbase.{Couchbase, CouchbaseBucket}
 import scala.concurrent.{Promise, Future, Await, ExecutionContext}
 import play.api.libs.json.{JsSuccess, JsValue, Format, Json}
 import play.api.{Logger, Play}
-import com.couchbase.client.protocol.views.{View, ComplexKey, Stale, Query}
-import scala.concurrent.duration.Duration
+import com.couchbase.client.protocol.views.{ComplexKey, Stale, Query}
 import scala.reflect.ClassTag
 import java.util.UUID
 import akka.util.Timeout
 import scala.concurrent.duration._
-import java.util.concurrent.atomic.{AtomicInteger, AtomicBoolean}
+import java.util.concurrent.atomic.AtomicBoolean
 import scala.util.control.NonFatal
 
 case class Message(payload: Any, eventId: Long = 0L, aggregateId: Long = 0L, timestamp: Long = System.currentTimeMillis(), version: Int = 0) {
