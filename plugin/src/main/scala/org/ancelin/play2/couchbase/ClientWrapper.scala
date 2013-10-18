@@ -6,17 +6,15 @@ import net.spy.memcached.ops.OperationStatus
 import com.couchbase.client.protocol.views._
 import collection.JavaConversions._
 import net.spy.memcached.{ReplicateTo, PersistTo}
-import akka.actor.ActorSystem
-import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
-import net.spy.memcached.internal.{BulkFuture, OperationFuture}
-import com.couchbase.client.internal.HttpFuture
+import net.spy.memcached.internal._
+import com.couchbase.client.internal.{HttpCompletionListener, HttpFuture}
 import play.api.Play.current
 import play.api.{PlayException, Play}
 import play.api.libs.iteratee.{Concurrent, Enumeratee, Iteratee, Enumerator}
-import scala.concurrent.Promise
 import net.spy.memcached.transcoders.Transcoder
 import org.ancelin.play2.java.couchbase.Row
+import scala.concurrent.Promise
 import play.api.libs.json.JsSuccess
 import scala.Some
 import play.api.libs.json.JsObject
@@ -69,7 +67,7 @@ trait ClientWrapper {
   }
 
   def rawSearch(view: View)(query: Query)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): QueryEnumerator[RawRow] = {
-    QueryEnumerator(wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncQuery(view, query), ec ).map { results =>
+    QueryEnumerator(waitForHttp[ViewResponse]( bucket.couchbaseClient.asyncQuery(view, query), ec ).map { results =>
       Enumerator.enumerate(results.iterator()) &> Enumeratee.map[ViewRow] {
         case r: ViewRowWithDocs if query.willIncludeDocs() => RawRow(Some(r.getDocument.asInstanceOf[String]), Some(r.getId), r.getKey, r.getValue)
         case r: ViewRowWithDocs if !query.willIncludeDocs() => RawRow(None, Some(r.getId), r.getKey, r.getValue)
@@ -152,39 +150,39 @@ trait ClientWrapper {
   ///////////////////////////////////////////////////////////////////////////////////////////////////
 
   def view(docName: String, viewName: String)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[View] = {
-    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGetView(docName, viewName), ec )
+    waitForHttp[View]( bucket.couchbaseClient.asyncGetView(docName, viewName), ec )
   }
 
   def spatialView(docName: String, viewName: String)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[SpatialView] = {
-    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGetSpatialView(docName, viewName), ec )
+    waitForHttp[SpatialView]( bucket.couchbaseClient.asyncGetSpatialView(docName, viewName), ec )
   }
 
   def designDocument(docName: String)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[DesignDocument] = {
-    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGetDesignDocument(docName), ec )
+    waitForHttp[DesignDocument]( bucket.couchbaseClient.asyncGetDesignDocument(docName), ec )
   }
 
   def createDesignDoc(name: String, value: JsObject)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.asyncCreateDesignDoc(name, Json.stringify(value)), ec )
+    waitForHttpStatus( bucket.couchbaseClient.asyncCreateDesignDoc(name, Json.stringify(value)), ec )
   }
 
   def createDesignDoc(name: String, value: String)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.asyncCreateDesignDoc(name, value), ec )
+    waitForHttpStatus( bucket.couchbaseClient.asyncCreateDesignDoc(name, value), ec )
   }
 
   def createDesignDoc(value: DesignDocument)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.asyncCreateDesignDoc(value), ec )
+    waitForHttpStatus( bucket.couchbaseClient.asyncCreateDesignDoc(value), ec )
   }
 
   def deleteDesignDoc(name: String)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.asyncDeleteDesignDoc(name), ec )
+    waitForHttpStatus( bucket.couchbaseClient.asyncDeleteDesignDoc(name), ec )
   }
 
   def keyStats(key: String)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[Map[String, String]] = {
-    wrapJavaFutureInPureFuture( bucket.couchbaseClient.getKeyStats(key), ec ).map(_.toMap)
+    waitForOperation( bucket.couchbaseClient.getKeyStats(key), ec ).map(_.toMap)
   }
 
   def get[T](key: String, tc: Transcoder[T])(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[Option[T]] = {
-    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGet(key, tc), ec ) map {
+    waitForGet[T]( bucket.couchbaseClient.asyncGet(key, tc), ec ) map {
       case value: T => Some[T](value)
       case _ => None
     }
@@ -192,7 +190,7 @@ trait ClientWrapper {
 
   def rawFetch(keysEnumerator: Enumerator[String])(implicit bucket: CouchbaseBucket, ec: ExecutionContext): QueryEnumerator[(String, String)] = {
     QueryEnumerator(keysEnumerator.apply(Iteratee.getChunks[String]).flatMap(_.run).flatMap { keys =>
-      wrapJavaFutureInFuture( bucket.couchbaseClient.asyncGetBulk(keys), ec ).map { results =>
+      waitForBulkRaw( bucket.couchbaseClient.asyncGetBulk(keys), ec ).map { results =>
         Enumerator.enumerate(results.toList)
       }.map { enumerator =>
         enumerator &> Enumeratee.collect[(String, AnyRef)] { case (k: String, v: String) => (k, v) }
@@ -245,19 +243,19 @@ trait ClientWrapper {
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   def incr(key: String, by: Int)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.asyncIncr(key, by), ec )
+    waitForOperationStatus( bucket.couchbaseClient.asyncIncr(key, by), ec )
   }
 
   def incr(key: String, by: Long)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.asyncIncr(key, by), ec )
+    waitForOperationStatus( bucket.couchbaseClient.asyncIncr(key, by), ec )
   }
 
   def decr(key: String, by: Int)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.asyncDecr(key, by), ec )
+    waitForOperationStatus( bucket.couchbaseClient.asyncDecr(key, by), ec )
   }
 
   def decr(key: String, by: Long)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.asyncDecr(key, by), ec )
+    waitForOperationStatus( bucket.couchbaseClient.asyncDecr(key, by), ec )
   }
 
   def incrAndGet(key: String, by: Int)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[Int] = {
@@ -345,11 +343,11 @@ trait ClientWrapper {
   }
 
   def set[T](key: String, value: T, tc: Transcoder[T])(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.set(key, Constants.expiration, value, tc), ec )
+    waitForOperationStatus( bucket.couchbaseClient.set(key, Constants.expiration, value, tc), ec )
   }
 
   def set[T](key: String, exp: Int, value: T, tc: Transcoder[T])(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.set(key, exp, value, tc), ec )
+    waitForOperationStatus( bucket.couchbaseClient.set(key, exp, value, tc), ec )
   }
 
   def set[T](key: String, value: T)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
@@ -357,11 +355,11 @@ trait ClientWrapper {
   }
 
   def set[T](key: String, exp: Int, value: T)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.set(key, exp, Json.stringify(w.writes(value))), ec )
+    waitForOperationStatus( bucket.couchbaseClient.set(key, exp, Json.stringify(w.writes(value))), ec )
   }
 
   def set[T](key: String, exp: Int, value: T, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.set(key, exp, Json.stringify(w.writes(value)), replicateTo), ec )
+    waitForOperationStatus( bucket.couchbaseClient.set(key, exp, Json.stringify(w.writes(value)), replicateTo), ec )
   }
   
   def set[T](key: String, value: T, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
@@ -369,7 +367,7 @@ trait ClientWrapper {
   }
   
   def set[T](key: String, exp: Int, value: T, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.set(key, exp, Json.stringify(w.writes(value)), persistTo), ec )
+    waitForOperationStatus( bucket.couchbaseClient.set(key, exp, Json.stringify(w.writes(value)), persistTo), ec )
   }
   
   def set[T](key: String, value: T, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
@@ -377,7 +375,7 @@ trait ClientWrapper {
   }
   
   def set[T](key: String, exp: Int, value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.set(key, exp, Json.stringify(w.writes(value)), persistTo, replicateTo), ec )
+    waitForOperationStatus( bucket.couchbaseClient.set(key, exp, Json.stringify(w.writes(value)), persistTo, replicateTo), ec )
   }
   
   def set[T](key: String, value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
@@ -457,11 +455,11 @@ trait ClientWrapper {
   }
 
   def add[T](key: String, exp: Int, value: T)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.add(key, exp, Json.stringify(w.writes(value))), ec )
+    waitForOperationStatus( bucket.couchbaseClient.add(key, exp, Json.stringify(w.writes(value))), ec )
   }
 
   def add[T](key: String, exp: Int, value: T, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.add(key, exp, Json.stringify(w.writes(value)), replicateTo), ec )
+    waitForOperationStatus( bucket.couchbaseClient.add(key, exp, Json.stringify(w.writes(value)), replicateTo), ec )
   }
   
   def add[T](key: String, value: T, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
@@ -469,7 +467,7 @@ trait ClientWrapper {
   }
   
   def add[T](key: String, exp: Int, value: T, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.add(key, exp, Json.stringify(w.writes(value)), persistTo), ec )
+    waitForOperationStatus( bucket.couchbaseClient.add(key, exp, Json.stringify(w.writes(value)), persistTo), ec )
   }
   
   def add[T](key: String, value: T, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
@@ -477,7 +475,7 @@ trait ClientWrapper {
   }
   
   def add[T](key: String, exp: Int, value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.add(key, exp, Json.stringify(w.writes(value)), persistTo, replicateTo), ec )
+    waitForOperationStatus( bucket.couchbaseClient.add(key, exp, Json.stringify(w.writes(value)), persistTo, replicateTo), ec )
   }
   
   def add[T](key: String, value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
@@ -553,11 +551,11 @@ trait ClientWrapper {
   }
 
   def replace[T](key: String, exp: Int, value: T)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.replace(key, exp, Json.stringify(w.writes(value))), ec )
+    waitForOperationStatus( bucket.couchbaseClient.replace(key, exp, Json.stringify(w.writes(value))), ec )
   }
 
   def replace[T](key: String, exp: Int, value: T, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.replace(key, exp, Json.stringify(w.writes(value)), replicateTo), ec )
+    waitForOperationStatus( bucket.couchbaseClient.replace(key, exp, Json.stringify(w.writes(value)), replicateTo), ec )
   }
   
   def replace[T](key: String, value: T, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
@@ -565,7 +563,7 @@ trait ClientWrapper {
   }
   
   def replace[T](key: String, exp: Int, value: T, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.replace(key, exp, Json.stringify(w.writes(value)), persistTo), ec )
+    waitForOperationStatus( bucket.couchbaseClient.replace(key, exp, Json.stringify(w.writes(value)), persistTo), ec )
   }
   
   def replace[T](key: String, value: T, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
@@ -573,7 +571,7 @@ trait ClientWrapper {
   }
   
   def replace[T](key: String, exp: Int, value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.replace(key, exp, Json.stringify(w.writes(value)), persistTo, replicateTo), ec )
+    waitForOperationStatus( bucket.couchbaseClient.replace(key, exp, Json.stringify(w.writes(value)), persistTo, replicateTo), ec )
   }
   
   def replace[T](key: String, value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
@@ -589,35 +587,35 @@ trait ClientWrapper {
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   def delete(key: String)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.delete(key), ec )
+    waitForOperationStatus( bucket.couchbaseClient.delete(key), ec )
   }
 
   def delete(key: String, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.delete(key, replicateTo), ec )
+    waitForOperationStatus( bucket.couchbaseClient.delete(key, replicateTo), ec )
   }
 
   def delete(key: String, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.delete(key, persistTo), ec )
+    waitForOperationStatus( bucket.couchbaseClient.delete(key, persistTo), ec )
   }
 
   def delete(key: String, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.delete(key, persistTo, replicateTo), ec )
+    waitForOperationStatus( bucket.couchbaseClient.delete(key, persistTo, replicateTo), ec )
   }
 
   def delete[T <: {def id:String}](value: T)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.delete(value.id), ec )
+    waitForOperationStatus( bucket.couchbaseClient.delete(value.id), ec )
   }
 
   def delete[T <: {def id:String}](value: T, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.delete(value.id, replicateTo), ec )
+    waitForOperationStatus( bucket.couchbaseClient.delete(value.id, replicateTo), ec )
   }
 
   def delete[T <: {def id:String}](value: T, persistTo: PersistTo)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.delete(value.id, persistTo), ec )
+    waitForOperationStatus( bucket.couchbaseClient.delete(value.id, persistTo), ec )
   }
 
   def delete[T <: {def id:String}](value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.delete(value.id, persistTo, replicateTo), ec )
+    waitForOperationStatus( bucket.couchbaseClient.delete(value.id, persistTo, replicateTo), ec )
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -625,7 +623,7 @@ trait ClientWrapper {
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   def flush(delay: Int)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.flush(delay), ec )
+    waitForOperationStatus( bucket.couchbaseClient.flush(delay), ec )
   }
 
   def flush()(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
@@ -637,26 +635,26 @@ trait ClientWrapper {
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   def javaReplace(key: String, exp: Int, value: String, persistTo: PersistTo, replicateTo: ReplicateTo, bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.replace(key, exp, value, persistTo, replicateTo), ec )
+    waitForOperationStatus( bucket.couchbaseClient.replace(key, exp, value, persistTo, replicateTo), ec )
   }
 
   def javaAdd(key: String, exp: Int, value: String, persistTo: PersistTo, replicateTo: ReplicateTo, bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.add(key, exp, value, persistTo, replicateTo), ec )
+    waitForOperationStatus( bucket.couchbaseClient.add(key, exp, value, persistTo, replicateTo), ec )
   }
 
   def javaSet(key: String, exp: Int, value: String, persistTo: PersistTo, replicateTo: ReplicateTo, bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    wrapJavaFutureInFuture( bucket.couchbaseClient.set(key, exp, value, persistTo, replicateTo), ec )
+    waitForOperationStatus( bucket.couchbaseClient.set(key, exp, value, persistTo, replicateTo), ec )
   }
 
   def javaGet(key: String, bucket: CouchbaseBucket, ec: ExecutionContext): Future[String] = {
-    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGet(key), ec ).flatMap {
+    waitForGet( bucket.couchbaseClient.asyncGet(key), ec ).flatMap {
       case s: String => Future.successful(s)
       case _ => Future.failed(new NullPointerException)
     }(ec)
   }
 
   def javaGet[T](key: String, clazz: Class[T], bucket: CouchbaseBucket, ec: ExecutionContext): Future[T] = {
-    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGet(key), ec ).flatMap { f =>
+    waitForGet( bucket.couchbaseClient.asyncGet(key), ec ).flatMap { f =>
       f match {
         case value: String => Future.successful(play.libs.Json.fromJson(play.libs.Json.parse(value), clazz))
         case _ => Future.failed(new NullPointerException)
@@ -665,7 +663,7 @@ trait ClientWrapper {
   }
 
   def javaOptGet[T](key: String, clazz: Class[T], bucket: CouchbaseBucket, ec: ExecutionContext): Future[play.libs.F.Option[T]] = {
-    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGet(key), ec ).map { f =>
+    waitForGet( bucket.couchbaseClient.asyncGet(key), ec ).map { f =>
       val opt: play.libs.F.Option[T] = f match {
         case value: String => play.libs.F.Option.Some[T](play.libs.Json.fromJson(play.libs.Json.parse(value), clazz))
         case _ => play.libs.F.Option.None[T]()
@@ -681,7 +679,7 @@ trait ClientWrapper {
   }
 
   def javaFind[T](view: View, query: Query, clazz: Class[T], bucket: CouchbaseBucket, ec: ExecutionContext): Future[java.util.Collection[T]] = {
-    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncQuery(view, query), ec ).map { results =>
+    waitForHttp( bucket.couchbaseClient.asyncQuery(view, query), ec ).map { results =>
       asJavaCollection(results.iterator().collect {
         case r: ViewRowWithDocs if query.willIncludeDocs() => play.libs.Json.fromJson(play.libs.Json.parse(r.getDocument.asInstanceOf[String]), clazz)
         case r: ViewRowReduced if query.willIncludeDocs() => play.libs.Json.fromJson(play.libs.Json.parse(r.getDocument), clazz)
@@ -698,7 +696,7 @@ trait ClientWrapper {
   }
 
   def javaFullFind[T](view: View, query: Query, clazz: Class[T], bucket: CouchbaseBucket, ec: ExecutionContext): Future[java.util.Collection[Row[T]]] = {
-    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncQuery(view, query), ec ).map { results =>
+    waitForHttp( bucket.couchbaseClient.asyncQuery(view, query), ec ).map { results =>
       asJavaCollection(results.iterator().map {
         case r: ViewRowWithDocs if query.willIncludeDocs() => new Row[T](play.libs.Json.fromJson(play.libs.Json.parse(r.getDocument.asInstanceOf[String]), clazz), r.getId, r.getKey, r.getValue )
         case r: ViewRowWithDocs if !query.willIncludeDocs() => new Row[T](r.getId, r.getKey, r.getValue )
@@ -714,7 +712,7 @@ trait ClientWrapper {
   }
 
   def javaView(docName: String, viewName: String, bucket: CouchbaseBucket, ec: ExecutionContext): Future[View] = {
-    wrapJavaFutureInPureFuture( bucket.couchbaseClient.asyncGetView(docName, viewName), ec )
+    waitForHttp[View]( bucket.couchbaseClient.asyncGetView(docName, viewName), ec )
   }
 
   def asJavaLong(f: Future[Long], ec: ExecutionContext): Future[java.lang.Long] = {
@@ -729,113 +727,100 @@ trait ClientWrapper {
   // Private API to manage Java Futures
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  private def wrapJavaFutureInPureFuture[T](javaFuture: java.util.concurrent.Future[T], ec: ExecutionContext): Future[T] = {
-    if (Polling.pollingFutures) {
-      val promise = Promise[T]()
-      pollJavaFutureUntilDoneOrCancelled(javaFuture, promise, ec)
-      promise.future
-    } else {
-       Future {
-         javaFuture.get(Constants.timeout, TimeUnit.MILLISECONDS)
-       }(ec)
-    }
-  }
-
-  private def wrapJavaFutureInFuture[T](javaFuture: OperationFuture[T], ec: ExecutionContext): Future[OperationStatus] = {
-    if (Polling.pollingFutures) {
-      val promise = Promise[OperationStatus]()
-      pollCouchbaseFutureUntilDoneOrCancelled(javaFuture, promise, ec)
-      promise.future
-    } else {
-      Future {
-        javaFuture.get(Constants.timeout, TimeUnit.MILLISECONDS)
-        javaFuture.getStatus
-      }(ec).flatMap { status =>
-        if (!Constants.failWithOpStatus) {
-          Future(status)(ec)
-        } else {
-          if (status.isSuccess) {
-            Future.successful(status)
+  private def waitForBulkRaw(future: BulkFuture[java.util.Map[String, AnyRef]], ec: ExecutionContext): Future[java.util.Map[String, AnyRef]] = {
+    val promise = Promise[java.util.Map[String, AnyRef]]()
+    future.addListener(new BulkGetCompletionListener() {
+      def onComplete(f: BulkGetFuture[_]) = {
+        if (f.isDone || f.isCancelled) {
+          if (Constants.failWithOpStatus && (!f.getStatus.isSuccess)) {
+            promise.failure(new OperationFailedException(f.getStatus))
           } else {
-            Future.failed(new OperationFailedException(status))
+            promise.success(f.get().asInstanceOf[java.util.Map[String, AnyRef]]);
           }
-        }
-      }(ec)
-    }
-  }
-
-  private def wrapJavaFutureInFuture[T](javaFuture: BulkFuture[T], ec: ExecutionContext): Future[T] = {
-    if (Polling.pollingFutures) {
-      val promise = Promise[T]()
-      pollJavaFutureUntilDoneOrCancelled(javaFuture, promise, ec)
-      promise.future
-    } else {
-      Future {
-        javaFuture.get(Constants.timeout, TimeUnit.MILLISECONDS)
-      }(ec)
-    }
-  }
-
-  private def wrapJavaFutureInFuture[T](javaFuture: HttpFuture[T], ec: ExecutionContext): Future[OperationStatus] = {
-    if (Polling.pollingFutures) {
-      val promise = Promise[OperationStatus]()
-      pollCouchbaseFutureUntilDoneOrCancelled(javaFuture, promise, ec)
-      promise.future
-    } else {
-      Future {
-        javaFuture.get(Constants.timeout, TimeUnit.MILLISECONDS)
-        javaFuture.getStatus
-      }(ec).flatMap { status =>
-        if (!Constants.failWithOpStatus) {
-          Future(status)(ec)
-        } else {
-          if (status.isSuccess) {
-            Future.successful(status)
-          } else {
-            Future.failed(new OperationFailedException(status))
-          }
-        }
-      }(ec)
-    }
-  }
-
-  private def pollJavaFutureUntilDoneOrCancelled[T](javaFuture: java.util.concurrent.Future[T], promise: Promise[T], ec: ExecutionContext) {
-    if (javaFuture.isDone || javaFuture.isCancelled) {
-      promise.success(javaFuture.get(Constants.timeout, TimeUnit.MILLISECONDS))
-    } else {
-      Polling.system.scheduler.scheduleOnce(FiniteDuration(Polling.delay, TimeUnit.MILLISECONDS)) {
-        pollJavaFutureUntilDoneOrCancelled(javaFuture, promise, ec)
-      }(ec)
-    }
-  }
-
-  private def pollCouchbaseFutureUntilDoneOrCancelled[T](javaFuture: java.util.concurrent.Future[T], promise: Promise[OperationStatus], ec: ExecutionContext) {
-    if (javaFuture.isDone || javaFuture.isCancelled) {
-      javaFuture match {
-        case o: OperationFuture[T] => {
-          o.get(Constants.timeout, TimeUnit.MILLISECONDS)
-          if (!Constants.failWithOpStatus) {
-            promise.success(o.getStatus)
-          } else {
-            if (o.getStatus.isSuccess) promise.success(o.getStatus)
-            else promise.failure(new OperationFailedException(o.getStatus))
-          }
-        }
-        case h: HttpFuture[T] => {
-          h.get(Constants.timeout, TimeUnit.MILLISECONDS)
-          if (!Constants.failWithOpStatus) {
-            promise.success(h.getStatus)
-          } else {
-            if (h.getStatus.isSuccess) promise.success(h.getStatus)
-            else promise.failure(new OperationFailedException(h.getStatus))
-          }
-        }
+        } else promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled} : ${f.isTimeout}"))
       }
-    } else {
-      Polling.system.scheduler.scheduleOnce(FiniteDuration(Polling.delay, TimeUnit.MILLISECONDS)) {
-        pollCouchbaseFutureUntilDoneOrCancelled(javaFuture, promise, ec)
-      }(ec)
-    }
+    })
+    promise.future
+  }
+
+  private def waitForGet[T](future: GetFuture[T], ec: ExecutionContext): Future[T] = {
+    val promise = Promise[T]()
+    future.addListener(new GetCompletionListener() {
+      def onComplete(f: GetFuture[_]) = {
+        if (f.isDone || f.isCancelled) {
+          if (Constants.failWithOpStatus && (!f.getStatus.isSuccess)) {
+            promise.failure(new OperationFailedException(f.getStatus))
+          } else {
+            promise.success(f.get().asInstanceOf[T]);
+          }
+        } else promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
+      }
+    })
+    promise.future
+  }
+
+  private def waitForHttpStatus[T](future: HttpFuture[T], ec: ExecutionContext): Future[OperationStatus] = {
+    val promise = Promise[OperationStatus]()
+    future.addListener(new HttpCompletionListener() {
+      def onComplete(f: HttpFuture[_]) = {
+        if (f.isDone || f.isCancelled) {
+          if (Constants.failWithOpStatus && (!f.getStatus.isSuccess)) {
+            promise.failure(new OperationFailedException(f.getStatus))
+          } else {
+            promise.success(f.getStatus);
+          }
+        } else promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
+      }
+    })
+    promise.future
+  }
+
+  private def waitForHttp[T](future: HttpFuture[T], ec: ExecutionContext): Future[T] = {
+    val promise = Promise[T]()
+    future.addListener(new HttpCompletionListener() {
+      def onComplete(f: HttpFuture[_]) = {
+        if (f.isDone || f.isCancelled) {
+          if (Constants.failWithOpStatus && (!f.getStatus.isSuccess)) {
+            promise.failure(new OperationFailedException(f.getStatus))
+          } else {
+            promise.success(f.get().asInstanceOf[T]);
+          }
+        } else promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
+      }
+    })
+    promise.future
+  }
+
+  private def waitForOperationStatus[T](future: OperationFuture[T], ec: ExecutionContext): Future[OperationStatus] = {
+    val promise = Promise[OperationStatus]()
+    future.addListener(new OperationCompletionListener() {
+      def onComplete(f: OperationFuture[_]) = {
+        if (f.isDone || f.isCancelled) {
+          if (Constants.failWithOpStatus && (!f.getStatus.isSuccess)) {
+            promise.failure(new OperationFailedException(f.getStatus))
+          } else {
+            promise.success(f.getStatus);
+          }
+        } else promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
+      }
+    })
+    promise.future
+  }
+
+  private def waitForOperation[T](future: OperationFuture[T], ec: ExecutionContext): Future[T] = {
+    val promise = Promise[T]()
+    future.addListener(new OperationCompletionListener() {
+      def onComplete(f: OperationFuture[_]) = {
+        if (f.isDone || f.isCancelled) {
+          if (Constants.failWithOpStatus && (!f.getStatus.isSuccess)) {
+            promise.failure(new OperationFailedException(f.getStatus))
+          } else {
+            promise.success(f.get().asInstanceOf[T]);
+          }
+        } else promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
+      }
+    })
+    promise.future
   }
 }
 
@@ -852,14 +837,5 @@ object Constants {
   }
   if (failWithOpStatus) {
     play.api.Logger("CouchbasePlugin").info("Failing Futures on failed OperationStatus enabled.")
-  }
-}
-
-object Polling {
-  val delay: Long = Play.configuration.getLong("couchbase.execution-context.polldelay").getOrElse(50L)
-  val pollingFutures: Boolean = Play.configuration.getBoolean("couchbase.execution-context.pollfutures").getOrElse(false)
-  val system = ActorSystem("JavaFutureToScalaFuture")
-  if (pollingFutures) {
-    play.api.Logger("CouchbasePlugin").info("Using polling to wait for Java Future.")
   }
 }
