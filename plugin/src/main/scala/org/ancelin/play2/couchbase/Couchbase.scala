@@ -2,24 +2,27 @@ package org.ancelin.play2.couchbase
 
 import com.couchbase.client.{CouchbaseConnectionFactoryBuilder, CouchbaseClient}
 import java.net.URI
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{AbstractExecutorService, TimeUnit}
 import play.api.{Play, PlayException, Application}
 import collection.JavaConversions._
 import collection.mutable.ArrayBuffer
 import play.api.Play.current
 import scala.Some
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContextExecutorService, ExecutionContext}
 import akka.actor.ActorSystem
+import java.util.Collections
 
 class CouchbaseBucket(val client: Option[CouchbaseClient], val hosts: List[String], val port: String, val base: String, val bucket: String, val user: String, val pass: String, val timeout: Long) extends BucketAPI {
 
   def connect() = {
     val uris = ArrayBuffer(hosts.map { h => URI.create(s"http://$h:$port/$base")}:_*)
-    //val cfb = new CouchbaseConnectionFactoryBuilder()
-    //cfb.setOpTimeout(10000)
-    //val cf = cfb.buildCouchbaseConnection(uris, bucket, user, pass);
-    //val client = new CouchbaseClient(cf);
-    val client = new CouchbaseClient(uris, bucket, user, pass)
+    val cfb = new CouchbaseConnectionFactoryBuilder()
+    if (play.api.Play.current.configuration.getBoolean("couchbase.driver.useec").getOrElse(true)) {
+      cfb.setListenerExecutorService(ExecutionContextExecutorServiceBridge.apply(Couchbase.couchbaseExecutor(play.api.Play.current)))
+    }
+    val cf = cfb.buildCouchbaseConnection(uris, bucket, user, pass);
+    val client = new CouchbaseClient(cf);
+    //val client = new CouchbaseClient(uris, bucket, user, pass)
     new CouchbaseBucket(Some(client), hosts, port, base, bucket, user, pass, timeout)
   }
 
@@ -79,15 +82,21 @@ object Couchbase extends ClientWrapper {
              timeout: Long   = Play.configuration.getLong("couchbase.bucket.timeout").getOrElse(0)): CouchbaseBucket = {
     new CouchbaseBucket(None, hosts, port, base, bucket, user, pass, timeout)
   }
-
-  /*def withCouchbase[T](block: CouchbaseBucket => T): T = defaultBucket.withCouchbase(block).get
-  def withCouchbase[T](bucketName: String)(block: CouchbaseBucket => T): T = bucket(bucketName).withCouchbase(block).get  */
-
 }
 
-/*object CouchbaseImplicitConversion {
-  implicit def Couchbase2CouchbaseClient(value : CouchbaseBucket): CouchbaseClient = value.client.getOrElse(throw new PlayException(s"Error with bucket ${value.bucket}", s"Bucket '${value.bucket}' is not defined or client is not connected"))
-  implicit def Couchbase2ClientWrapper(value : CouchbaseBucket) = {
-    new CouchbaseBucket(value.client, value.hosts, value.port, value.base, value.bucket, value.pass, value.timeout) with ClientWrapper
+object ExecutionContextExecutorServiceBridge {
+  def apply(ec: ExecutionContext): ExecutionContextExecutorService = ec match {
+    case null => throw new Throwable("ExecutionContext to ExecutorService conversion failed !!!")
+    case eces: ExecutionContextExecutorService => eces
+    case other => new AbstractExecutorService with ExecutionContextExecutorService {
+      override def prepare(): ExecutionContext = other
+      override def isShutdown = false
+      override def isTerminated = false
+      override def shutdown() = ()
+      override def shutdownNow() = Collections.emptyList[Runnable]
+      override def execute(runnable: Runnable): Unit = other execute runnable
+      override def reportFailure(t: Throwable): Unit = other reportFailure t
+      override def awaitTermination(length: Long,unit: TimeUnit): Boolean = false
+    }
   }
-}*/
+}
