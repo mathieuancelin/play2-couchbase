@@ -15,7 +15,11 @@ trait Delete {
     waitForOperationStatus( bucket.couchbaseClient.delete(key, persistTo, replicateTo), ec )
   }
 
-  def delete[T <: {def id:String}](value: T, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+  def deleteWithId[T <: {def id:String}](value: T, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
     waitForOperationStatus( bucket.couchbaseClient.delete(value.id, persistTo, replicateTo), ec )
+  }
+
+  def deleteWithKey[T](key: T => String, value: T, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+    waitForOperationStatus( bucket.couchbaseClient.delete(key(value), persistTo, replicateTo), ec )
   }
 }

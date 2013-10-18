@@ -199,15 +199,15 @@ public class CouchbaseBucket {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public Promise<OperationStatus> delete(String key){
-        return Promise.wrap(couchbase.delete(key, client, ec));
+        return Promise.wrap(couchbase.delete(key, PersistTo.ZERO, ReplicateTo.ZERO, client, ec));
     }
 
     public Promise<OperationStatus> delete(String key, ReplicateTo replicateTo){
-        return Promise.wrap(couchbase.delete(key, replicateTo, client, ec));
+        return Promise.wrap(couchbase.delete(key, PersistTo.ZERO, replicateTo, client, ec));
     }
 
     public Promise<OperationStatus> delete(String key, PersistTo persistTo){
-        return Promise.wrap(couchbase.delete(key, persistTo, client, ec));
+        return Promise.wrap(couchbase.delete(key, persistTo, ReplicateTo.ZERO, client, ec));
     }
 
     public Promise<OperationStatus> delete(String key, PersistTo persistTo, ReplicateTo replicateTo){
