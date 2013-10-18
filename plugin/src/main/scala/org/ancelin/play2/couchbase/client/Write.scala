@@ -317,4 +317,16 @@ trait Write {
   def replace[T](key: String, value: T)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     replace(key, Constants.expiration, value)(bucket, w, ec)
   }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // Flush Operations
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  def flush(delay: Int)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+    waitForOperationStatus( bucket.couchbaseClient.flush(delay), ec )
+  }
+
+  def flush()(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+    flush(Constants.expiration)(bucket, ec)
+  }
 }

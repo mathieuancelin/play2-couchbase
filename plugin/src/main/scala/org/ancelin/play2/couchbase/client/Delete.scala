@@ -43,16 +43,4 @@ trait Delete {
   def delete[T <: {def id:String}](value: T, persistTo: PersistTo, replicateTo: ReplicateTo)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
     waitForOperationStatus( bucket.couchbaseClient.delete(value.id, persistTo, replicateTo), ec )
   }
-
-  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  // Flush Operations
-  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-  def flush(delay: Int)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    waitForOperationStatus( bucket.couchbaseClient.flush(delay), ec )
-  }
-
-  def flush()(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
-    flush(Constants.expiration)(bucket, ec)
-  }
 }
