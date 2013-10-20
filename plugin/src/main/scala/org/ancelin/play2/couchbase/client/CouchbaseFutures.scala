@@ -16,9 +16,9 @@ object CouchbaseFutures {
           promise.failure(new OperationFailedException(f.getStatus))
         } else {
           if (!f.getStatus.isSuccess) Logger.error(f.getStatus.getMessage)
-          if (f.isDone || f.isCancelled || f.isTimeout) {
+          //if (f.isDone || f.isCancelled || f.isTimeout) {
             promise.success(f.get().asInstanceOf[java.util.Map[String, AnyRef]]);
-          } else promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled} : ${f.isTimeout}"))
+          //} else promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled} : ${f.isTimeout}"))
         }
       }
     })
@@ -33,9 +33,9 @@ object CouchbaseFutures {
           promise.failure(new OperationFailedException(f.getStatus))
         } else {
           if (!f.getStatus.isSuccess) Logger.error(f.getStatus.getMessage)
-          if (f.isDone || f.isCancelled) {
+          //if (f.isDone || f.isCancelled) {
             promise.success(f.get().asInstanceOf[T]);
-          } else promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
+          //} else promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
         }
       }
     })
@@ -50,9 +50,9 @@ object CouchbaseFutures {
           promise.failure(new OperationFailedException(f.getStatus))
         } else {
           if (!f.getStatus.isSuccess) Logger.error(f.getStatus.getMessage)
-          if (f.isDone || f.isCancelled) {
+          //if (f.isDone || f.isCancelled) {
             promise.success(f.getStatus);
-          } else promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
+          //} else promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
         }
       }
     })
@@ -67,9 +67,9 @@ object CouchbaseFutures {
           promise.failure(new OperationFailedException(f.getStatus))
         } else {
           if (!f.getStatus.isSuccess) Logger.error(f.getStatus.getMessage)
-          if (f.isDone || f.isCancelled) {
+          //if (f.isDone || f.isCancelled) {
             promise.success(f.get().asInstanceOf[T]);
-          } else promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
+          //} else promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
         }
       }
     })
@@ -84,9 +84,9 @@ object CouchbaseFutures {
           promise.failure(new OperationFailedException(f.getStatus))
         } else {
           if (!f.getStatus.isSuccess) Logger.error(f.getStatus.getMessage)
-          if (f.isDone || f.isCancelled) {
+          //if (f.isDone || f.isCancelled) {
             promise.success(f.getStatus);
-          } else promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
+          //} else promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
         }
       }
     })
@@ -101,9 +101,9 @@ object CouchbaseFutures {
           promise.failure(new OperationFailedException(f.getStatus))
         } else {
           if (!f.getStatus.isSuccess) Logger.error(f.getStatus.getMessage)
-          if (f.isDone || f.isCancelled) {
+          //if (f.isDone || f.isCancelled) {
             promise.success(f.get().asInstanceOf[T]);
-          } else promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
+          //} else promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
         }
       }
     })
