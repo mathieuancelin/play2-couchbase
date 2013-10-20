@@ -19,12 +19,14 @@ object CouchbaseFutures {
           promise.failure(new OperationFailedException(f.getStatus))
         } else {
           if (!f.getStatus.isSuccess) logger.error(f.getStatus.getMessage)
-          if (checkFutures && (f.isDone || f.isCancelled || f.isTimeout)) {
-            promise.success(f.get().asInstanceOf[java.util.Map[String, AnyRef]]);
-          } else promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled} : ${f.isTimeout}"))
-          if (!checkFutures) {
-            logger.info(s"Future was not complete ${f.isDone} : ${f.isCancelled} : ${f.isTimeout}")
-            new Throwable().printStackTrace()
+          if (f.isDone || f.isCancelled || f.isTimeout) {
+            promise.success(f.get().asInstanceOf[java.util.Map[String, AnyRef]])
+          } else {
+            if (checkFutures) promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled} : ${f.isTimeout}"))
+            else {
+              logger.info(s"BulkFuture not completed yet, success anyway : ${f.isDone} : ${f.isCancelled}")
+              promise.success(f.get().asInstanceOf[java.util.Map[String, AnyRef]])
+            }
           }
         }
       }
@@ -40,12 +42,14 @@ object CouchbaseFutures {
           promise.failure(new OperationFailedException(f.getStatus))
         } else {
           if (!f.getStatus.isSuccess) logger.error(f.getStatus.getMessage)
-          if (checkFutures && (f.isDone || f.isCancelled)) {
-            promise.success(f.get().asInstanceOf[T]);
-          } else promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
-          if (!checkFutures) {
-            logger.info(s"Future was not complete ${f.isDone} : ${f.isCancelled}")
-            new Throwable().printStackTrace()
+          if (f.isDone || f.isCancelled) {
+            promise.success(f.get().asInstanceOf[T])
+          } else {
+            if (checkFutures) promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
+            else {
+              logger.info(s"GetFuture not completed yet, success anyway : ${f.isDone} : ${f.isCancelled}")
+              promise.success(f.get().asInstanceOf[T])
+            }
           }
         }
       }
@@ -61,12 +65,14 @@ object CouchbaseFutures {
           promise.failure(new OperationFailedException(f.getStatus))
         } else {
           if (!f.getStatus.isSuccess) logger.error(f.getStatus.getMessage)
-          if (checkFutures && (f.isDone || f.isCancelled)) {
-            promise.success(f.getStatus);
-          } else promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
-          if (!checkFutures) {
-            logger.info(s"Future was not complete ${f.isDone} : ${f.isCancelled}")
-            new Throwable().printStackTrace()
+          if (f.isDone || f.isCancelled) {
+            promise.success(f.getStatus)
+          } else {
+            if (checkFutures) promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
+            else {
+              logger.info(s"HttpFutureStatus not completed yet, success anyway : ${f.isDone} : ${f.isCancelled}")
+              promise.success(f.getStatus)
+            }
           }
         }
       }
@@ -82,12 +88,14 @@ object CouchbaseFutures {
           promise.failure(new OperationFailedException(f.getStatus))
         } else {
           if (!f.getStatus.isSuccess) logger.error(f.getStatus.getMessage)
-          if (checkFutures && (f.isDone || f.isCancelled)) {
-            promise.success(f.get().asInstanceOf[T]);
-          } else promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
-          if (!checkFutures) {
-            logger.info(s"Future was not complete ${f.isDone} : ${f.isCancelled}")
-            new Throwable().printStackTrace()
+          if (f.isDone || f.isCancelled) {
+            promise.success(f.get().asInstanceOf[T])
+          } else {
+            if (checkFutures) promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
+            else {
+              logger.info(s"HttpFuture not completed yet, success anyway : ${f.isDone} : ${f.isCancelled}")
+              promise.success(f.get().asInstanceOf[T])
+            }
           }
         }
       }
@@ -103,12 +111,14 @@ object CouchbaseFutures {
           promise.failure(new OperationFailedException(f.getStatus))
         } else {
           if (!f.getStatus.isSuccess) logger.error(f.getStatus.getMessage)
-          if (checkFutures && (f.isDone || f.isCancelled)) {
-            promise.success(f.getStatus);
-          } else promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
-          if (!checkFutures) {
-            logger.info(s"Future was not complete ${f.isDone} : ${f.isCancelled}")
-            new Throwable().printStackTrace()
+          if (f.isDone || f.isCancelled) {
+            promise.success(f.getStatus)
+          } else {
+            if (checkFutures) promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
+            else {
+              logger.info(s"OperationFutureStatus not completed yet, success anyway : ${f.isDone} : ${f.isCancelled}")
+              promise.success(f.getStatus)
+            }
           }
         }
       }
@@ -124,12 +134,14 @@ object CouchbaseFutures {
           promise.failure(new OperationFailedException(f.getStatus))
         } else {
           if (!f.getStatus.isSuccess) logger.error(f.getStatus.getMessage)
-          if (checkFutures && (f.isDone || f.isCancelled)) {
-            promise.success(f.get().asInstanceOf[T]);
-          } else promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
-          if (!checkFutures) {
-            logger.info(s"Future was not complete ${f.isDone} : ${f.isCancelled}")
-            new Throwable().printStackTrace()
+          if (f.isDone || f.isCancelled) {
+            promise.success(f.get().asInstanceOf[T])
+          } else {
+            if (checkFutures) promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
+            else {
+              logger.info(s"OperationFuture not completed yet, success anyway : ${f.isDone} : ${f.isCancelled}")
+              promise.success(f.get().asInstanceOf[T])
+            }
           }
         }
       }
