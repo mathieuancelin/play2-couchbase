@@ -35,7 +35,6 @@ class CouchbasePlugin(implicit app: Application) extends Plugin {
     buckets = buckets + (bucket -> couchbase.connect())
   }
   override def onStop {
-    new Throwable().printStackTrace()
     logger.info("Couchbase plugin shutdown, disconnecting all buckets ...")
     buckets.foreach { tuple => tuple._2.disconnect() }
     buckets = buckets.empty
