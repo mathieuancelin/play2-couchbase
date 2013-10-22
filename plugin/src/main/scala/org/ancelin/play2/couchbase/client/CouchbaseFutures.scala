@@ -22,7 +22,7 @@ object CouchbaseFutures {
           if (f.isDone || f.isCancelled || f.isTimeout) {
             promise.success(f.get().asInstanceOf[java.util.Map[String, AnyRef]])
           } else {
-            if (checkFutures) promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled} : ${f.isTimeout}"))
+            if (checkFutures) promise.failure(new Throwable(s"BulkFuture epic fail !!! ${f.isDone} : ${f.isCancelled} : ${f.isTimeout}"))
             else {
               logger.info(s"BulkFuture not completed yet, success anyway : ${f.isDone} : ${f.isCancelled}")
               promise.success(f.get().asInstanceOf[java.util.Map[String, AnyRef]])
@@ -45,7 +45,7 @@ object CouchbaseFutures {
           if (f.isDone || f.isCancelled) {
             promise.success(f.get().asInstanceOf[T])
           } else {
-            if (checkFutures) promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
+            if (checkFutures) promise.failure(new Throwable(s"GetFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
             else {
               logger.info(s"GetFuture not completed yet, success anyway : ${f.isDone} : ${f.isCancelled}")
               promise.success(f.get().asInstanceOf[T])
@@ -68,7 +68,7 @@ object CouchbaseFutures {
           if (f.isDone || f.isCancelled) {
             promise.success(f.getStatus)
           } else {
-            if (checkFutures) promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
+            if (checkFutures) promise.failure(new Throwable(s"HttpFutureStatus epic fail !!! ${f.isDone} : ${f.isCancelled}"))
             else {
               logger.info(s"HttpFutureStatus not completed yet, success anyway : ${f.isDone} : ${f.isCancelled}")
               promise.success(f.getStatus)
@@ -91,7 +91,7 @@ object CouchbaseFutures {
           if (f.isDone || f.isCancelled) {
             promise.success(f.get().asInstanceOf[T])
           } else {
-            if (checkFutures) promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
+            if (checkFutures) promise.failure(new Throwable(s"HttpFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
             else {
               logger.info(s"HttpFuture not completed yet, success anyway : ${f.isDone} : ${f.isCancelled}")
               promise.success(f.get().asInstanceOf[T])
@@ -114,7 +114,7 @@ object CouchbaseFutures {
           if (f.isDone || f.isCancelled) {
             promise.success(f.getStatus)
           } else {
-            if (checkFutures) promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
+            if (checkFutures) promise.failure(new Throwable(s"OperationFutureStatus epic fail !!! ${f.isDone} : ${f.isCancelled}"))
             else {
               logger.info(s"OperationFutureStatus not completed yet, success anyway : ${f.isDone} : ${f.isCancelled}")
               promise.success(f.getStatus)
@@ -137,7 +137,7 @@ object CouchbaseFutures {
           if (f.isDone || f.isCancelled) {
             promise.success(f.get().asInstanceOf[T])
           } else {
-            if (checkFutures) promise.failure(new Throwable(s"ListenableFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
+            if (checkFutures) promise.failure(new Throwable(s"OperationFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
             else {
               logger.info(s"OperationFuture not completed yet, success anyway : ${f.isDone} : ${f.isCancelled}")
               promise.success(f.get().asInstanceOf[T])
