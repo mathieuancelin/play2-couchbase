@@ -33,7 +33,8 @@ Starter Kits
 You can quickly bootstrap a project with the Java and Scala starter kits :
 
 * https://github.com/mathieuancelin/play2-couchbase/raw/master/repository/bin/couchbase-scala-starter.zip
-* https://github.com/mathieuancelin/play2-couchbase/raw/master/repository/bin/couchbase-java-starter.zip 
+* https://github.com/mathieuancelin/play2-couchbase/raw/master/repository/bin/couchbase-java-starter.zip
+* https://github.com/mathieuancelin/play2-couchbase/raw/master/repository/bin/couchbase-crud-starter.zip
 
 Just download the zip file, unzip it, change the app name/version in the `build.sbt` file and you're ready to go.
 
