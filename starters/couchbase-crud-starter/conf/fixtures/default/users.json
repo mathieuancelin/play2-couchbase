@@ -1,0 +1,12 @@
+[
+    {
+        "_id": "user1",
+        "name":"John Doe",
+        "age":42
+    },
+    {
+        "_id": "user2",
+        "name":"Jane Doe",
+        "age":42
+    }
+]

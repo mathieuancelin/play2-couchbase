@@ -1,0 +1,3 @@
+400:org.ancelin.play2.couchbase.CouchbasePlugin
+600:org.ancelin.play2.couchbase.plugins.CouchbaseEvolutionsPlugin
+700:org.ancelin.play2.couchbase.plugins.CouchbaseFixturesPlugin

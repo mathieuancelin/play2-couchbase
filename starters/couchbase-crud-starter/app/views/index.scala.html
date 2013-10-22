@@ -1,0 +1,42 @@
+@()
+
+@main("List of users") {
+
+
+<div ng-controller="UserCtrl">
+
+    <div class="navbar navbar-inverse navbar-fixed-top">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="#">List of users</a>
+            </div>
+            <div class="navbar-collapse collapse">
+                <form class="navbar-form navbar-right">
+                    <div class="form-group">
+                        <input class="form-control" placeholder="Name" ng-model="createForm.name"/>
+                    </div>
+                    <div class="form-group">
+                        <input class="form-control" placeholder="Age" ng-model="createForm.age" type="number"/>
+                    </div>
+                    <button ng-click="create()" class="btn btn-inverse">Create new User</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="container">
+        <div class="row">
+          <ul class="list-group">
+            <li class="list-group-item" ng-repeat="user in users">
+              <input type="text" ng-model="user.name">&nbsp;&nbsp;<input type="number" ng-model="user.age">&nbsp;&nbsp;<button class="btn btn-inverse" ng-click="update(user)">Update</button>&nbsp;&nbsp;<button class="btn btn-inverse" ng-click="remove(user)">Delete</button>
+            </li>
+          </ul>
+        </div>
+    </div>
+</div>
+
+}
