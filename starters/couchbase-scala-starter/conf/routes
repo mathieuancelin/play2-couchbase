@@ -6,7 +6,7 @@
 GET       /                           controllers.Application.index
 # GET       /users/:key                 controllers.Application.getUser(key)
 # GET       /users/email                controllers.Application.findUserByEmail(email)
-# ->        /urls                       controllers.UsersController
+# ->        /users                      controllers.UsersController
 
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file               controllers.Assets.at(path="/public", file)
