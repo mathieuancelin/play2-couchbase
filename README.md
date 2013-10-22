@@ -20,8 +20,10 @@ Contents
 Current version
 ============
 
-* current version for Play framework 2.2 is 0.5-SNAPSHOT
+* current dev version for Play framework 2.2 is 0.6-SNAPSHOT
   * https://raw.github.com/mathieuancelin/play2-couchbase/master/repository/snapshots
+* current version for Play framework 2.2 is 0.5
+  * https://raw.github.com/mathieuancelin/play2-couchbase/master/repository/releases
 * current version for Play framework 2.1 is 0.4
   * https://raw.github.com/mathieuancelin/play2-couchbase/master/repository/releases
 
@@ -51,7 +53,7 @@ version := "1.0-SNAPSHOT"
 
 libraryDependencies ++= Seq(
   cache,
-  "org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.5-SNAPSHOT"
+  "org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.6-SNAPSHOT"
 )
 
 resolvers += "ancelin" at "https://raw.github.com/mathieuancelin/play2-couchbase/master/repository/snapshots"
@@ -77,7 +79,7 @@ object ApplicationBuild extends Build {
 
   val appDependencies = Seq(
     cache,
-    "org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.5-SNAPSHOT"
+    "org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.6-SNAPSHOT"
   )
 
   val main = play.Project(appName, appVersion, appDependencies).settings(

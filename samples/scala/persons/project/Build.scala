@@ -12,7 +12,7 @@ object ApplicationBuild extends Build {
     jdbc,
     anorm,
     cache,
-    "org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.5-SNAPSHOT"
+    "org.ancelin.play2.couchbase" %% "play2-couchbase" % "0.6-SNAPSHOT"
   )
 
 
