@@ -5,6 +5,8 @@ import scala.concurrent.{Future, ExecutionContext}
 import net.spy.memcached.ops.OperationStatus
 import org.ancelin.play2.couchbase.client.CouchbaseFutures._
 import net.spy.memcached.{PersistTo, ReplicateTo}
+import play.api.libs.iteratee.{Iteratee, Enumerator}
+import play.api.libs.json.Writes
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Delete Operations
@@ -21,5 +23,17 @@ trait Delete {
 
   def deleteWithKey[T](key: T => String, value: T, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
     waitForOperationStatus( bucket.couchbaseClient.delete(key(value), persistTo, replicateTo), ec )
+  }
+
+  def delete(data: Enumerator[String], persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[List[OperationStatus]] = {
+    data(Iteratee.fold(List[Future[OperationStatus]]()) { (list, chunk) =>
+      list :+ delete(chunk, persistTo, replicateTo)(bucket, ec)
+    }).flatMap(_.run).flatMap(Future.sequence(_))
+  }
+
+  def deleteWithKey[T](key: T => String, data: Enumerator[T], persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[List[OperationStatus]] = {
+    data(Iteratee.fold(List[Future[OperationStatus]]()) { (list, chunk) =>
+      list :+ delete(key(chunk), persistTo, replicateTo)(bucket, ec)
+    }).flatMap(_.run).flatMap(Future.sequence(_))
   }
 }

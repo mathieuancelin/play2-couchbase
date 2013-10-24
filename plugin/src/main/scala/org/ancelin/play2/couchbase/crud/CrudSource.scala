@@ -3,13 +3,14 @@ package org.ancelin.play2.couchbase.crud
 import scala.concurrent.{Future, ExecutionContext}
 import play.api.libs.json._
 import com.couchbase.client.protocol.views.{ComplexKey, Stale, Query, View}
-import play.api.libs.iteratee.{Iteratee, Enumerator}
+import play.api.libs.iteratee.{Enumeratee, Iteratee, Enumerator}
 import play.api.mvc._
 import org.ancelin.play2.couchbase.{CouchbaseRWImplicits, Couchbase, CouchbaseBucket}
 import java.util.UUID
 import play.core.Router
 import scala.Some
 import play.api.libs.json.JsObject
+import org.ancelin.play2.couchbase.client.TypedRow
 
 // Higly inspired (not to say copied ;)) from https://github.com/mandubian/play-autosource
 class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket, idKey: String = "_id") {
@@ -100,20 +101,30 @@ class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket, idKey: String = "_i
   }
 
   def batchDelete(sel: (View, Query)): Future[Unit] = {
-    Couchbase.search[JsObject](sel._1)(sel._2)(bucket, CouchbaseRWImplicits.documentAsJsObjectReader, ctx).toList(ctx).map { list =>
+    /*Couchbase.search[JsObject](sel._1)(sel._2)(bucket, CouchbaseRWImplicits.documentAsJsObjectReader, ctx).toList(ctx).map { list =>
       list.map { t =>
         delete(t.id.get)
       }
-    }
+    }*/
+    val extract = { tr: TypedRow[JsObject] => tr.id.get }
+    Couchbase.search[JsObject](sel._1)(sel._2)(bucket, CouchbaseRWImplicits.documentAsJsObjectReader, ctx).enumerate.map { enumerator =>
+      Couchbase.deleteWithKey[TypedRow[JsObject]](extract, enumerator)(bucket, ctx)
+    }.map(_ => ())
   }
 
   def batchUpdate(sel: (View, Query), upd: JsObject): Future[Unit] = {
-    Couchbase.search[T](sel._1)(sel._2)(bucket, reader, ctx).toList(ctx).map { list =>
+    /*Couchbase.search[T](sel._1)(sel._2)(bucket, reader, ctx).toList(ctx).map { list =>
       list.map { t =>
         val json = Json.toJson(t.document)(writer).as[JsObject]
         val newJson = json.deepMerge(upd)
         Couchbase.replace(t.id.get, newJson)(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ctx).map(_ => ())
       }
+    } */
+    Couchbase.search[T](sel._1)(sel._2)(bucket, reader, ctx).enumerate.map { enumerator =>
+      Couchbase.replace(enumerator.through(Enumeratee.map { t =>
+        val json = Json.toJson(t.document)(writer).as[JsObject]
+        (t.id.get, json.deepMerge(upd))
+      }))(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ctx).map(_ => ())
     }
   }
 
