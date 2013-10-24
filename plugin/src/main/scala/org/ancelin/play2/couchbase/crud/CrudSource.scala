@@ -223,6 +223,10 @@ abstract class CouchbaseCrudSourceController[T:Format] extends CrudRouterControl
     }
   }
 
+  def docName(name: String) = {
+    if (play.api.Play.isDev(play.api.Play.current)) s"dev_$name" else name
+  }
+
   def insert: EssentialAction = Action.async(parse.json) { request =>
     Json.fromJson[T](request.body)(res.reader).map{ t =>
       res.insert(t).map{ id => Ok(Json.obj("id" -> id)) }
