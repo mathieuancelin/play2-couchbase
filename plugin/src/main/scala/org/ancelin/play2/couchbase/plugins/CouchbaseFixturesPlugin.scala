@@ -35,7 +35,7 @@ class CouchbaseFixturesPlugin(app: Application) extends Plugin {
         val applyFixtures = bucketConf.getBoolean("insert").exists(_ == true)
         val id = bucketConf.getString("key").getOrElse("_id")
         Play.getExistingFile(s"$docs/$name")(app).map { folder =>
-          val documents = new Directory(folder).files.toList.map { path =>
+          val documents = new Directory(folder).files.filter(_.toFile.name.endsWith(".json")).toList.map { path =>
             Json.parse(Resource.fromInputStream(path.toFile.inputStream()).string(Codec.UTF8))
           } filter {
             case array: JsArray => true

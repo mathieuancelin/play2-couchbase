@@ -99,7 +99,7 @@ class CouchbaseEvolutionsPlugin(app: Application) extends Plugin {
         withLock() {
           Play.getExistingFile(s"$docs/$name")(app).map { folder =>
             logger.debug(s"Search couchbase documents for bucket $name in ${folder.getAbsolutePath}")
-            val documents = new Directory(folder).files.map { path =>
+            val documents = new Directory(folder).files.filter(_.toFile.name.endsWith(".json")).map { path =>
               DocumentDescription(path.name.replaceAll("""\.[^.]*$""", ""), bucket, Resource.fromInputStream(path.toFile.inputStream()).byteArray)
             }
 
