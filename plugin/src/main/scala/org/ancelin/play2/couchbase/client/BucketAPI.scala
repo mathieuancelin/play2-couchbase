@@ -111,12 +111,12 @@ trait BucketAPI {
     Couchbase.set[T](value.id, value, exp, persistTo, replicateTo)(self, w, ec)
   }
 
-  def set[T](data: Enumerator[(String, T)], exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
-    Couchbase.set[T](data, exp, persistTo, replicateTo)(self, w, ec)
+  def setStream[T](data: Enumerator[(String, T)], exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
+    Couchbase.setStream[T](data, exp, persistTo, replicateTo)(self, w, ec)
   }
 
-  def setWithKey[T](key: T => String, data: Enumerator[T], exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
-    Couchbase.setWithKey[T](key, data, exp, persistTo, replicateTo)(self, w, ec)
+  def setStreamWithKey[T](key: T => String, data: Enumerator[T], exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
+    Couchbase.setStreamWithKey[T](key, data, exp, persistTo, replicateTo)(self, w, ec)
   }
 
   def addBlob(key: String, value: String, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit ec: ExecutionContext): Future[OperationStatus] = {
@@ -135,12 +135,12 @@ trait BucketAPI {
     Couchbase.add[T](value.id, value, exp, persistTo, replicateTo)(self, w, ec)
   }
 
-  def add[T](data: Enumerator[(String, T)], exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
-    Couchbase.add[T](data, exp, persistTo, replicateTo)(self, w, ec)
+  def addStream[T](data: Enumerator[(String, T)], exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
+    Couchbase.addStream[T](data, exp, persistTo, replicateTo)(self, w, ec)
   }
 
-  def addWithKey[T](key: T => String, data: Enumerator[T], exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
-    Couchbase.addWithKey[T](key, data, exp, persistTo, replicateTo)(self, w, ec)
+  def addStreamWithKey[T](key: T => String, data: Enumerator[T], exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
+    Couchbase.addStreamWithKey[T](key, data, exp, persistTo, replicateTo)(self, w, ec)
   }
 
   def replaceBlob(key: String, value: String, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit ec: ExecutionContext): Future[OperationStatus] = {
@@ -159,12 +159,12 @@ trait BucketAPI {
     Couchbase.replace[T](value.id, value, exp, persistTo, replicateTo)(self, w, ec)
   }
 
-  def replace[T](data: Enumerator[(String, T)], exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
-    Couchbase.replace[T](data, exp, persistTo, replicateTo)(self, w, ec)
+  def replaceStream[T](data: Enumerator[(String, T)], exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
+    Couchbase.replaceStream[T](data, exp, persistTo, replicateTo)(self, w, ec)
   }
 
-  def replaceWithKey[T](key: T => String, data: Enumerator[T], exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
-    Couchbase.replaceWithKey[T](key, data, exp, persistTo, replicateTo)(self, w, ec)
+  def replaceStreamWithKey[T](key: T => String, data: Enumerator[T], exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
+    Couchbase.replaceStreamWithKey[T](key, data, exp, persistTo, replicateTo)(self, w, ec)
   }
 
   def delete(key: String, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit ec: ExecutionContext): Future[OperationStatus] = {
@@ -175,12 +175,12 @@ trait BucketAPI {
     Couchbase.delete(value.id, persistTo, replicateTo)(self, ec)
   }
 
-  def delete(data: Enumerator[String], persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[List[OperationStatus]] = {
-    Couchbase.delete(data, persistTo, replicateTo)(self, ec)
+  def deleteStream(data: Enumerator[String], persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[List[OperationStatus]] = {
+    Couchbase.deleteStream(data, persistTo, replicateTo)(self, ec)
   }
 
-  def deleteWithKey[T](key: T => String, data: Enumerator[T], persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[List[OperationStatus]] = {
-    Couchbase.deleteWithKey[T](key, data, persistTo, replicateTo)(self, ec)
+  def deleteStreamWithKey[T](key: T => String, data: Enumerator[T], persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[List[OperationStatus]] = {
+    Couchbase.deleteStreamWithKey[T](key, data, persistTo, replicateTo)(self, ec)
   }
 
   def flush(delay: Int)(implicit ec: ExecutionContext): Future[OperationStatus] = Couchbase.flush(delay)(self, ec)

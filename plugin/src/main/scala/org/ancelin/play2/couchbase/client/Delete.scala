@@ -25,13 +25,13 @@ trait Delete {
     waitForOperationStatus( bucket.couchbaseClient.delete(key(value), persistTo, replicateTo), ec )
   }
 
-  def delete(data: Enumerator[String], persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[List[OperationStatus]] = {
+  def deleteStream(data: Enumerator[String], persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[List[OperationStatus]] = {
     data(Iteratee.fold(List[Future[OperationStatus]]()) { (list, chunk) =>
       list :+ delete(chunk, persistTo, replicateTo)(bucket, ec)
     }).flatMap(_.run).flatMap(Future.sequence(_))
   }
 
-  def deleteWithKey[T](key: T => String, data: Enumerator[T], persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[List[OperationStatus]] = {
+  def deleteStreamWithKey[T](key: T => String, data: Enumerator[T], persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[List[OperationStatus]] = {
     data(Iteratee.fold(List[Future[OperationStatus]]()) { (list, chunk) =>
       list :+ delete(key(chunk), persistTo, replicateTo)(bucket, ec)
     }).flatMap(_.run).flatMap(Future.sequence(_))

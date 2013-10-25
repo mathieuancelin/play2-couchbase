@@ -11,6 +11,7 @@ import java.util.concurrent.TimeUnit
 import org.ancelin.play2.couchbase.client.CouchbaseFutures._
 import net.spy.memcached.ops.OperationStatus
 import collection.JavaConversions._
+import play.api.libs.concurrent.Promise
 
 case class RawRow(document: Option[String], id: Option[String], key: String, value: String) {
   def toTuple = (document, id, key, value)
@@ -107,6 +108,51 @@ trait Queries {
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+  /**
+   * The view must index numbers
+   */
+  def rawCappedQuery(designDoc: String, view: String, every: Long = 100L, unit: TimeUnit = TimeUnit.MILLISECONDS)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Enumerator[RawRow] = {
+    var last = 0
+    def queryFromLastOne(): Future[Option[List[RawRow]]] = {
+      println(s"send query : $last")
+      rawSearch(designDoc, view)(
+        new Query().setIncludeDocs(true).setStale(Stale.FALSE).setDescending(false).setRangeStart(ComplexKey.of(last.asInstanceOf[AnyRef])).setRangeEnd(ComplexKey.of(Int.MaxValue.asInstanceOf[AnyRef]))
+      ).toList(ec).map { l =>
+        last = l.tail.reverse.head.key.toInt
+        Some(l)
+      }
+    }
+    val enum: Enumerator[List[RawRow]] = Enumerator.generateM(Promise.timeout(Some, every, unit).flatMap(_ => queryFromLastOne()))
+    enum.through( Enumeratee.mapConcat[List[RawRow]](identity) )
+  }
+
+  /**
+   * The view must index numbers
+   */
+  def typedCappedQuery[T](designDoc: String, view: String, every: Long = 100L, unit: TimeUnit = TimeUnit.MILLISECONDS)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[TypedRow[T]] = {
+    rawCappedQuery(designDoc, view, every, unit)(bucket, ec) &>
+      Enumeratee.map[RawRow] { row =>
+        row.document.map { doc =>
+          JsRow[T](r.reads(Json.parse(doc)), row.id, row.key, row.value)
+        }.getOrElse(
+          JsRow[T](JsError(), row.id, row.key, row.value)
+        )
+      } &>
+      Enumeratee.collect[JsRow[T]] {
+        case JsRow(JsSuccess(doc, _), id, key, value) => TypedRow[T](doc, id, key, value)
+        case JsRow(JsError(errors), _, _, _) if Constants.jsonStrictValidation => throw new JsonValidationException("Invalid JSON content", JsError.toFlatJson(errors))
+      }
+  }
+
+  /**
+   * The view must index numbers
+   */
+  def cappedQuery[T](designDoc: String, view: String, every: Long = 100L, unit: TimeUnit = TimeUnit.MILLISECONDS)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
+    typedCappedQuery[T](designDoc, view, every, unit)(bucket, r, ec).through(Enumeratee.map(_.document))
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
   def pollQuery[T](doc: String, view: String, query: Query, everyMillis: Long)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
     pollQuery[T](doc, view, query, everyMillis, { chunk: T => true })(bucket, r, ec)
   }
@@ -134,6 +180,8 @@ trait Queries {
   def repeatQuery[T](doc: String, view: String, query: Query, filter: T => Boolean)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
     repeatQuery[T](doc, view, query, Future.successful(Some),filter)(bucket, r, ec)
   }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   def view(docName: String, viewName: String)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[View] = {
     waitForHttp[View]( bucket.couchbaseClient.asyncGetView(docName, viewName), ec )
