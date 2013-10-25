@@ -108,7 +108,7 @@ class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket, idKey: String = "_i
     }*/
     val extract = { tr: TypedRow[JsObject] => tr.id.get }
     Couchbase.search[JsObject](sel._1)(sel._2)(bucket, CouchbaseRWImplicits.documentAsJsObjectReader, ctx).enumerate.map { enumerator =>
-      Couchbase.deleteWithKey[TypedRow[JsObject]](extract, enumerator)(bucket, ctx)
+      Couchbase.deleteStreamWithKey[TypedRow[JsObject]](extract, enumerator)(bucket, ctx)
     }.map(_ => ())
   }
 
@@ -121,7 +121,7 @@ class CouchbaseCrudSource[T:Format](bucket: CouchbaseBucket, idKey: String = "_i
       }
     } */
     Couchbase.search[T](sel._1)(sel._2)(bucket, reader, ctx).enumerate.map { enumerator =>
-      Couchbase.replace(enumerator.through(Enumeratee.map { t =>
+      Couchbase.replaceStream(enumerator.through(Enumeratee.map { t =>
         val json = Json.toJson(t.document)(writer).as[JsObject]
         (t.id.get, json.deepMerge(upd))
       }))(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ctx).map(_ => ())
