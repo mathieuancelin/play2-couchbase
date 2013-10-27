@@ -8,6 +8,7 @@ import net.spy.memcached.ops.OperationStatus
 import play.api.libs.json.JsObject
 import net.spy.memcached.{PersistTo, ReplicateTo}
 import org.ancelin.play2.couchbase.{Couchbase, CouchbaseBucket}
+import java.util.concurrent.TimeUnit
 
 trait BucketAPI {
     self: CouchbaseBucket =>
@@ -26,6 +27,10 @@ trait BucketAPI {
 
   def repeatQuery[T](doc: String, view: String, query: Query, filter: T => Boolean = { chunk: T => true }, trigger: Future[AnyRef] = Future.successful(Some))(implicit r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
     Couchbase.repeatQuery[T](doc, view, query, trigger, filter)(self, r, ec)
+  }
+
+  def cappedQuery[T](doc: String, view: String, extractor: T => Int, every: Long, unit: TimeUnit = TimeUnit.MILLISECONDS)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
+    Couchbase.cappedQuery[T](doc, view, extractor, every, unit)(bucket, r, ec)
   }
 
   def rawFetch(keysEnumerator: Enumerator[String])(implicit ec: ExecutionContext): QueryEnumerator[(String, String)] = Couchbase.rawFetch(keysEnumerator)(this, ec)
