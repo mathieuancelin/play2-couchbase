@@ -30,7 +30,7 @@ trait BucketAPI {
   }
 
   def cappedQuery[T](doc: String, view: String, extractor: T => Int, every: Long = 1000L, unit: TimeUnit = TimeUnit.MILLISECONDS)(implicit r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
-    Couchbase.cappedQuery[T](doc, view, extractor, every, unit)(bucket, r, ec)
+    Couchbase.cappedQuery[T](doc, view, extractor, every, unit)(self, r, ec)
   }
 
   def rawFetch(keysEnumerator: Enumerator[String])(implicit ec: ExecutionContext): QueryEnumerator[(String, String)] = Couchbase.rawFetch(keysEnumerator)(this, ec)
