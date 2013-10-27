@@ -44,6 +44,10 @@ object QueryEnumerator {
 
 trait Queries {
 
+  def docName(name: String) = {
+    if (play.api.Play.isDev(play.api.Play.current)) s"dev_$name" else name
+  }
+
   def find[T](docName:String, viewName: String)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext) = searchValues(docName, viewName)(query)(bucket, r, ec).toList(ec)
   def find[T](view: View)(query: Query)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext) = searchValues(view)(query)(bucket, r, ec).toList(ec)
 
