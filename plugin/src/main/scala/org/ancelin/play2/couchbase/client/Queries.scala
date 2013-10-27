@@ -116,7 +116,7 @@ trait Queries {
   /**
    * The view must index numbers
    */
-  def cappedQuery[T](doc: String, view: String, extractor: T => Int, every: Long, unit: TimeUnit = TimeUnit.MILLISECONDS)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
+  def cappedQuery[T](doc: String, view: String, extractor: T => Int, every: Long = 1000L, unit: TimeUnit = TimeUnit.MILLISECONDS)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
     var last = 0
     def query() = {
       new Query().setIncludeDocs(true).setStale(Stale.FALSE).setDescending(false).setRangeStart(ComplexKey.of(last.asInstanceOf[AnyRef])).setRangeEnd(ComplexKey.of(Int.MaxValue.asInstanceOf[AnyRef]))
