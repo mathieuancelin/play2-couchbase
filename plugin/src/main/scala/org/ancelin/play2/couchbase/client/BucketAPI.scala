@@ -29,7 +29,7 @@ trait BucketAPI {
     Couchbase.repeatQuery[T](doc, view, query, trigger, filter)(self, r, ec)
   }
 
-  def cappedQuery[T](doc: String, view: String, extractor: T => Int, every: Long = 1000L, unit: TimeUnit = TimeUnit.MILLISECONDS)(implicit r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
+  def cappedQuery[T](doc: String, view: String, extractor: T => Long, every: Long = 1000L, unit: TimeUnit = TimeUnit.MILLISECONDS)(implicit r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
     Couchbase.cappedQuery[T](doc, view, extractor, every, unit)(self, r, ec)
   }
 

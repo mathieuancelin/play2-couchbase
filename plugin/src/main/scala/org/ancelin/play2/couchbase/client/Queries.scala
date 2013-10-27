@@ -116,16 +116,16 @@ trait Queries {
   /**
    * The view must index numbers
    */
-  def cappedQuery[T](doc: String, view: String, extractor: T => Int, every: Long = 1000L, unit: TimeUnit = TimeUnit.MILLISECONDS)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
-    var last = 0
+  def cappedQuery[T](doc: String, view: String, extractor: T => Long, every: Long = 1000L, unit: TimeUnit = TimeUnit.MILLISECONDS)(implicit bucket: CouchbaseBucket, r: Reads[T], ec: ExecutionContext): Enumerator[T] = {
+    var last = 0L
     def query() = {
-      new Query().setIncludeDocs(true).setStale(Stale.FALSE).setDescending(false).setRangeStart(ComplexKey.of(last.asInstanceOf[AnyRef])).setRangeEnd(ComplexKey.of(Int.MaxValue.asInstanceOf[AnyRef]))
+      new Query().setIncludeDocs(true).setStale(Stale.FALSE).setDescending(false).setRangeStart(ComplexKey.of(last.asInstanceOf[AnyRef])).setRangeEnd(ComplexKey.of(Long.MaxValue.asInstanceOf[AnyRef]))
     }
     Enumerator.repeatM({
       val actualQuery = query()
       play.api.libs.concurrent.Promise.timeout(Some, every, unit).flatMap(_ => Couchbase.find[T](doc, view)(actualQuery)(bucket, r, ec))
     }).through( Enumeratee.mapConcat[List[T]](identity) ).through( Enumeratee.filter[T]( _ => true ) ).through(Enumeratee.map { elem =>
-      last = extractor(elem) + 1
+      last = extractor(elem) + 1L
       elem
     })
   }
