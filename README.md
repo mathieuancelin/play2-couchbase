@@ -1,3 +1,4 @@
+<a href="http://www.reactivemanifesto.org/"> <img style="border: 0; position: fixed; left: 0; top:0; z-index: 9000" src="http://www.reactivemanifesto.org/images/ribbons/we-are-reactive-black-left.png"> </a>
 Couchbase Plugin for Play framework 2.2
 =======================================
 
