@@ -48,6 +48,7 @@ object Couchbase extends Read with Write with Delete with Counters with Queries 
   }
 
   def bucket(bucket: String)(implicit app: Application): CouchbaseBucket = buckets(app).get(bucket).getOrElse(throw new PlayException(s"Error with bucket $bucket", s"Bucket '$bucket' is not defined"))
+  def cappedBucket(bucket: String, max: Int, reaper: Boolean = true)(implicit app: Application): CappedBucket = buckets(app).get(bucket).map(_ => new CappedBucket(bucket, max, reaper)(app)).getOrElse(throw new PlayException(s"Error with bucket $bucket", s"Bucket '$bucket' is not defined"))
   def client(bucket: String)(implicit app: Application): CouchbaseClient = buckets(app).get(bucket).flatMap(_.client).getOrElse(throw new PlayException(s"Error with bucket $bucket", s"Bucket '$bucket' is not defined or client is not connected"))
 
   def buckets(implicit app: Application): Map[String, CouchbaseBucket] =  app.plugin[CouchbasePlugin] match {
