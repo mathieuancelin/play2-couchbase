@@ -46,24 +46,15 @@ class CappedBucket(name: String, max: Int, reaper: Boolean = true)(implicit app:
     })(ec)
   }
 
-  def get[T](key: String)(implicit r: Reads[T], ec: ExecutionContext): Future[Option[T]] = {
-    Couchbase.get[T](key)(bucket, r, ec)
+  def oldestOption[T](key: String)(implicit r: Reads[T], ec: ExecutionContext): Future[Option[T]] = {
+    val query = new Query().setIncludeDocs(true).setStale(Stale.FALSE).setDescending(false).setLimit(1)
+    trigger.flatMap(_ => Couchbase.find[T](docName, viewName)(query)(bucket, r, ec).map(_.headOption))
   }
 
-  def find[T](docName:String, viewName: String)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
-    Couchbase.find[T](docName, viewName)(query)(bucket, r, ec)
+  def lastInsertedOption[T](key: String)(implicit r: Reads[T], ec: ExecutionContext): Future[Option[T]] = {
+    val query = new Query().setIncludeDocs(true).setStale(Stale.FALSE).setDescending(true).setLimit(1)
+    trigger.flatMap(_ => Couchbase.find[T](docName, viewName)(query)(bucket, r, ec).map(_.headOption))
   }
-
-  def find[T](view: View)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
-    Couchbase.find[T](view)(query)(bucket, r, ec)
-  }
-
-  def rawSearch(docName:String, viewName: String)(query: Query)(implicit ec: ExecutionContext): QueryEnumerator[RawRow] = Couchbase.rawSearch(docName, viewName)(query)(bucket, ec)
-  def rawSearch(view: View)(query: Query)(implicit ec: ExecutionContext): QueryEnumerator[RawRow] = Couchbase.rawSearch(view)(query)(bucket, ec)
-  def search[T](docName:String, viewName: String)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): QueryEnumerator[TypedRow[T]] = Couchbase.search[T](docName, viewName)(query)(bucket, r, ec)
-  def search[T](view: View)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): QueryEnumerator[TypedRow[T]] = Couchbase.search[T](view)(query)(bucket, r, ec)
-  def searchValues[T](docName:String, viewName: String)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): QueryEnumerator[T] = Couchbase.searchValues[T](docName, viewName)(query)(bucket, r, ec)
-  def searchValues[T](view: View)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): QueryEnumerator[T] = Couchbase.searchValues[T](view)(query)(bucket, r, ec)
 
   def tail[T](from: Long = 0L, every: Long = 1000L, unit: TimeUnit = TimeUnit.MILLISECONDS)(implicit r: Reads[T], ec: ExecutionContext): Future[Enumerator[T]] = {
     trigger.map( _ => Couchbase.tailableQuery[JsObject](docName, viewName, { obj =>
@@ -78,13 +69,13 @@ class CappedBucket(name: String, max: Int, reaper: Boolean = true)(implicit app:
   def insert[T](key: String, value: T, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     val jsObj = w.writes(value).as[JsObject]
     val enhancedJsObj = jsObj ++ Json.obj(cappedRef -> true, cappedNaturalId -> System.currentTimeMillis())
-    Couchbase.set[JsObject](key, enhancedJsObj, exp, persistTo, replicateTo)(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ec)
+    trigger.flatMap(_ => Couchbase.set[JsObject](key, enhancedJsObj, exp, persistTo, replicateTo)(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ec))
   }
 
   def insertWithKey[T](key: T => String, value: T, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     val jsObj = w.writes(value).as[JsObject]
     val enhancedJsObj = jsObj ++ Json.obj(cappedRef -> true, cappedNaturalId -> System.currentTimeMillis())
-    Couchbase.setWithKey[JsObject]({ _ => key(value)}, enhancedJsObj, exp, persistTo, replicateTo)(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ec)
+    trigger.flatMap(_ => Couchbase.setWithKey[JsObject]({ _ => key(value)}, enhancedJsObj, exp, persistTo, replicateTo)(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ec))
   }
 
   def insertStream[T](data: Enumerator[(String, T)], exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
@@ -93,7 +84,7 @@ class CappedBucket(name: String, max: Int, reaper: Boolean = true)(implicit app:
       val enhancedJsObj = jsObj ++ Json.obj(cappedRef -> true, cappedNaturalId -> System.currentTimeMillis())
       (elem._1, enhancedJsObj)
     })
-    Couchbase.setStream[JsObject](enhancedEnumerator, exp, persistTo, replicateTo)(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ec)
+    trigger.flatMap(_ => Couchbase.setStream[JsObject](enhancedEnumerator, exp, persistTo, replicateTo)(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ec))
   }
 
   def insertStreamWithKey[T](key: T => String, data: Enumerator[T], exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
@@ -102,18 +93,6 @@ class CappedBucket(name: String, max: Int, reaper: Boolean = true)(implicit app:
       val enhancedJsObj = jsObj ++ Json.obj(cappedRef -> true, cappedNaturalId -> System.currentTimeMillis())
       (key(elem), enhancedJsObj)
     })
-    Couchbase.setStream[JsObject](enhancedEnumerator, exp, persistTo, replicateTo)(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ec)
-  }
-
-  def delete(key: String, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit ec: ExecutionContext): Future[OperationStatus] = {
-    Couchbase.delete(key, persistTo, replicateTo)(bucket, ec)
-  }
-
-  def deleteStream(data: Enumerator[String], persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[List[OperationStatus]] = {
-    Couchbase.deleteStream(data, persistTo, replicateTo)(bucket, ec)
-  }
-
-  def deleteStreamWithKey[T](key: T => String, data: Enumerator[T], persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[List[OperationStatus]] = {
-    Couchbase.deleteStreamWithKey[T](key, data, persistTo, replicateTo)(bucket, ec)
+    trigger.flatMap(_ => Couchbase.setStream[JsObject](enhancedEnumerator, exp, persistTo, replicateTo)(bucket, CouchbaseRWImplicits.jsObjectToDocumentWriter, ec))
   }
 }
