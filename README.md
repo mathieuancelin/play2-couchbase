@@ -690,11 +690,9 @@ The nice part with capped buckets is the `tail` function. It's like using a `tai
 ```scala
 
 def tailf = Action.async {
-    
     val enumerator1 = bucket.tail[JsValue]()
     val enumerator2 = bucket.tail[JsValue](1265457L) // start to read data from 1265457L timestamp
     val enumerator3 = bucket.tail[JsValue](1265457L, 200, TimeUnit.MILLISECONDS) // update every 200 milliseconds
-
     enumerator1.map( Ok.chunked( _ ) )
 }
 ```
