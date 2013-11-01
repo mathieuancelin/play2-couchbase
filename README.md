@@ -669,7 +669,6 @@ You can use a bucket as a capped bucket using :
 ```scala
 
 def bucket = Couchbase.cappedBucket("default", 100) // here I use the default bucket as a capped bucket of size 100
-
 ```
 
 of course, only data inserted with this `CappedBucket` object are considered for capped bucket features.
@@ -682,7 +681,6 @@ for (i <- 0 to 200) {
     bucket.insert(UUID.randomUUID().toString, john)
 }
 // still 100 people in the bucket (and possibly other data inserted with standard API)
-
 ```
 
 When a json object is inserted, a timestamp is add to the object and this timestamp will be used to manage all the capped bucket features.
@@ -699,7 +697,6 @@ def tailf = Action.async {
 
     enumerator1.map( Ok.chunked( _ ) )
 }
-
 ```
 
 Use Couchbase as Cache implementation
