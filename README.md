@@ -10,6 +10,7 @@ Contents
     - [Usage from a controller](#standard-usage-from-a-controller)
     - [Usage from a model](#standard-usage-from-a-model)
 - [How to build CRUD Application](#crud-application)
+- [Capped bucket & tailable queries](#)
 - [Use Couchbase as Play Cache](#use-couchbase-as-cache-implementation)
 - [Synchronise Design Documents (evolutions)](#synchonize-couchbase-design-documents)
 - [Insert data at startup (fixtures)](#automatically-insert-documents-at-startup)
@@ -654,6 +655,52 @@ PUT     /urls/:id                   @controllers.ShortURLController.update(id)
 ```
 
 Note : **You can also use the awesome play-autosource project (https://github.com/mandubian/play-autosource) that comes with Couchbase support**
+
+
+Capped buckets and tailable queries
+====================================
+
+Play2-couchbase provides a way to simulate capped buckets (http://docs.mongodb.org/manual/core/capped-collections/). 
+You can see a capped bucket as a circular buffer. Once the buffer is full, the oldest entry is removed from the bucket.
+
+Here, the bucket isn't really capped at couchbase level. It is capped at play2-couchbase level.
+You can use a bucket as a capped bucket using :
+
+```scala
+
+def bucket = Couchbase.cappedBucket("default", 100) // here I use the default bucket as a capped bucket of size 100
+
+```
+
+of course, only data inserted with this `CappedBucket` object are considered for capped bucket features.
+
+```scala
+
+val john = Json.obj("name" -> "John", "fname" -> "Doe")
+
+for (i <- 0 to 200) {
+    bucket.insert(UUID.randomUUID().toString, john)
+}
+// still 100 people in the bucket (and possibly other data inserted with standard API)
+
+```
+
+When a json object is inserted, a timestamp is add to the object and this timestamp will be used to manage all the capped bucket features.
+
+The nice part with capped buckets is the `tail` function. It's like using a `tail -f`command on the datas of the capped bucket
+
+```scala
+
+def tailf = Action.async {
+    
+    val enumerator1 = bucket.tail[JsValue]()
+    val enumerator2 = bucket.tail[JsValue](1265457L) // start to read data from 1265457L timestamp
+    val enumerator3 = bucket.tail[JsValue](1265457L, 200, TimeUnit.MILLISECONDS) // update every 200 milliseconds
+
+    enumerator1.map( Ok.chunked( _ ) )
+}
+
+```
 
 Use Couchbase as Cache implementation
 =====================================
