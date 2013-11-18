@@ -46,7 +46,7 @@ object ApplicationBuild extends Build {
     .settings(
       resolvers += "Typesafe repository" at "http://repo.typesafe.com/typesafe/releases/",
       resolvers += "Spy Repository" at "http://files.couchbase.com/maven2",
-      libraryDependencies += "com.couchbase.client" % "couchbase-client" % "1.2.1",
+      libraryDependencies += "com.couchbase.client" % "couchbase-client" % "1.2.2",
       libraryDependencies += "com.typesafe.play" %% "play" % "2.2.0" % "provided",
       libraryDependencies += "com.typesafe.play" %% "play-cache" % "2.2.0",
       organization := "org.ancelin.play2.couchbase",
