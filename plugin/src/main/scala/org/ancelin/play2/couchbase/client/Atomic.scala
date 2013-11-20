@@ -29,8 +29,9 @@ class AtomicActor[T](val key: String, val operation: T => T, bucket: CouchbaseBu
 
   def receive = {
     case numberTry => {
-      sender ! atomic.getAndLock(key, 3600).map(_.fold({
+      val y = atomic.getAndLock(key, 3600).map(_.fold({
         Logger.error("cannot update " + key)
+        Akka.system.scheduler.scheduleOnce(2.seconds, self, "poke")
         "NO"
       })(cas => {
         Logger.info("cas " + cas.toString())
@@ -45,6 +46,9 @@ class AtomicActor[T](val key: String, val operation: T => T, bucket: CouchbaseBu
 
         "YES"
       }))
+      if(y.eq("YES")){
+        sender ! "YES"
+      }
     }
     //sender ! "poker " + key + " " + numberTry
   }
