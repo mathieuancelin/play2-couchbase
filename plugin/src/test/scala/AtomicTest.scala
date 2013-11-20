@@ -11,10 +11,11 @@ import org.specs2.execute.AsResult
 import net.spy.memcached.ops.OperationException
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
+import java.util.UUID
 
 class AtomicTest extends Specification {
 
-  case class TestValue(value: String, number: Int, some: List[TestValue])
+  case class TestValue(value: String, number: Int, l: List[TestValue])
 
   implicit val fmt = Json.format[TestValue]
   implicit val urlReader = Json.reads[TestValue]
@@ -23,7 +24,7 @@ class AtomicTest extends Specification {
   val fakeapp = FakeApplication(
     additionalPlugins = Seq("org.ancelin.play2.couchbase.CouchbasePlugin"))
 
-  val tk = "mylocktestkey2"
+  val tk = "mylocktestkey2_" // + UUID.randomUUID
 
   "This test assume you have a default configuration of couchbase 2.1 running on your localhost computer" in ok
 
@@ -32,7 +33,7 @@ class AtomicTest extends Specification {
     "connect" in new WithApplication(fakeapp) {
       Couchbase.buckets must not empty
     }
-
+    /*
     "set key \"" + tk + "\" in default bucket" in new WithApplication(fakeapp) {
       implicit val e = Couchbase.couchbaseExecutor
 
@@ -41,11 +42,30 @@ class AtomicTest extends Specification {
       Await.result(s, Duration(20000, "millis")).isSuccess must equalTo(true)
 
     }
-
+*/
     "lock the key \"" + tk + "\" in default bucket" in new WithApplication(fakeapp) {
 
       implicit val e = Couchbase.couchbaseExecutor
 
+      val f = { x: TestValue =>
+        {
+          println(x)
+
+          val l = x.l.toList
+          val ll = (new TestValue("testValue", l.size, List())) :: l
+          val ntv = new TestValue(x.value, x.number, ll)
+          println(ntv)
+          ntv
+        }
+      }
+      val ss = Await.result(Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f), Duration(20000, "millis"))
+      val ss1 = Await.result(Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f), Duration(20000, "millis"))
+      val ss2 = Await.result(Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f), Duration(20000, "millis"))
+      val ss3 = Await.result(Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f), Duration(20000, "millis"))
+      println("=====> " + ss)
+
+      assert(true)
+      /*
       val s = Couchbase.defaultBucket.getAndLock(tk, 3600)
 
       Await.result(s, Duration(20000, "millis")).fold(assert(false))(x => {
@@ -53,6 +73,8 @@ class AtomicTest extends Specification {
         x.getValue().value in ok
         assert(true)
       })
+      * 
+      */
     }
 
   }

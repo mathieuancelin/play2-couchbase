@@ -10,6 +10,8 @@ import net.spy.memcached.{ PersistTo, ReplicateTo }
 import org.ancelin.play2.couchbase.{ Couchbase, CouchbaseBucket }
 import java.util.concurrent.TimeUnit
 import net.spy.memcached.CASValue
+import play.api.libs.json.Json
+import play.libs.Json
 
 trait BucketAPI {
   self: CouchbaseBucket =>
@@ -194,5 +196,9 @@ trait BucketAPI {
 
   def getAndLock[T](key: String, exp: Int)(implicit r: Reads[T], ec: ExecutionContext): Future[Option[CASValue[T]]] = {
     Couchbase.getAndLock(key, exp)(r, self, ec)
+  }
+  
+  def atomicUpdate[T](key: String, operation: T => T)(implicit ec: ExecutionContext, r: Reads[T],  w: Writes[T]):Future[Any] = {
+    Couchbase.atomicUpdate[T](key, operation)(self, ec, r, w)
   }
 }
