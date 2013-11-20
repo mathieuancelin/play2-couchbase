@@ -1,10 +1,12 @@
 package org.ancelin.play2.couchbase.client
 
 import net.spy.memcached.internal._
-import scala.concurrent.{Promise, Future, ExecutionContext}
-import com.couchbase.client.internal.{HttpCompletionListener, HttpFuture}
+import net.spy.memcached.CASValue
+import scala.concurrent.{ Promise, Future, ExecutionContext }
+import com.couchbase.client.internal.{ HttpCompletionListener, HttpFuture }
 import net.spy.memcached.ops.OperationStatus
 import play.api.Logger
+import play.api.libs.json.Reads
 
 object CouchbaseFutures {
 
@@ -49,6 +51,30 @@ object CouchbaseFutures {
             else {
               logger.info(s"GetFuture not completed yet, success anyway : ${f.isDone} : ${f.isCancelled}")
               promise.success(f.get().asInstanceOf[T])
+            }
+          }
+        }
+      }
+    })
+    promise.future
+  }
+
+  def waitForGetAndCas[T](future: OperationFuture[CASValue[Object]], ec: ExecutionContext, r:Reads[T]): Future[CASValue[T]] = {
+    val promise = Promise[CASValue[T]]()
+    future.addListener(new OperationCompletionListener() {
+      def onComplete(f: OperationFuture[_]) = {
+        if (Constants.failWithOpStatus && (!f.getStatus.isSuccess)) {
+          promise.failure(new OperationFailedException(f.getStatus))
+        } else {
+          if (!f.getStatus.isSuccess) logger.error(f.getStatus.getMessage)
+          if (f.isDone || f.isCancelled) {
+            //val g = 
+            promise.success(f.get().asInstanceOf[CASValue[T]])
+          } else {
+            if (checkFutures) promise.failure(new Throwable(s"GetFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
+            else {
+              logger.info(s"GetFuture not completed yet, success anyway : ${f.isDone} : ${f.isCancelled}")
+              promise.success(f.get().asInstanceOf[CASValue[T]])
             }
           }
         }

@@ -1,19 +1,20 @@
 package org.ancelin.play2.couchbase.client
 
 import play.api.libs.json._
-import scala.concurrent.{Future, ExecutionContext}
-import com.couchbase.client.protocol.views.{DesignDocument, SpatialView, View, Query}
+import scala.concurrent.{ Future, ExecutionContext }
+import com.couchbase.client.protocol.views.{ DesignDocument, SpatialView, View, Query }
 import play.api.libs.iteratee.Enumerator
 import net.spy.memcached.ops.OperationStatus
 import play.api.libs.json.JsObject
-import net.spy.memcached.{PersistTo, ReplicateTo}
-import org.ancelin.play2.couchbase.{Couchbase, CouchbaseBucket}
+import net.spy.memcached.{ PersistTo, ReplicateTo }
+import org.ancelin.play2.couchbase.{ Couchbase, CouchbaseBucket }
 import java.util.concurrent.TimeUnit
+import net.spy.memcached.CASValue
 
 trait BucketAPI {
-    self: CouchbaseBucket =>
+  self: CouchbaseBucket =>
 
-  def find[T](docName:String, viewName: String)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
+  def find[T](docName: String, viewName: String)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): Future[List[T]] = {
     Couchbase.find[T](docName, viewName)(query)(self, r, ec)
   }
 
@@ -39,11 +40,11 @@ trait BucketAPI {
   def fetch[T](keys: Seq[String])(implicit r: Reads[T], ec: ExecutionContext): QueryEnumerator[(String, T)] = Couchbase.fetch[T](keys)(this, r, ec)
   def fetchValues[T](keys: Seq[String])(implicit r: Reads[T], ec: ExecutionContext): QueryEnumerator[T] = Couchbase.fetchValues[T](keys)(this, r, ec)
   def getWithKey[T](key: String)(implicit r: Reads[T], ec: ExecutionContext): Future[Option[(String, T)]] = Couchbase.getWithKey[T](key)(this, r, ec)
-  def rawSearch(docName:String, viewName: String)(query: Query)(implicit ec: ExecutionContext): QueryEnumerator[RawRow] = Couchbase.rawSearch(docName, viewName)(query)(this, ec)
+  def rawSearch(docName: String, viewName: String)(query: Query)(implicit ec: ExecutionContext): QueryEnumerator[RawRow] = Couchbase.rawSearch(docName, viewName)(query)(this, ec)
   def rawSearch(view: View)(query: Query)(implicit ec: ExecutionContext): QueryEnumerator[RawRow] = Couchbase.rawSearch(view)(query)(this, ec)
-  def search[T](docName:String, viewName: String)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): QueryEnumerator[TypedRow[T]] = Couchbase.search[T](docName, viewName)(query)(this, r, ec)
+  def search[T](docName: String, viewName: String)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): QueryEnumerator[TypedRow[T]] = Couchbase.search[T](docName, viewName)(query)(this, r, ec)
   def search[T](view: View)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): QueryEnumerator[TypedRow[T]] = Couchbase.search[T](view)(query)(this, r, ec)
-  def searchValues[T](docName:String, viewName: String)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): QueryEnumerator[T] = Couchbase.searchValues[T](docName, viewName)(query)(this, r, ec)
+  def searchValues[T](docName: String, viewName: String)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): QueryEnumerator[T] = Couchbase.searchValues[T](docName, viewName)(query)(this, r, ec)
   def searchValues[T](view: View)(query: Query)(implicit r: Reads[T], ec: ExecutionContext): QueryEnumerator[T] = Couchbase.searchValues[T](view)(query)(this, r, ec)
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -112,7 +113,7 @@ trait BucketAPI {
     Couchbase.setWithKey[T](key, value, exp, persistTo, replicateTo)(self, w, ec)
   }
 
-  def setWithId[T <: {def id: String}](value: T, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def setWithId[T <: { def id: String }](value: T, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     Couchbase.set[T](value.id, value, exp, persistTo, replicateTo)(self, w, ec)
   }
 
@@ -136,7 +137,7 @@ trait BucketAPI {
     Couchbase.addWithKey[T](key, value, exp, persistTo, replicateTo)(self, w, ec)
   }
 
-  def addWithId[T <: {def id: String}](value: T, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def addWithId[T <: { def id: String }](value: T, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     Couchbase.add[T](value.id, value, exp, persistTo, replicateTo)(self, w, ec)
   }
 
@@ -160,7 +161,7 @@ trait BucketAPI {
     Couchbase.replaceWithKey[T](key, value, exp, persistTo, replicateTo)(self, w, ec)
   }
 
-  def replaceWithId[T <: {def id: String}](value: T, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def replaceWithId[T <: { def id: String }](value: T, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     Couchbase.replace[T](value.id, value, exp, persistTo, replicateTo)(self, w, ec)
   }
 
@@ -176,7 +177,7 @@ trait BucketAPI {
     Couchbase.delete(key, persistTo, replicateTo)(self, ec)
   }
 
-  def deleteWithId[T <: {def id: String}](value: T, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit ec: ExecutionContext): Future[OperationStatus] = {
+  def deleteWithId[T <: { def id: String }](value: T, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit ec: ExecutionContext): Future[OperationStatus] = {
     Couchbase.delete(value.id, persistTo, replicateTo)(self, ec)
   }
 
@@ -190,4 +191,8 @@ trait BucketAPI {
 
   def flush(delay: Int)(implicit ec: ExecutionContext): Future[OperationStatus] = Couchbase.flush(delay)(self, ec)
   def flush()(implicit ec: ExecutionContext): Future[OperationStatus] = Couchbase.flush()(self, ec)
+
+  def getAndLock[T](key: String, exp: Int)(implicit r: Reads[T], ec: ExecutionContext): Future[Option[CASValue[T]]] = {
+    Couchbase.getAndLock(key, exp)(r, self, ec)
+  }
 }
