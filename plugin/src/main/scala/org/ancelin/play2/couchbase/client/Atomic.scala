@@ -16,48 +16,85 @@ import scala.concurrent.duration._
 import play.api.Play.current
 import play.Logger
 import net.spy.memcached.CASResponse
+import scala.util.Success
+import scala.util.Failure
+import akka.pattern.after
+import scala.concurrent.Await
+import sun.org.mozilla.javascript.internal.ast.Yield
+
+case class AtomicRequest[T](key: String, operation: T => T, bucket: CouchbaseBucket, atomic: Atomic, r: Reads[T], w: Writes[T], ec: ExecutionContext, numberTry: Int)
 
 object AtomicActor {
-  def props[T](key: String, operation: T => T, bucket: CouchbaseBucket, atomic: Atomic, r: Reads[T], w: Writes[T], ec: ExecutionContext): Props = Props(classOf[AtomicActor[T]], key, operation, bucket, atomic, r, w, ec)
+  def props[T]: Props = Props(classOf[AtomicActor[T]])
 }
 
-class AtomicActor[T](val key: String, val operation: T => T, bucket: CouchbaseBucket, atomic: Atomic, val r: Reads[T], val w: Writes[T], ec: ExecutionContext) extends Actor {
-  implicit val rr = r
-  implicit val ww = w
-  implicit val bb = bucket
-  implicit val ee = ec
+class AtomicActor[T] extends Actor {
 
   def receive = {
-    case numberTry => {
-      val y = atomic.getAndLock(key, 3600).map(_.fold({
-        Logger.error("cannot update " + key)
-        Akka.system.scheduler.scheduleOnce(2.seconds, self, "poke")
-        "NO"
-      })(cas => {
-        Logger.info("cas " + cas.toString())
 
-        val cv = r.reads(Json.parse(cas.getValue.toString)).get //Json.fromJson[T](Json.parse(cas.getValue.toString))  //.re
-        val nv = operation(cv)
+    case "poke" => Logger.info("got a poke")
+    case casr: CASResponse =>
+      Logger.info("got a CASResponse"); sender ! casr
+    case f: Future[Any] =>
+      Logger.info("got a Future"); sender ! f
+    case ar: AtomicRequest[T] => {
+      Logger.info(">>>> " + ar.toString)
+      implicit val rr = ar.r
+      implicit val ww = ar.w
+      implicit val bb = ar.bucket
+      implicit val ee = ar.ec
 
-        Logger.info("nv " + nv.toString())
+      val sen = sender
+      val myresult = ar.atomic.getAndLock(ar.key, 3600).onComplete {
+        case Success(Some(cas)) => {
+          if (cas.getCas.equals(-1)) {
+            Logger.error("cas -1")
 
-        val res = bucket.couchbaseClient.cas(key, cas.getCas, w.writes(nv).toString)
-        Logger.info("res " + res.toString())
+          }
 
-        "YES"
-      }))
-      if(y.eq("YES")){
-        sender ! "YES"
+          Logger.info("cas " + cas.toString())
+          Logger.info("cas " + cas.getCas())
+          Logger.info("cas " + cas.getValue())
+
+          val cv = ar.r.reads(Json.parse(cas.getValue.toString)).get //Json.fromJson[T](Json.parse(cas.getValue.toString))  //.re
+          val nv = ar.operation(cv)
+
+          Logger.info("nv " + nv.toString())
+
+          val res = ar.bucket.couchbaseClient.cas(ar.key, cas.getCas, ar.w.writes(nv).toString)
+          Logger.info("res " + res.toString())
+
+          sen ! res
+        }
+        //       case Failure(t) => {
+        case _ => {
+          Logger.error("""\!\!\!\!cannot update """ + ar.key)
+          implicit val timeout = Timeout(180 seconds)
+          val ar2 = AtomicRequest(ar.key, ar.operation, ar.bucket, ar.atomic, ar.r, ar.w, ar.ec, ar.numberTry + 1)
+          val atomic_actor = Akka.system.actorOf(AtomicActor.props[T]) // , name = "atomic_update_" + UUID.randomUUID
+         /* val delayed = after(1000 millis, using =
+            context.system.scheduler)(Future.successful("time's up"))*/
+          Logger.info("-----------------------------------plop")
+            for(
+                d <- after(2000 millis, using =
+            context.system.scheduler)(Future.successful(ar2));
+                tr <- (atomic_actor ? d)
+                ) yield ( sen ! tr)          
+            
+//          Await.result(delayed, 2 minutes)
+       //   sen ! Await.result(atomic_actor ? ar2, 2 minutes)
+
+        }
       }
+      Logger.info("____________::: " + myresult)
+  //    sender ! myresult
     }
-    //sender ! "poker " + key + " " + numberTry
   }
 }
 
 trait Atomic {
 
   def getAndLock[T](key: String, exp: Int)(implicit r: Reads[T], bucket: CouchbaseBucket, ec: ExecutionContext): Future[Option[CASValue[T]]] = {
-    // waitForOperationStatus(bucket.couchbaseClient.asyncGetAndLock(key, exp), ec)
     waitForGetAndCas[T](bucket.couchbaseClient.asyncGetAndLock(key, exp), ec, r) map {
       case value: CASValue[T] =>
         Some[CASValue[T]](value)
@@ -71,9 +108,9 @@ trait Atomic {
 
   def atomicUpdate[T](key: String, operation: T => T)(implicit bucket: CouchbaseBucket, ec: ExecutionContext, r: Reads[T], w: Writes[T]): Future[Any] = {
     implicit val timeout = Timeout(180 seconds)
-    // val atomic_actor = Akka.system.actorOf(Props[AtomicActor])// , name = "atomic_update_" + UUID.randomUUID
-    val atomic_actor = Akka.system.actorOf(AtomicActor.props[T](key, operation, bucket, this, r, w, ec)) // , name = "atomic_update_" + UUID.randomUUID
-    (atomic_actor.ask(1)) //.mapTo[String] //.mapTo[T]
+    val ar = AtomicRequest[T](key, operation, bucket, this, r, w, ec, 1)
+    val atomic_actor = Akka.system.actorOf(AtomicActor.props[T])
+    (atomic_actor.ask(ar))
   }
 
 }

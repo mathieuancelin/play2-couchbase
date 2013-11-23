@@ -66,7 +66,11 @@ object CouchbaseFutures {
         if (Constants.failWithOpStatus && (!f.getStatus.isSuccess)) {
           promise.failure(new OperationFailedException(f.getStatus))
         } else {
-          if (!f.getStatus.isSuccess) logger.error(f.getStatus.getMessage)
+          if (!f.getStatus.isSuccess){ 
+            logger.error(f.getStatus.getMessage)
+            promise.failure(new Throwable(s"GetFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
+          }
+          else
           if (f.isDone || f.isCancelled) {
             //val g = 
             promise.success(f.get().asInstanceOf[CASValue[T]])

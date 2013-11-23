@@ -12,6 +12,11 @@ import net.spy.memcached.ops.OperationException
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import java.util.UUID
+import akka.pattern.after
+import scala.concurrent.duration._
+import play.api.libs.concurrent.Akka
+import scala.concurrent.Future
+
 
 class AtomicTest extends Specification {
 
@@ -49,19 +54,24 @@ class AtomicTest extends Specification {
 
       val f = { x: TestValue =>
         {
-          println(x)
-
           val l = x.l.toList
           val ll = (new TestValue("testValue", l.size, List())) :: l
           val ntv = new TestValue(x.value, x.number, ll)
-          println(ntv)
           ntv
         }
       }
+      Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f)
+      Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f)
+      Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f)
       val ss = Await.result(Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f), Duration(20000, "millis"))
-      val ss1 = Await.result(Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f), Duration(20000, "millis"))
+      Await.result( after( Duration(50000, "millis"), using =
+            Akka.system.scheduler)(Future.successful("poke")),  Duration(20000, "millis"))
+    /*  val ss1 = Await.result(Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f), Duration(20000, "millis"))
       val ss2 = Await.result(Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f), Duration(20000, "millis"))
       val ss3 = Await.result(Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f), Duration(20000, "millis"))
+      println("=====> " + ss)
+      println("=====> " + ss1)
+      println("=====> " + ss2)*/
       println("=====> " + ss)
 
       assert(true)
