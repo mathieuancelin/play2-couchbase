@@ -1031,6 +1031,16 @@ object N1QLController extends Controller {
 
 ```
 
+
+Couchbase Atomic operation
+=======================
+
+Couchbase manage lock system to allow you to perform some Atomic operation. This driver use the Actor system to perform atomic operation easily.
+
+The AtomicTest test file give you an example about how to deal with it.
+
+
+
 Couchbase configuration cheatsheet
 ===================================
 
