@@ -21,8 +21,15 @@ import scala.util.Failure
 import akka.pattern.after
 import scala.concurrent.Await
 import sun.org.mozilla.javascript.internal.ast.Yield
+import scala.util.control.ControlThrowable
+import scala.util.Failure
 
 case class AtomicRequest[T](key: String, operation: T => T, bucket: CouchbaseBucket, atomic: Atomic, r: Reads[T], w: Writes[T], ec: ExecutionContext, numberTry: Int)
+
+case class AtomicSucess[T](key: String)
+case class AtomicError[T](request: AtomicRequest[T], message: String) extends ControlThrowable
+case class AtomicTooMuchTryError[T](request: AtomicRequest[T]) extends ControlThrowable
+case class AtomicNoKeyFoundError[T](request: AtomicRequest[T]) extends ControlThrowable
 
 object AtomicActor {
   def props[T]: Props = Props(classOf[AtomicActor[T]])
@@ -38,38 +45,59 @@ class AtomicActor[T] extends Actor {
       implicit val ww = ar.w
       implicit val bb = ar.bucket
       implicit val ee = ar.ec
+      // define other implicit
+      implicit val timeout = Timeout(180 seconds)
       // backup my sender, need it later, and actor shared state is not helping...
       val sen = sender
-      val myresult = ar.atomic.getAndLock(ar.key, 3600).onComplete {
-        case Success(Some(cas)) => {
-          // \o/ we successfully lock the key
-          // get current object
-          val cv = ar.r.reads(Json.parse(cas.getValue.toString)).get
-          // apply transformation and get new object
-          val nv = ar.operation(cv)
-          // write new object to couchbase and unlock :-)
-          // TODO : use asyncCAS method, better io management
-          val res = ar.bucket.couchbaseClient.cas(ar.key, cas.getCas, ar.w.writes(nv).toString)
-          // reply to sender it's OK
-          sen ! res
-        }
-        case _ => {
-          // Too bad, the object is not locked...
-          // first define implicit
-          implicit val timeout = Timeout(180 seconds)
-          // build a new atomic request
-          val ar2 = AtomicRequest(ar.key, ar.operation, ar.bucket, ar.atomic, ar.r, ar.w, ar.ec, ar.numberTry + 1)
-          // get my actor
-          val atomic_actor = Akka.system.actorOf(AtomicActor.props[T])
-          // wait and retry by asking actor with new atomic request
-          for (
-            d <- after(200 millis, using =
-              context.system.scheduler)(Future.successful(ar2));
-            tr <- (atomic_actor ? d)
-          // send result :-)
-          ) yield (sen ! tr)
 
+      if (ar.numberTry < 15) {
+
+        val myresult = ar.atomic.getAndLock(ar.key, 3600).onComplete {
+          case Success(Some(cas)) => {
+            // \o/ we successfully lock the key
+            // get current object
+            val cv = ar.r.reads(Json.parse(cas.getValue.toString)).get
+            // apply transformation and get new object
+            val nv = ar.operation(cv)
+            // write new object to couchbase and unlock :-)
+            // TODO : use asyncCAS method, better io management
+            val res = ar.bucket.couchbaseClient.cas(ar.key, cas.getCas, ar.w.writes(nv).toString)
+            // reply to sender it's OK
+            res match {
+              case CASResponse.OK => sen ! Future.successful(AtomicSucess[T](ar.key))
+              case CASResponse.NOT_FOUND => sen ! Future.failed(throw new AtomicNoKeyFoundError[T](ar))
+              case CASResponse.EXISTS => {
+                // something REALLY weird append during the locking time. But anyway, we can retry :-)
+                Logger.info("Couchbase lock WEIRD error : desync of CAS value. Retry anyway")
+                val ar2 = AtomicRequest(ar.key, ar.operation, ar.bucket, ar.atomic, ar.r, ar.w, ar.ec, ar.numberTry + 1)
+                val atomic_actor = Akka.system.actorOf(AtomicActor.props[T])
+                for (
+                  tr <- (atomic_actor ? ar2)
+                ) yield (sen ! tr)
+              }
+              case _ => sen ! Future.failed(throw new AtomicError[T](ar, res.name))
+            }
+            sen ! res
+          }
+          case Failure(_: OperationStatusErrorNotFound) => sen ! Future.failed(throw new AtomicNoKeyFoundError[T](ar))
+          case _ => {
+            // Too bad, the object is not locked and some else is working on it...
+            // build a new atomic request
+            val ar2 = AtomicRequest(ar.key, ar.operation, ar.bucket, ar.atomic, ar.r, ar.w, ar.ec, ar.numberTry + 1)
+            // get my actor
+            val atomic_actor = Akka.system.actorOf(AtomicActor.props[T])
+            // wait and retry by asking actor with new atomic request
+            for (
+              d <- after(200 millis, using =
+                context.system.scheduler)(Future.successful(ar2));
+              tr <- (atomic_actor ? d)
+            // send result :-)
+            ) yield (sen ! tr)
+
+          }
         }
+      } else {
+        sen ! Future.failed(throw new AtomicTooMuchTryError[T](ar))
       }
     }
     case _ => Logger.error("An atomic actor get a message, but not a atomic request, it's weird ! ")

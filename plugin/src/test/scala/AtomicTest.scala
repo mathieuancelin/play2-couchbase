@@ -16,7 +16,8 @@ import akka.pattern.after
 import scala.concurrent.duration._
 import play.api.libs.concurrent.Akka
 import scala.concurrent.Future
-
+import scala.util.Success
+import scala.util.Failure
 
 class AtomicTest extends Specification {
 
@@ -38,7 +39,7 @@ class AtomicTest extends Specification {
     "connect" in new WithApplication(fakeapp) {
       Couchbase.buckets must not empty
     }
-    /*
+
     "set key \"" + tk + "\" in default bucket" in new WithApplication(fakeapp) {
       implicit val e = Couchbase.couchbaseExecutor
 
@@ -47,7 +48,7 @@ class AtomicTest extends Specification {
       Await.result(s, Duration(20000, "millis")).isSuccess must equalTo(true)
 
     }
-*/
+
     "lock the key \"" + tk + "\" in default bucket" in new WithApplication(fakeapp) {
 
       implicit val e = Couchbase.couchbaseExecutor
@@ -60,31 +61,33 @@ class AtomicTest extends Specification {
           ntv
         }
       }
-      Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f)
-      Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f)
-      Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f)
-      val ss = Await.result(Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f), Duration(20000, "millis"))
-      Await.result( after( Duration(50000, "millis"), using =
-            Akka.system.scheduler)(Future.successful("poke")),  Duration(20000, "millis"))
-    /*  val ss1 = Await.result(Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f), Duration(20000, "millis"))
-      val ss2 = Await.result(Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f), Duration(20000, "millis"))
-      val ss3 = Await.result(Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f), Duration(20000, "millis"))
-      println("=====> " + ss)
-      println("=====> " + ss1)
-      println("=====> " + ss2)*/
-      println("=====> " + ss)
+      Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f).onComplete({
+        case Success(r) => println("Yes we did it ! 1")
+        case Failure(r) => println("we failed ! 1")
+      })
+      Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f).onComplete({
+        case Success(r) => println("Yes we did it ! 2")
+        case Failure(r) => println("we failed ! 2")
+      })
+      Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f).onComplete({
+        case Success(r) => println("Yes we did it ! 3")
+        case Failure(r) => println("we failed ! 3")
+      })
+      Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f).onComplete({
+        case Success(r) => println("Yes we did it ! 4")
+        case Failure(r) => println("we failed ! 4")
+      })
+
+      Couchbase.defaultBucket.atomicUpdate[TestValue](tk + "-plop", f).onComplete({
+        case Success(r) => println("Yes we did it ! AND IT'S WEIRD")
+        case Failure(r) => println("we failed ! AND IT'S GR8")
+      })
+
+      Await.result(after(Duration(6000, "millis"), using =
+        Akka.system.scheduler)(Future.successful("poke")), Duration(7001, "millis"))
 
       assert(true)
-      /*
-      val s = Couchbase.defaultBucket.getAndLock(tk, 3600)
 
-      Await.result(s, Duration(20000, "millis")).fold(assert(false))(x => {
-        println(x.getCas())
-        x.getValue().value in ok
-        assert(true)
-      })
-      * 
-      */
     }
 
   }

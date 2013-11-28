@@ -7,6 +7,7 @@ import com.couchbase.client.internal.{ HttpCompletionListener, HttpFuture }
 import net.spy.memcached.ops.OperationStatus
 import play.api.Logger
 import play.api.libs.json.Reads
+import scala.util.control.ControlThrowable
 
 object CouchbaseFutures {
 
@@ -59,29 +60,31 @@ object CouchbaseFutures {
     promise.future
   }
 
-  def waitForGetAndCas[T](future: OperationFuture[CASValue[Object]], ec: ExecutionContext, r:Reads[T]): Future[CASValue[T]] = {
+  class OperationStatusError(val opstat: OperationStatus) extends ControlThrowable
+  case class OperationStatusErrorNotFound(opstat1: OperationStatus) extends OperationStatusError(opstat1)
+  case class OperationStatusErrorIsLocked(opstat1: OperationStatus) extends OperationStatusError(opstat1)
+
+  def waitForGetAndCas[T](future: OperationFuture[CASValue[Object]], ec: ExecutionContext, r: Reads[T]): Future[CASValue[T]] = {
     val promise = Promise[CASValue[T]]()
     future.addListener(new OperationCompletionListener() {
       def onComplete(f: OperationFuture[_]) = {
-        if (Constants.failWithOpStatus && (!f.getStatus.isSuccess)) {
-          promise.failure(new OperationFailedException(f.getStatus))
-        } else {
-          if (!f.getStatus.isSuccess){ 
-            logger.error(f.getStatus.getMessage)
-            promise.failure(new Throwable(s"GetFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
+        if (!f.getStatus.isSuccess) {
+          logger.error(f.getStatus.getMessage + " for key " + f.getKey)
+          f.getStatus.getMessage match {
+            case "NOT_FOUND" => promise.failure(throw new OperationStatusErrorNotFound(f.getStatus))
+            case "LOCK_ERROR" => promise.failure(throw new OperationStatusErrorIsLocked(f.getStatus))
+            case _ => promise.failure(throw new OperationStatusError(f.getStatus))
           }
-          else
-          if (f.isDone || f.isCancelled) {
-            //val g = 
+        } else if (f.isDone || f.isCancelled) {
+          promise.success(f.get().asInstanceOf[CASValue[T]])
+        } else {
+          if (checkFutures) promise.failure(new Throwable(s"GetFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
+          else {
+            logger.info(s"GetFuture not completed yet, success anyway : ${f.isDone} : ${f.isCancelled}")
             promise.success(f.get().asInstanceOf[CASValue[T]])
-          } else {
-            if (checkFutures) promise.failure(new Throwable(s"GetFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
-            else {
-              logger.info(s"GetFuture not completed yet, success anyway : ${f.isDone} : ${f.isCancelled}")
-              promise.success(f.get().asInstanceOf[CASValue[T]])
-            }
           }
         }
+
       }
     })
     promise.future
