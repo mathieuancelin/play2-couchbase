@@ -17,7 +17,6 @@ import scala.util.Success
 import scala.util.Failure
 import org.ancelin.play2.couchbase.CouchbaseExpiration._
 
-
 class AtomicTest extends Specification {
 
   case class TestValue(value: String, number: Int, l: List[TestValue])
@@ -61,30 +60,29 @@ class AtomicTest extends Specification {
         }
       }
       Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f).onComplete({
-        case Success(r) => "Success of 1 atomic update" in ok
-        case Failure(r) => "Faillure of 1 atomic update" in failure
+        case Success(r) => println("Success of 1 atomic update")
+        case Failure(r) => println("Faillure of 1 atomic update")
       })
       Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f).onComplete({
-        case Success(r) => "Success of 2 atomic update" in ok
-        case Failure(r) => "Faillure of 2 atomic update" in failure
+        case Success(r) => println("Success of 2 atomic update")
+        case Failure(r) => println("Faillure of 2 atomic update")
       })
       Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f).onComplete({
-        case Success(r) => "Success of 3 atomic update" in ok
-        case Failure(r) => "Faillure of 3 atomic update" in failure
+        case Success(r) => println("Success of 3 atomic update")
+        case Failure(r) => println("Faillure of 3 atomic update")
       })
       Couchbase.defaultBucket.atomicUpdate[TestValue](tk, f).onComplete({
-        case Success(r) =>"Success of 4 atomic update" in ok
-        case Failure(r) => "Faillure of 4 atomic update" in failure
+        case Success(r) => println("Success of 4 atomic update")
+        case Failure(r) => println("Faillure of 4 atomic update")
       })
 
       Couchbase.defaultBucket.atomicUpdate[TestValue](tk + "-plop", f).onComplete({
-        case Success(r) => "Failure : successfully updated a non existing key O_o" in failure
-        case Failure(r) => "Success : unable to update a non existing key" in ok
+        case Success(r) => println("Failure : successfully updated a non existing key O_o")
+        case Failure(r) => println("Success : unable to update a non existing key")
       })
 
       Await.result(after(Duration(6000, "millis"), using =
         Akka.system.scheduler)(Future.successful("poke")), Duration(7001, "millis"))
-
 
     }
 
