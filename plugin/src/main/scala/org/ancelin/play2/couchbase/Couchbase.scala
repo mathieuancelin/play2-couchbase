@@ -36,7 +36,7 @@ class CouchbaseBucket(val client: Option[CouchbaseClient], val hosts: List[Strin
   }
 }
 
-object Couchbase extends Read with Write with Delete with Counters with Queries with JavaApi {
+object Couchbase extends Read with Write with Delete with Counters with Queries with JavaApi with Atomic {
 
   private val initMessage = "The CouchbasePlugin has not been initialized! Please edit your conf/play.plugins file and add the following line: '400:package org.ancelin.play2.couchbase.CouchbasePlugin' (400 is an arbitrary priority and may be changed to match your needs)."
   private val connectMessage = "The CouchbasePlugin doesn't seems to be connected to a Couchbase server. Maybe an error occured!"
