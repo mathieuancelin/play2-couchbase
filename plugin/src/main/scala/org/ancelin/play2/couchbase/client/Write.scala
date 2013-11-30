@@ -8,6 +8,8 @@ import net.spy.memcached.{PersistTo, ReplicateTo}
 import net.spy.memcached.transcoders.Transcoder
 import org.ancelin.play2.couchbase.client.CouchbaseFutures._
 import play.api.libs.iteratee.{Iteratee, Enumerator}
+import org.ancelin.play2.couchbase.CouchbaseExpiration._
+
 
 trait Write {
 
@@ -15,11 +17,11 @@ trait Write {
   // Set Operations
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  def setWithId[T <: {def id:String}](value: T, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def setWithId[T <: {def id:String}](value: T, exp: CouchbaseExpirationTiming = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     set[T](value.id, value, exp, persistTo, replicateTo)(bucket, w, ec)
   }
 
-  def setWithKey[T](key: T => String, value: T, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def setWithKey[T](key: T => String, value: T, exp: CouchbaseExpirationTiming = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     set[T](key(value), value, exp, persistTo, replicateTo)(bucket, w, ec)
   }
 
@@ -27,21 +29,21 @@ trait Write {
     waitForOperationStatus( bucket.couchbaseClient.set(key, Constants.expiration, value, tc), ec )
   }
 
-  def set[T](key: String, exp: Int, value: T, tc: Transcoder[T])(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
+  def set[T](key: String, exp: CouchbaseExpirationTiming, value: T, tc: Transcoder[T])(implicit bucket: CouchbaseBucket, ec: ExecutionContext): Future[OperationStatus] = {
     waitForOperationStatus( bucket.couchbaseClient.set(key, exp, value, tc), ec )
   }
 
-  def set[T](key: String, value: T, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def set[T](key: String, value: T, exp: CouchbaseExpirationTiming = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     waitForOperationStatus( bucket.couchbaseClient.set(key, exp, Json.stringify(w.writes(value)), persistTo, replicateTo), ec )
   }
 
-  def setStream[T](data: Enumerator[(String, T)], exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
+  def setStream[T](data: Enumerator[(String, T)], exp: CouchbaseExpirationTiming = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
     data(Iteratee.fold(List[Future[OperationStatus]]()) { (list, chunk) =>
       list :+ set[T](chunk._1, chunk._2, exp, persistTo, replicateTo)(bucket, w, ec)
     }).flatMap(_.run).flatMap(Future.sequence(_))
   }
 
-  def setStreamWithKey[T](key: T => String, data: Enumerator[T], exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
+  def setStreamWithKey[T](key: T => String, data: Enumerator[T], exp: CouchbaseExpirationTiming = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
     data(Iteratee.fold(List[Future[OperationStatus]]()) { (list, chunk) =>
       list :+ set[T](key(chunk), chunk, exp, persistTo, replicateTo)(bucket, w, ec)
     }).flatMap(_.run).flatMap(Future.sequence(_))
@@ -51,25 +53,25 @@ trait Write {
   // Add Operations
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  def addWithId[T <: {def id:String}](value: T, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def addWithId[T <: {def id:String}](value: T, exp: CouchbaseExpirationTiming = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     add[T](value.id, value, exp, persistTo, replicateTo)(bucket, w, ec)
   }
 
-  def addWithKey[T](key: T => String, value: T, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def addWithKey[T](key: T => String, value: T, exp: CouchbaseExpirationTiming = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     add[T](key(value), value, exp, persistTo, replicateTo)(bucket, w, ec)
   }
 
-  def add[T](key: String, value: T, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def add[T](key: String, value: T, exp: CouchbaseExpirationTiming = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     waitForOperationStatus( bucket.couchbaseClient.add(key, exp, Json.stringify(w.writes(value)), persistTo, replicateTo), ec )
   }
 
-  def addStream[T](data: Enumerator[(String, T)], exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
+  def addStream[T](data: Enumerator[(String, T)], exp: CouchbaseExpirationTiming = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
     data(Iteratee.fold(List[Future[OperationStatus]]()) { (list, chunk) =>
       list :+ add[T](chunk._1, chunk._2, exp, persistTo, replicateTo)(bucket, w, ec)
     }).flatMap(_.run).flatMap(Future.sequence(_))
   }
 
-  def addStreamWithKey[T](key: T => String, data: Enumerator[T], exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
+  def addStreamWithKey[T](key: T => String, data: Enumerator[T], exp: CouchbaseExpirationTiming = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
     data(Iteratee.fold(List[Future[OperationStatus]]()) { (list, chunk) =>
       list :+ add[T](key(chunk), chunk, exp, persistTo, replicateTo)(bucket, w, ec)
     }).flatMap(_.run).flatMap(Future.sequence(_))
@@ -79,25 +81,25 @@ trait Write {
   // Replace Operations
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  def replaceWithId[T <: {def id:String}](value: T, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def replaceWithId[T <: {def id:String}](value: T, exp: CouchbaseExpirationTiming = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     replace[T](value.id, value, exp, persistTo, replicateTo)(bucket, w, ec)
   }
 
-  def replaceWithKey[T](key: T => String, value: T, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def replaceWithKey[T](key: T => String, value: T, exp: CouchbaseExpirationTiming = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     replace[T](key(value), value, exp, persistTo, replicateTo)(bucket, w, ec)
   }
 
-  def replace[T](key: String, value: T, exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
+  def replace[T](key: String, value: T, exp: CouchbaseExpirationTiming = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[OperationStatus] = {
     waitForOperationStatus( bucket.couchbaseClient.replace(key, exp, Json.stringify(w.writes(value)), persistTo, replicateTo), ec )
   }
 
-  def replaceStream[T](data: Enumerator[(String, T)], exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
+  def replaceStream[T](data: Enumerator[(String, T)], exp: CouchbaseExpirationTiming = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
     data(Iteratee.fold(List[Future[OperationStatus]]()) { (list, chunk) =>
       list :+ replace[T](chunk._1, chunk._2, exp, persistTo, replicateTo)(bucket, w, ec)
     }).flatMap(_.run).flatMap(Future.sequence(_))
   }
 
-  def replaceStreamWithKey[T](key: T => String, data: Enumerator[T], exp: Int = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
+  def replaceStreamWithKey[T](key: T => String, data: Enumerator[T], exp: CouchbaseExpirationTiming = Constants.expiration, persistTo: PersistTo = PersistTo.ZERO, replicateTo: ReplicateTo = ReplicateTo.ZERO)(implicit bucket: CouchbaseBucket, w: Writes[T], ec: ExecutionContext): Future[List[OperationStatus]] = {
     data(Iteratee.fold(List[Future[OperationStatus]]()) { (list, chunk) =>
       list :+ replace[T](key(chunk), chunk, exp, persistTo, replicateTo)(bucket, w, ec)
     }).flatMap(_.run).flatMap(Future.sequence(_))

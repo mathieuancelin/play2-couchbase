@@ -23,6 +23,7 @@ import scala.concurrent.Await
 import sun.org.mozilla.javascript.internal.ast.Yield
 import scala.util.control.ControlThrowable
 import scala.util.Failure
+import org.ancelin.play2.couchbase.CouchbaseExpiration._
 
 case class AtomicRequest[T](key: String, operation: T => T, bucket: CouchbaseBucket, atomic: Atomic, r: Reads[T], w: Writes[T], ec: ExecutionContext, numberTry: Int)
 
@@ -52,7 +53,7 @@ class AtomicActor[T] extends Actor {
 
       if (ar.numberTry < 15) {
 
-        val myresult = ar.atomic.getAndLock(ar.key, 3600).onComplete {
+        val myresult = ar.atomic.getAndLock(ar.key, 5 minutes).onComplete {
           case Success(Some(cas)) => {
             // \o/ we successfully lock the key
             // get current object
@@ -77,7 +78,6 @@ class AtomicActor[T] extends Actor {
               }
               case _ => sen ! Future.failed(throw new AtomicError[T](ar, res.name))
             }
-            sen ! res
           }
           case Failure(_: OperationStatusErrorNotFound) => sen ! Future.failed(throw new AtomicNoKeyFoundError[T](ar))
           case _ => {
@@ -106,7 +106,7 @@ class AtomicActor[T] extends Actor {
 
 trait Atomic {
 
-  def getAndLock[T](key: String, exp: Int)(implicit r: Reads[T], bucket: CouchbaseBucket, ec: ExecutionContext): Future[Option[CASValue[T]]] = {
+  def getAndLock[T](key: String, exp: CouchbaseExpirationTiming)(implicit r: Reads[T], bucket: CouchbaseBucket, ec: ExecutionContext): Future[Option[CASValue[T]]] = {
     waitForGetAndCas[T](bucket.couchbaseClient.asyncGetAndLock(key, exp), ec, r) map {
       case value: CASValue[T] =>
         Some[CASValue[T]](value)
