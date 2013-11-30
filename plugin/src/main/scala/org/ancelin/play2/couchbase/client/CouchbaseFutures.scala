@@ -60,9 +60,9 @@ object CouchbaseFutures {
     promise.future
   }
 
-  class OperationStatusError(val opstat: OperationStatus) extends ControlThrowable
-  case class OperationStatusErrorNotFound(opstat1: OperationStatus) extends OperationStatusError(opstat1)
-  case class OperationStatusErrorIsLocked(opstat1: OperationStatus) extends OperationStatusError(opstat1)
+  class OperationStatusError(val opstat: OperationStatus) extends Throwable
+  class OperationStatusErrorNotFound(val opstat: OperationStatus) extends Throwable
+  class OperationStatusErrorIsLocked(val opstat: OperationStatus) extends Throwable
 
   def waitForGetAndCas[T](future: OperationFuture[CASValue[Object]], ec: ExecutionContext, r: Reads[T]): Future[CASValue[T]] = {
     val promise = Promise[CASValue[T]]()
@@ -71,9 +71,9 @@ object CouchbaseFutures {
         if (!f.getStatus.isSuccess) {
           logger.error(f.getStatus.getMessage + " for key " + f.getKey)
           f.getStatus.getMessage match {
-            case "NOT_FOUND" => promise.failure(throw new OperationStatusErrorNotFound(f.getStatus))
-            case "LOCK_ERROR" => promise.failure(throw new OperationStatusErrorIsLocked(f.getStatus))
-            case _ => promise.failure(throw new OperationStatusError(f.getStatus))
+            case "NOT_FOUND" => promise.failure(new OperationStatusErrorNotFound(f.getStatus))
+            case "LOCK_ERROR" => promise.failure(new OperationStatusErrorIsLocked(f.getStatus))
+            case _ => promise.failure(new OperationStatusError(f.getStatus))
           }
         } else if (f.isDone || f.isCancelled) {
           promise.success(f.get().asInstanceOf[CASValue[T]])

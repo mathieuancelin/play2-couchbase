@@ -23,6 +23,7 @@ import scala.concurrent.Await
 import sun.org.mozilla.javascript.internal.ast.Yield
 import scala.util.control.ControlThrowable
 import scala.util.Failure
+import scala.util.Failure
 
 case class AtomicRequest[T](key: String, operation: T => T, bucket: CouchbaseBucket, atomic: Atomic, r: Reads[T], w: Writes[T], ec: ExecutionContext, numberTry: Int)
 
@@ -77,10 +78,9 @@ class AtomicActor[T] extends Actor {
               }
               case _ => sen ! Future.failed(throw new AtomicError[T](ar, res.name))
             }
-            sen ! res
           }
-          case Failure(_: OperationStatusErrorNotFound) => sen ! Future.failed(throw new AtomicNoKeyFoundError[T](ar))
-          case _ => {
+          case Failure(ex: OperationStatusErrorNotFound) => sen ! Future.failed(new AtomicNoKeyFoundError[T](ar))
+          case r => {
             // Too bad, the object is not locked and some else is working on it...
             // build a new atomic request
             val ar2 = AtomicRequest(ar.key, ar.operation, ar.bucket, ar.atomic, ar.r, ar.w, ar.ec, ar.numberTry + 1)
@@ -93,7 +93,6 @@ class AtomicActor[T] extends Actor {
               tr <- (atomic_actor ? d)
             // send result :-)
             ) yield (sen ! tr)
-
           }
         }
       } else {
