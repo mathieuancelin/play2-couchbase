@@ -49,7 +49,7 @@ class AtomicActor[T] extends Actor {
       implicit val bb = ar.bucket
       implicit val ee = ar.ec
       // define other implicit
-      implicit val timeout = Timeout(180 seconds)
+      implicit val timeout = Timeout(8 minutes)
       // backup my sender, need it later, and actor shared state is not helping...
       val sen = sender
 
@@ -123,7 +123,7 @@ trait Atomic {
   }
 
   def atomicUpdate[T](key: String, operation: T => T)(implicit bucket: CouchbaseBucket, ec: ExecutionContext, r: Reads[T], w: Writes[T]): Future[Any] = {
-    implicit val timeout = Timeout(180 seconds)
+    implicit val timeout = Timeout(8 minutes)
     val ar = AtomicRequest[T](key, operation, bucket, this, r, w, ec, 1)
     val atomic_actor = Akka.system.actorOf(AtomicActor.props[T])
     (atomic_actor.ask(ar))
