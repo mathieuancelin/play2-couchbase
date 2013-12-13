@@ -32,6 +32,7 @@ case class AtomicSucess[T](key: String)
 case class AtomicError[T](request: AtomicRequest[T], message: String) extends ControlThrowable
 case class AtomicTooMuchTryError[T](request: AtomicRequest[T]) extends ControlThrowable
 case class AtomicNoKeyFoundError[T](request: AtomicRequest[T]) extends ControlThrowable
+case class AtomicWeirdError() extends ControlThrowable
 
 object AtomicActor {
   def props[T]: Props = Props(classOf[AtomicActor[T]])
@@ -100,7 +101,10 @@ class AtomicActor[T] extends Actor {
         sen ! Future.failed(throw new AtomicTooMuchTryError[T](ar))
       }
     }
-    case _ => Logger.error("An atomic actor get a message, but not a atomic request, it's weird ! ")
+    case _ => {
+      Logger.error("An atomic actor get a message, but not a atomic request, it's weird ! ")
+      sender ! Future.failed(throw new AtomicWeirdError())
+    }
   }
 }
 
