@@ -16,3 +16,9 @@ dist
 /RUNNING_PID
 /.settings
 .DS_Store
+.cache
+.classpath
+.project
+.target
+bin/
+.settings
