@@ -5,7 +5,7 @@
     <artifactId>play2-couchbase_2.10</artifactId>
     <packaging>jar</packaging>
     <description>play2-couchbase</description>
-    <version>0.6-SNAPSHOT</version>
+    <version>0.7-SNAPSHOT</version>
     <name>play2-couchbase</name>
     <organization>
         <name>org.ancelin.play2.couchbase</name>
