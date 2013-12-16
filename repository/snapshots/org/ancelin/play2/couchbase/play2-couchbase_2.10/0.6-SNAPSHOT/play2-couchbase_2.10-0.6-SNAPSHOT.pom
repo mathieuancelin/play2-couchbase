@@ -32,5 +32,11 @@
             <artifactId>play-cache_2.10</artifactId>
             <version>2.2.0</version>
         </dependency>
+        <dependency>
+            <groupId>com.typesafe.play</groupId>
+            <artifactId>play-test_2.10</artifactId>
+            <version>2.2.0</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>
