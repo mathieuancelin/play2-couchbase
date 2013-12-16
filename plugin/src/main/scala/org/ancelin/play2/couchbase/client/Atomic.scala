@@ -1,6 +1,6 @@
 package org.ancelin.play2.couchbase.client
 
-import org.ancelin.play2.couchbase.{ CouchbaseBucket, Couchbase }
+import org.ancelin.play2.couchbase.CouchbaseBucket
 import scala.concurrent.{ Future, ExecutionContext }
 import net.spy.memcached.ops.OperationStatus
 import org.ancelin.play2.couchbase.client.CouchbaseFutures._
@@ -9,20 +9,14 @@ import play.api.libs.json._
 import akka.actor.Actor
 import play.libs.Akka
 import akka.actor.Props
-import java.util.UUID
 import akka.pattern.ask
 import akka.util.Timeout
 import scala.concurrent.duration._
-import play.api.Play.current
 import play.Logger
 import net.spy.memcached.CASResponse
 import scala.util.Success
-import scala.util.Failure
 import akka.pattern.after
-import scala.concurrent.Await
-import sun.org.mozilla.javascript.internal.ast.Yield
 import scala.util.control.ControlThrowable
-import scala.util.Failure
 import scala.util.Failure
 
 case class AtomicRequest[T](key: String, operation: T => T, bucket: CouchbaseBucket, atomic: Atomic, r: Reads[T], w: Writes[T], ec: ExecutionContext, numberTry: Int)
