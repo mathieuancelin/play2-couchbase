@@ -1,10 +1,13 @@
 package org.ancelin.play2.couchbase.client
 
 import net.spy.memcached.internal._
-import scala.concurrent.{Promise, Future, ExecutionContext}
-import com.couchbase.client.internal.{HttpCompletionListener, HttpFuture}
+import net.spy.memcached.CASValue
+import scala.concurrent.{ Promise, Future, ExecutionContext }
+import com.couchbase.client.internal.{ HttpCompletionListener, HttpFuture }
 import net.spy.memcached.ops.OperationStatus
 import play.api.Logger
+import play.api.libs.json.Reads
+import scala.util.control.ControlThrowable
 
 object CouchbaseFutures {
 
@@ -52,6 +55,36 @@ object CouchbaseFutures {
             }
           }
         }
+      }
+    })
+    promise.future
+  }
+
+  class OperationStatusError(val opstat: OperationStatus) extends Throwable
+  class OperationStatusErrorNotFound(val opstat: OperationStatus) extends Throwable
+  class OperationStatusErrorIsLocked(val opstat: OperationStatus) extends Throwable
+
+  def waitForGetAndCas[T](future: OperationFuture[CASValue[Object]], ec: ExecutionContext, r: Reads[T]): Future[CASValue[T]] = {
+    val promise = Promise[CASValue[T]]()
+    future.addListener(new OperationCompletionListener() {
+      def onComplete(f: OperationFuture[_]) = {
+        if (!f.getStatus.isSuccess) {
+          logger.error(f.getStatus.getMessage + " for key " + f.getKey)
+          f.getStatus.getMessage match {
+            case "NOT_FOUND" => promise.failure(new OperationStatusErrorNotFound(f.getStatus))
+            case "LOCK_ERROR" => promise.failure(new OperationStatusErrorIsLocked(f.getStatus))
+            case _ => promise.failure(new OperationStatusError(f.getStatus))
+          }
+        } else if (f.isDone || f.isCancelled) {
+          promise.success(f.get().asInstanceOf[CASValue[T]])
+        } else {
+          if (checkFutures) promise.failure(new Throwable(s"GetFuture epic fail !!! ${f.isDone} : ${f.isCancelled}"))
+          else {
+            logger.info(s"GetFuture not completed yet, success anyway : ${f.isDone} : ${f.isCancelled}")
+            promise.success(f.get().asInstanceOf[CASValue[T]])
+          }
+        }
+
       }
     })
     promise.future
