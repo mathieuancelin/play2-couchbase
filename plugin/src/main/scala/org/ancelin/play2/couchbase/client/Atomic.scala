@@ -14,10 +14,10 @@ import akka.util.Timeout
 import scala.concurrent.duration._
 import play.Logger
 import net.spy.memcached.CASResponse
-import scala.util.Success
+import scala.util.{Failure, Success}
 import akka.pattern.after
 import scala.util.control.ControlThrowable
-import scala.util.Failure
+import org.ancelin.play2.couchbase.CouchbaseExpiration._
 
 case class AtomicRequest[T](key: String, operation: T => T, bucket: CouchbaseBucket, atomic: Atomic, r: Reads[T], w: Writes[T], ec: ExecutionContext, numberTry: Int)
 
@@ -25,6 +25,7 @@ case class AtomicSucess[T](key: String)
 case class AtomicError[T](request: AtomicRequest[T], message: String) extends ControlThrowable
 case class AtomicTooMuchTryError[T](request: AtomicRequest[T]) extends ControlThrowable
 case class AtomicNoKeyFoundError[T](request: AtomicRequest[T]) extends ControlThrowable
+case class AtomicWeirdError() extends ControlThrowable
 
 object AtomicActor {
   def props[T]: Props = Props(classOf[AtomicActor[T]])
@@ -41,13 +42,13 @@ class AtomicActor[T] extends Actor {
       implicit val bb = ar.bucket
       implicit val ee = ar.ec
       // define other implicit
-      implicit val timeout = Timeout(180 seconds)
+      implicit val timeout = Timeout(8 minutes)
       // backup my sender, need it later, and actor shared state is not helping...
       val sen = sender
 
       if (ar.numberTry < 15) {
 
-        val myresult = ar.atomic.getAndLock(ar.key, 3600).onComplete {
+        val myresult = ar.atomic.getAndLock(ar.key, 5 minutes).onComplete {
           case Success(Some(cas)) => {
             // \o/ we successfully lock the key
             // get current object
@@ -93,13 +94,16 @@ class AtomicActor[T] extends Actor {
         sen ! Future.failed(throw new AtomicTooMuchTryError[T](ar))
       }
     }
-    case _ => Logger.error("An atomic actor get a message, but not a atomic request, it's weird ! ")
+    case _ => {
+      Logger.error("An atomic actor get a message, but not a atomic request, it's weird ! ")
+      sender ! Future.failed(throw new AtomicWeirdError())
+    }
   }
 }
 
 trait Atomic {
 
-  def getAndLock[T](key: String, exp: Int)(implicit r: Reads[T], bucket: CouchbaseBucket, ec: ExecutionContext): Future[Option[CASValue[T]]] = {
+  def getAndLock[T](key: String, exp: CouchbaseExpirationTiming)(implicit r: Reads[T], bucket: CouchbaseBucket, ec: ExecutionContext): Future[Option[CASValue[T]]] = {
     waitForGetAndCas[T](bucket.couchbaseClient.asyncGetAndLock(key, exp), ec, r) map {
       case value: CASValue[T] =>
         Some[CASValue[T]](value)
@@ -112,7 +116,7 @@ trait Atomic {
   }
 
   def atomicUpdate[T](key: String, operation: T => T)(implicit bucket: CouchbaseBucket, ec: ExecutionContext, r: Reads[T], w: Writes[T]): Future[Any] = {
-    implicit val timeout = Timeout(180 seconds)
+    implicit val timeout = Timeout(8 minutes)
     val ar = AtomicRequest[T](key, operation, bucket, this, r, w, ec, 1)
     val atomic_actor = Akka.system.actorOf(AtomicActor.props[T])
     (atomic_actor.ask(ar))

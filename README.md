@@ -1033,11 +1033,18 @@ object N1QLController extends Controller {
 
 
 Couchbase Atomic operation
-=======================
+==========================
 
 Couchbase manage lock system to allow you to perform some Atomic operation. This driver use the Actor system to perform atomic operation easily.
 
 The AtomicTest test file give you an example about how to deal with it.
+
+
+About Couchbase Expiration
+===========================
+
+Couchbase manage expiration of value with Int. Just import org.ancelin.play2.couchbase.CouchbaseExpiration._ to be able to manage expiration with Int or Duration. Due to couchbase [weird management of timestamp and duration](http://docs.couchbase.com/couchbase-sdk-java-1.0/#expiry-values) duration longer than 30 days will be converted to timestamp...
+
 
 
 
