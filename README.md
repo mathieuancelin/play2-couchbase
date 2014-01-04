@@ -1,10 +1,10 @@
 
-Couchbase Plugin for Play framework 2.2
+Maybe you're looking for ReactiveCouchbase
 =======================================
 
-The project has moved and is renamed ReactiveCouchbase
+The project has moved and is renamed **ReactiveCouchbase**
 
-You can find more about it on the ReactiveCouchbase website (<a href="http://reactivecouchbase.org">http://reactivecouchbase.org</a>)
+You can find more about it on the **ReactiveCouchbase** website (<a href="http://reactivecouchbase.org">http://reactivecouchbase.org</a>)
 
 The GitHub organization is available <a href="https://github.com/ReactiveCouchbase">here</a> and the new Play plugin code is available <a href="https://github.com/ReactiveCouchbase/ReactiveCouchbase-play">here</a>
 
